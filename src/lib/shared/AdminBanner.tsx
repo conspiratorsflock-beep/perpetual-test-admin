@@ -8,6 +8,7 @@ import {
   getDismissedAnnouncements,
   dismissAnnouncement,
   filterAnnouncements,
+  canDismissAnnouncement,
 } from "./admin-banner";
 
 // Icon components for each type
@@ -68,6 +69,16 @@ export function AdminBanner({
     setIsMounted(true);
   }, []);
 
+  // Listen for reset events from clearAllDismissals()
+  useEffect(() => {
+    const handleReset = () => {
+      setDismissedIds([]);
+    };
+    
+    window.addEventListener("announcements:reset", handleReset);
+    return () => window.removeEventListener("announcements:reset", handleReset);
+  }, []);
+
   // Get the announcement to display
   const displayAnnouncement = announcement
     ? announcement
@@ -88,6 +99,7 @@ export function AdminBanner({
 
   const TypeIcon = typeIcons[displayAnnouncement.type];
   const styles = bannerStyles[displayAnnouncement.type];
+  const isDismissible = canDismissAnnouncement(displayAnnouncement.type);
 
   return (
     <div
@@ -120,18 +132,20 @@ export function AdminBanner({
           />
         </div>
 
-        {/* Dismiss button */}
-        <button
-          onClick={handleDismiss}
-          className={`
-            flex-shrink-0 -mr-1 -mt-1 p-1 rounded
-            transition-colors
-            ${styles.closeButton}
-          `}
-          aria-label="Dismiss announcement"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        {/* Dismiss button - only for non-critical announcements */}
+        {isDismissible && (
+          <button
+            onClick={handleDismiss}
+            className={`
+              flex-shrink-0 -mr-1 -mt-1 p-1 rounded
+              transition-colors
+              ${styles.closeButton}
+            `}
+            aria-label="Dismiss announcement"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -164,6 +178,16 @@ export function AdminBannerStack({
   useEffect(() => {
     setDismissedIds(getDismissedAnnouncements());
     setIsMounted(true);
+  }, []);
+
+  // Listen for reset events from clearAllDismissals()
+  useEffect(() => {
+    const handleReset = () => {
+      setDismissedIds([]);
+    };
+    
+    window.addEventListener("announcements:reset", handleReset);
+    return () => window.removeEventListener("announcements:reset", handleReset);
   }, []);
 
   if (!isMounted) return null;

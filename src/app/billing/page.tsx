@@ -20,6 +20,7 @@ import {
   ArrowDownRight,
   Loader2,
   AlertCircle,
+  Settings,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { BillingMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
 import {
   getBillingMetrics,
@@ -54,6 +55,7 @@ export default function BillingPage() {
   const [mrrData, setMrrData] = useState<MRRDataPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isStripeConfigured, setIsStripeConfigured] = useState(true);
 
   useEffect(() => {
     async function loadBillingData() {
@@ -72,6 +74,16 @@ export default function BillingPage() {
         setInvoices(invoicesData);
         setCoupons(couponsData);
         setMrrData(mrrHistory);
+
+        // Check if Stripe is configured (all zeros indicates mock data)
+        const isConfigured = !(
+          metricsData.mrr === 0 &&
+          metricsData.activeSubscriptions === 0 &&
+          metricsData.arr === 0 &&
+          invoicesData.length === 0 &&
+          couponsData.length === 0
+        );
+        setIsStripeConfigured(isConfigured);
       } catch (err) {
         console.error("Failed to load billing data:", err);
         setError(err instanceof Error ? err.message : "Failed to load billing data");
@@ -126,6 +138,17 @@ export default function BillingPage() {
           Revenue metrics, invoices, and subscription overview.
         </p>
       </div>
+
+      {/* Stripe Not Configured Notice */}
+      {!isStripeConfigured && (
+        <Alert className="bg-amber-900/20 border-amber-700">
+          <Settings className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-400">Stripe Not Configured</AlertTitle>
+          <AlertDescription className="text-amber-300/80">
+            Billing data is not available. Set <code className="bg-amber-950/50 px-1 rounded">STRIPE_SECRET_KEY</code> in your environment to enable billing features.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -328,7 +351,7 @@ export default function BillingPage() {
                   {invoices.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center text-slate-500">
-                        No invoices found.
+                        {isStripeConfigured ? "No invoices found." : "Stripe not configured."}
                       </TableCell>
                     </TableRow>
                   )}
@@ -382,7 +405,7 @@ export default function BillingPage() {
                   {coupons.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} className="h-24 text-center text-slate-500">
-                        No active coupons found.
+                        {isStripeConfigured ? "No active coupons found." : "Stripe not configured."}
                       </TableCell>
                     </TableRow>
                   )}

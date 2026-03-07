@@ -78,15 +78,19 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
 /**
  * Create a new announcement.
  */
-export async function createAnnouncement(data: {
-  title: string;
-  content: string;
-  type: AnnouncementType;
-  targetTiers?: string[];
-  targetOrgs?: string[];
-  startsAt?: string;
-  endsAt?: string | null;
-}): Promise<AdminAnnouncement> {
+export async function createAnnouncement(
+  data: {
+    title: string;
+    content: string;
+    type: AnnouncementType;
+    targetTiers?: string[];
+    targetOrgs?: string[];
+    startsAt?: string;
+    endsAt?: string | null;
+  },
+  createdBy: string,
+  createdByEmail: string
+): Promise<AdminAnnouncement> {
   const { data: row, error } = await supabaseAdmin
     .from("admin_announcements")
     .insert({
@@ -98,6 +102,8 @@ export async function createAnnouncement(data: {
       starts_at: data.startsAt || new Date().toISOString(),
       ends_at: data.endsAt || null,
       is_active: true,
+      created_by: createdBy,
+      created_by_email: createdByEmail,
     })
     .select()
     .single();

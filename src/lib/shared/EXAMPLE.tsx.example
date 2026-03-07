@@ -37,10 +37,11 @@ async function LayoutExample() {
 
 import { useUser } from "@clerk/nextjs";
 import { useOrganization } from "@clerk/nextjs";
-import { AdminBanner } from "@/lib/admin-banner/AdminBanner";
-import { getActiveAnnouncements } from "@/lib/admin-banner/get-announcements";
+// These imports are for the MAIN APP - update paths when copying
+import { AdminBanner } from "./AdminBanner";
+import { getActiveAnnouncements } from "./get-announcements";
 import { useEffect, useState } from "react";
-import type { AdminAnnouncement } from "@/lib/admin-banner/admin-banner";
+import type { AdminAnnouncement } from "./admin-banner";
 
 export function AnnouncementBar() {
   const { user } = useUser();

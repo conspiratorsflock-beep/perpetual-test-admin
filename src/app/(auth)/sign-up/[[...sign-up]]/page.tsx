@@ -12,7 +12,10 @@ export default function SignUpPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-400">Create an admin account</p>
       </div>
-      <SignUp />
+      <SignUp
+        fallbackRedirectUrl="/dashboard"
+        signInFallbackRedirectUrl="/dashboard"
+      />
     </div>
   );
 }

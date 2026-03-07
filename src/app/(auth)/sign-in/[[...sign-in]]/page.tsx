@@ -12,7 +12,10 @@ export default function SignInPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-400">Sign in to continue</p>
       </div>
-      <SignIn />
+      <SignIn
+        fallbackRedirectUrl="/dashboard"
+        signUpFallbackRedirectUrl="/dashboard"
+      />
     </div>
   );
 }

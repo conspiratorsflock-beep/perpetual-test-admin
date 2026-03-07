@@ -1,13 +1,39 @@
 "use server";
 
-import { stripe } from "@/lib/stripe/client";
+import { stripe, isStripeConfigured } from "@/lib/stripe/client";
 import { logAdminAction } from "@/lib/audit/logger";
 import type { BillingMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
+
+// Mock data for when Stripe is not configured
+const mockMetrics: BillingMetrics = {
+  mrr: 0,
+  arr: 0,
+  activeSubscriptions: 0,
+  trialingSubscriptions: 0,
+  pastDueSubscriptions: 0,
+  canceledSubscriptions: 0,
+  churnRate: 0,
+  averageRevenuePerUser: 0,
+};
+
+const mockMRRHistory = [
+  { month: "Jan", mrr: 0 },
+  { month: "Feb", mrr: 0 },
+  { month: "Mar", mrr: 0 },
+  { month: "Apr", mrr: 0 },
+  { month: "May", mrr: 0 },
+  { month: "Jun", mrr: 0 },
+];
 
 /**
  * Get billing metrics from Stripe
  */
 export async function getBillingMetrics(): Promise<BillingMetrics> {
+  if (!isStripeConfigured || !stripe) {
+    console.warn("Stripe not configured, returning mock billing metrics");
+    return mockMetrics;
+  }
+
   try {
     // Get all active subscriptions
     const subscriptions = await stripe.subscriptions.list({
@@ -91,6 +117,11 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
  * Get recent invoices from Stripe
  */
 export async function getRecentInvoices(limit = 10): Promise<StripeInvoice[]> {
+  if (!isStripeConfigured || !stripe) {
+    console.warn("Stripe not configured, returning empty invoices");
+    return [];
+  }
+
   try {
     const invoices = await stripe.invoices.list({
       limit,
@@ -122,6 +153,11 @@ export async function getRecentInvoices(limit = 10): Promise<StripeInvoice[]> {
  * Get active coupons from Stripe
  */
 export async function getActiveCoupons(): Promise<StripeCoupon[]> {
+  if (!isStripeConfigured || !stripe) {
+    console.warn("Stripe not configured, returning empty coupons");
+    return [];
+  }
+
   try {
     const coupons = await stripe.coupons.list({
       limit: 100,
@@ -153,6 +189,11 @@ export async function getActiveCoupons(): Promise<StripeCoupon[]> {
  * Get MRR history for chart data
  */
 export async function getMRRHistory(months = 6): Promise<{ month: string; mrr: number }[]> {
+  if (!isStripeConfigured || !stripe) {
+    console.warn("Stripe not configured, returning mock MRR history");
+    return mockMRRHistory.slice(-months);
+  }
+
   try {
     // Get all subscriptions
     const subscriptions = await stripe.subscriptions.list({
@@ -218,6 +259,10 @@ export async function createCoupon(params: {
   durationInMonths?: number;
   maxRedemptions?: number;
 }) {
+  if (!isStripeConfigured || !stripe) {
+    throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
+  }
+
   try {
     const coupon = await stripe.coupons.create({
       name: params.name,
@@ -248,6 +293,10 @@ export async function createCoupon(params: {
  * Delete a coupon
  */
 export async function deleteCoupon(couponId: string) {
+  if (!isStripeConfigured || !stripe) {
+    throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
+  }
+
   try {
     await stripe.coupons.del(couponId);
 

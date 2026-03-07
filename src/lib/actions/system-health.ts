@@ -77,6 +77,17 @@ async function checkClerkHealth(): Promise<HealthCheckResult> {
  */
 async function checkStripeHealth(): Promise<HealthCheckResult> {
   const start = Date.now();
+  
+  // Check if Stripe is configured
+  if (!stripe) {
+    return {
+      name: "Stripe API",
+      status: "healthy",
+      latency: 0,
+      message: "Not configured",
+    };
+  }
+  
   try {
     await stripe.customers.list({ limit: 1 });
     const latency = Date.now() - start;
@@ -226,13 +237,13 @@ export async function getLatestHealthStatus(): Promise<SystemHealthCheck[]> {
       }
     }
 
-    return Array.from(latestByService.values()).map((row) => ({
-      id: row.id,
-      serviceName: row.service_name,
+    return Array.from(latestByService.values()).map((row: Record<string, unknown>) => ({
+      id: row.id as string,
+      serviceName: row.service_name as string,
       status: row.status as ServiceStatus,
-      latencyMs: row.latency_ms,
-      errorMessage: row.error_message,
-      checkedAt: row.checked_at,
+      latencyMs: row.latency_ms as number | null,
+      errorMessage: row.error_message as string | null,
+      checkedAt: row.checked_at as string,
     }));
   }
 

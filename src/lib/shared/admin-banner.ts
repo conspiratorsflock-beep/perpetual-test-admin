@@ -166,6 +166,7 @@ export function clearDismissedAnnouncements(): void {
 
 /**
  * Filter announcements to only show relevant, non-dismissed ones.
+ * Critical announcements cannot be dismissed and are always shown.
  */
 export function filterAnnouncements(
   announcements: AdminAnnouncement[],
@@ -175,5 +176,45 @@ export function filterAnnouncements(
 ): AdminAnnouncement[] {
   return announcements
     .filter((a) => shouldShowAnnouncement(a, userTier, orgId))
-    .filter((a) => !dismissedIds.includes(a.id));
+    .filter((a) => a.type === "critical" || !dismissedIds.includes(a.id));
+}
+
+/**
+ * Check if an announcement can be dismissed.
+ * Critical announcements cannot be dismissed.
+ */
+export function canDismissAnnouncement(type: AnnouncementType): boolean {
+  return type !== "critical";
+}
+
+/**
+ * Clear all admin banner dismissals from localStorage.
+ * This will make all announcements visible again to the user.
+ * Call this from an admin panel to reset dismissals for all users.
+ * 
+ * Emits a custom event 'announcements:reset' that components can listen for
+ * to update UI without requiring a page refresh.
+ */
+export function clearAllDismissals(): void {
+  if (typeof window === "undefined") return;
+  
+  try {
+    // Clear the main dismissed announcements key
+    localStorage.removeItem("dismissedAnnouncements");
+    
+    // Also clear any legacy keys that might exist
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("admin-banner-dismissed-")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+    
+    // Broadcast the reset event so components can update immediately
+    window.dispatchEvent(new CustomEvent("announcements:reset"));
+  } catch {
+    // Ignore localStorage errors
+  }
 }

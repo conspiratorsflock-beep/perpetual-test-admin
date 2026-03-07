@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, ToggleLeft, Trash2, Edit, Globe, Building2, User } from "lucide-react";
+import { Plus, ToggleLeft, ToggleRight, Trash2, Edit, Globe, Building2, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +33,119 @@ import {
   toggleFeatureFlagGlobal,
 } from "@/lib/actions/feature-flags";
 import type { FeatureFlag } from "@/types/admin";
+
+interface FlagRowProps {
+  flag: FeatureFlag;
+  onToggle: (flag: FeatureFlag) => void;
+  onEdit: (flag: FeatureFlag) => void;
+  onDelete: (flag: FeatureFlag) => void;
+}
+
+function FlagRow({ flag, onToggle, onEdit, onDelete }: FlagRowProps) {
+  return (
+    <TableRow className="border-slate-800 hover:bg-slate-800/50">
+      <TableCell className="py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col">
+            <span className="font-medium text-slate-100">{flag.name}</span>
+            <code className="text-xs bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 mt-1 w-fit">
+              {flag.key}
+            </code>
+          </div>
+        </div>
+        {flag.description && (
+          <p className="mt-1 text-sm text-slate-400">{flag.description}</p>
+        )}
+      </TableCell>
+      <TableCell className="py-4">
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-500" />
+            <span className="text-slate-400">{flag.enabledForOrgs.length} orgs</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-slate-500" />
+            <span className="text-slate-400">{flag.enabledForUsers.length} users</span>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell className="py-4 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => onEdit(flag)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(flag)}
+            className="text-red-400 hover:text-red-300"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Switch
+            checked={flag.enabledGlobally}
+            onCheckedChange={() => onToggle(flag)}
+            className="ml-2"
+          />
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+interface FlagTableProps {
+  title: string;
+  icon: React.ReactNode;
+  flags: FeatureFlag[];
+  emptyMessage: string;
+  onToggle: (flag: FeatureFlag) => void;
+  onEdit: (flag: FeatureFlag) => void;
+  onDelete: (flag: FeatureFlag) => void;
+}
+
+function FlagTable({ title, icon, flags, emptyMessage, onToggle, onEdit, onDelete }: FlagTableProps) {
+  return (
+    <Card className="bg-slate-900 border-slate-800">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+          {icon}
+          {title}
+          <Badge variant="secondary" className="bg-slate-800 text-slate-300">
+            {flags.length}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {flags.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            <p>{emptyMessage}</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-slate-800 hover:bg-transparent">
+                <TableHead className="text-slate-400">Feature Flag</TableHead>
+                <TableHead className="text-slate-400">Targeting</TableHead>
+                <TableHead className="text-slate-400 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {flags.map((flag) => (
+                <FlagRow
+                  key={flag.id}
+                  flag={flag}
+                  onToggle={onToggle}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function FeatureFlagsPage() {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
@@ -118,6 +239,10 @@ export default function FeatureFlagsPage() {
     setFormDescription(flag.description || "");
   };
 
+  // Split flags into active and inactive
+  const activeFlags = flags.filter((flag) => flag.enabledGlobally);
+  const inactiveFlags = flags.filter((flag) => !flag.enabledGlobally);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -186,7 +311,7 @@ export default function FeatureFlagsPage() {
         </Dialog>
       </div>
 
-      {/* Flags Grid */}
+      {/* Loading State */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Loading...</div>
       ) : flags.length === 0 ? (
@@ -195,67 +320,28 @@ export default function FeatureFlagsPage() {
           <p>No feature flags yet. Create one to get started.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {flags.map((flag) => (
-            <Card key={flag.id} className="bg-slate-900 border-slate-800">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <ToggleLeft className="h-5 w-5 text-slate-500" />
-                      <h3 className="font-semibold text-slate-100">{flag.name}</h3>
-                      <code className="text-xs bg-slate-800 px-2 py-0.5 rounded text-slate-400">
-                        {flag.key}
-                      </code>
-                    </div>
-                    {flag.description && (
-                      <p className="mt-1 text-sm text-slate-400">{flag.description}</p>
-                    )}
-                    <div className="mt-3 flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-3 w-3 text-slate-500" />
-                        <span className="text-xs text-slate-400">
-                          {flag.enabledGlobally ? "Global" : "Off"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-3 w-3 text-slate-500" />
-                        <span className="text-xs text-slate-400">
-                          {flag.enabledForOrgs.length} orgs
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <User className="h-3 w-3 text-slate-500" />
-                        <span className="text-xs text-slate-400">
-                          {flag.enabledForUsers.length} users
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 mr-4">
-                      <span className="text-sm text-slate-400">Global</span>
-                      <Switch
-                        checked={flag.enabledGlobally}
-                        onCheckedChange={() => handleToggleGlobal(flag)}
-                      />
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => openEdit(flag)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(flag)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-6">
+          {/* Active Flags Table */}
+          <FlagTable
+            title="Active Flags"
+            icon={<ToggleRight className="h-5 w-5 text-emerald-400" />}
+            flags={activeFlags}
+            emptyMessage="No active flags. Toggle a flag to activate it."
+            onToggle={handleToggleGlobal}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
+
+          {/* Inactive Flags Table */}
+          <FlagTable
+            title="Inactive Flags"
+            icon={<ToggleLeft className="h-5 w-5 text-slate-500" />}
+            flags={inactiveFlags}
+            emptyMessage="No inactive flags."
+            onToggle={handleToggleGlobal}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
         </div>
       )}
 

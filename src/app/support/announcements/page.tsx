@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Megaphone, Plus, Calendar, Target, Trash2, Edit, Loader2 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
+import { Megaphone, Plus, Calendar, Target, Trash2, Edit, Loader2, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +31,7 @@ import {
   deleteAnnouncement,
   toggleAnnouncementActive,
 } from "@/lib/actions/announcements";
+import { clearAllDismissals } from "@/lib/shared/admin-banner";
 import type { AdminAnnouncement, AnnouncementType } from "@/types/admin";
 
 const typeColors: Record<AnnouncementType, string> = {
@@ -40,12 +42,12 @@ const typeColors: Record<AnnouncementType, string> = {
 };
 
 export default function AnnouncementsPage() {
+  const { user } = useUser();
   const [announcements, setAnnouncements] = useState<AdminAnnouncement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<AdminAnnouncement | null>(null);
 
-  // Form state
   const [formTitle, setFormTitle] = useState("");
   const [formContent, setFormContent] = useState("");
   const [formType, setFormType] = useState<AnnouncementType>("info");
@@ -69,14 +71,22 @@ export default function AnnouncementsPage() {
   }
 
   const handleCreate = async () => {
+    if (!user?.id) {
+      alert("You must be logged in to create announcements");
+      return;
+    }
     try {
-      await createAnnouncement({
-        title: formTitle,
-        content: formContent,
-        type: formType,
-        startsAt: formStartsAt || new Date().toISOString(),
-        endsAt: formEndsAt || null,
-      });
+      await createAnnouncement(
+        {
+          title: formTitle,
+          content: formContent,
+          type: formType,
+          startsAt: formStartsAt ? new Date(formStartsAt).toISOString() : new Date().toISOString(),
+          endsAt: formEndsAt ? new Date(formEndsAt).toISOString() : null,
+        },
+        user.id,
+        user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress || "unknown"
+      );
       setIsCreateOpen(false);
       resetForm();
       loadAnnouncements();
@@ -93,8 +103,8 @@ export default function AnnouncementsPage() {
         title: formTitle,
         content: formContent,
         type: formType,
-        startsAt: formStartsAt,
-        endsAt: formEndsAt || null,
+        startsAt: formStartsAt ? new Date(formStartsAt).toISOString() : undefined,
+        endsAt: formEndsAt ? new Date(formEndsAt).toISOString() : null,
       });
       setEditingAnnouncement(null);
       resetForm();
@@ -125,6 +135,14 @@ export default function AnnouncementsPage() {
     }
   };
 
+  const handleResetDismissals = () => {
+    if (!confirm("Reset all dismissed announcements?\n\nThis will clear the dismissal state in this browser.")) {
+      return;
+    }
+    clearAllDismissals();
+    alert("Dismissals cleared. Announcements will appear immediately.");
+  };
+
   const resetForm = () => {
     setFormTitle("");
     setFormContent("");
@@ -138,107 +156,132 @@ export default function AnnouncementsPage() {
     setFormTitle(announcement.title);
     setFormContent(announcement.content);
     setFormType(announcement.type);
-    setFormStartsAt(announcement.startsAt.slice(0, 16)); // Format for datetime-local
-    setFormEndsAt(announcement.endsAt ? announcement.endsAt.slice(0, 16) : "");
+    // Convert ISO string to local datetime-local format (YYYY-MM-DDTHH:mm)
+    // preserving the user's local timezone
+    const toLocalDateTime = (isoString: string): string => {
+      const date = new Date(isoString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    setFormStartsAt(toLocalDateTime(announcement.startsAt));
+    setFormEndsAt(announcement.endsAt ? toLocalDateTime(announcement.endsAt) : "");
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+    const date = new Date(dateStr);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-100">Announcements</h1>
-          <p className="mt-1 text-sm text-slate-400">
-            Create and manage platform announcements.
-          </p>
+          <p className="mt-1 text-sm text-slate-400">Create and manage platform announcements.</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950">
-              <Plus className="mr-2 h-4 w-4" />
-              New Announcement
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Create Announcement</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
-                  className="bg-slate-950 border-slate-800"
-                  placeholder="Announcement title"
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Content</Label>
-                <Textarea
-                  className="bg-slate-950 border-slate-800"
-                  placeholder="Announcement content..."
-                  rows={4}
-                  value={formContent}
-                  onChange={(e) => setFormContent(e.target.value)}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleResetDismissals}
+            className="border-slate-700 text-slate-300 hover:text-slate-100"
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Reset Dismissals
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950">
+                <Plus className="mr-2 h-4 w-4" />
+                New Announcement
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Create Announcement</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select value={formType} onValueChange={(v) => setFormType(v as AnnouncementType)}>
-                    <SelectTrigger className="bg-slate-950 border-slate-800">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-900 border-slate-800">
-                      <SelectItem value="info">Info</SelectItem>
-                      <SelectItem value="warning">Warning</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label>Title</Label>
+                  <Input
+                    className="bg-slate-950 border-slate-800"
+                    placeholder="Announcement title"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Start Date</Label>
+                  <Label>Content</Label>
+                  <Textarea
+                    className="bg-slate-950 border-slate-800"
+                    placeholder="Announcement content..."
+                    rows={4}
+                    value={formContent}
+                    onChange={(e) => setFormContent(e.target.value)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={formType} onValueChange={(v) => setFormType(v as AnnouncementType)}>
+                      <SelectTrigger className="bg-slate-950 border-slate-800">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-800">
+                        <SelectItem value="info">Info</SelectItem>
+                        <SelectItem value="warning">Warning</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Start Date</Label>
+                    <Input
+                      type="datetime-local"
+                      className="bg-slate-950 border-slate-800"
+                      value={formStartsAt}
+                      onChange={(e) => setFormStartsAt(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>End Date (optional)</Label>
                   <Input
                     type="datetime-local"
                     className="bg-slate-950 border-slate-800"
-                    value={formStartsAt}
-                    onChange={(e) => setFormStartsAt(e.target.value)}
+                    value={formEndsAt}
+                    onChange={(e) => setFormEndsAt(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>End Date (optional)</Label>
-                <Input
-                  type="datetime-local"
-                  className="bg-slate-950 border-slate-800"
-                  value={formEndsAt}
-                  onChange={(e) => setFormEndsAt(e.target.value)}
-                />
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreate}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950"
+                  disabled={!formTitle || !formContent}
+                >
+                  Create
+                </Button>
               </div>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreate}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950"
-                disabled={!formTitle || !formContent}
-              >
-                Create
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      {/* Announcements List */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
@@ -320,7 +363,6 @@ export default function AnnouncementsPage() {
         </div>
       )}
 
-      {/* Edit Dialog */}
       <Dialog open={!!editingAnnouncement} onOpenChange={() => setEditingAnnouncement(null)}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-100 sm:max-w-lg">
           <DialogHeader>
