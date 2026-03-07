@@ -15,7 +15,7 @@ export default function UnauthorizedPage() {
       </p>
       <div className="mt-6 flex gap-3">
         <Link
-          href="https://perpetualtest.com"
+          href="http://localhost:3000"
           className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700"
         >
           Back to App
