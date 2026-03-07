@@ -2,13 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Users } from "lucide-react";
+import { Plus, Users, Mail, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { UserTable } from "@/components/users/UserTable";
 import { UserSearch } from "@/components/users/UserSearch";
-import { searchUsers, toggleUserAdmin, deleteUser } from "@/lib/actions/users";
+import { searchUsers, toggleUserAdmin, deleteUser, createUser, inviteUser } from "@/lib/actions/users";
 import type { AdminUser } from "@/types/admin";
 
 const PAGE_SIZE = 25;
@@ -25,6 +37,15 @@ export default function UsersPage() {
   const [query, setQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add User Dialog State
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserFirstName, setNewUserFirstName] = useState("");
+  const [newUserLastName, setNewUserLastName] = useState("");
+  const [makeAdmin, setMakeAdmin] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -104,6 +125,79 @@ export default function UsersPage() {
     }
   };
 
+  const handleCreateUser = async () => {
+    if (!newUserEmail) {
+      alert("Email is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createUser({
+        email: newUserEmail,
+        firstName: newUserFirstName || undefined,
+        lastName: newUserLastName || undefined,
+        isAdmin: makeAdmin,
+        skipPasswordRequirement: true,
+      });
+      
+      // Reset form
+      setNewUserEmail("");
+      setNewUserFirstName("");
+      setNewUserLastName("");
+      setMakeAdmin(false);
+      setIsAddDialogOpen(false);
+      
+      // Refresh user list
+      fetchUsers();
+      
+      alert("User created successfully. They will receive an email to set their password.");
+    } catch (error) {
+      console.error("Failed to create user:", error);
+      alert(error instanceof Error ? error.message : "Failed to create user");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInviteUser = async () => {
+    if (!newUserEmail) {
+      alert("Email is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await inviteUser({
+        email: newUserEmail,
+        firstName: newUserFirstName || undefined,
+        lastName: newUserLastName || undefined,
+        isAdmin: makeAdmin,
+      });
+      
+      // Reset form
+      setNewUserEmail("");
+      setNewUserFirstName("");
+      setNewUserLastName("");
+      setMakeAdmin(false);
+      setIsInviteDialogOpen(false);
+      
+      alert("Invitation sent successfully.");
+    } catch (error) {
+      console.error("Failed to invite user:", error);
+      alert(error instanceof Error ? error.message : "Failed to invite user");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setNewUserEmail("");
+    setNewUserFirstName("");
+    setNewUserLastName("");
+    setMakeAdmin(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -114,10 +208,161 @@ export default function UsersPage() {
             Manage platform users, view details, and control access.
           </p>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950">
-          <Plus className="mr-2 h-4 w-4" />
-          Invite User
-        </Button>
+        <div className="flex gap-2">
+          <Dialog open={isInviteDialogOpen} onOpenChange={(open) => {
+            setIsInviteDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="border-slate-700">
+                <Mail className="mr-2 h-4 w-4" />
+                Invite
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+              <DialogHeader>
+                <DialogTitle>Invite User</DialogTitle>
+                <DialogDescription className="text-slate-400">
+                  Send an email invitation to join the platform.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invite-email">Email</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="bg-slate-950 border-slate-800"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-firstname">First Name</Label>
+                    <Input
+                      id="invite-firstname"
+                      placeholder="John"
+                      value={newUserFirstName}
+                      onChange={(e) => setNewUserFirstName(e.target.value)}
+                      className="bg-slate-950 border-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-lastname">Last Name</Label>
+                    <Input
+                      id="invite-lastname"
+                      placeholder="Doe"
+                      value={newUserLastName}
+                      onChange={(e) => setNewUserLastName(e.target.value)}
+                      className="bg-slate-950 border-slate-800"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="invite-admin"
+                    checked={makeAdmin}
+                    onCheckedChange={setMakeAdmin}
+                  />
+                  <Label htmlFor="invite-admin" className="text-slate-300">
+                    Make admin (can access this admin console)
+                  </Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsInviteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleInviteUser}
+                  disabled={isSubmitting || !newUserEmail}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950"
+                >
+                  {isSubmitting ? "Sending..." : "Send Invitation"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+            setIsAddDialogOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="bg-amber-500 hover:bg-amber-600 text-slate-950">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+              <DialogHeader>
+                <DialogTitle>Add User</DialogTitle>
+                <DialogDescription className="text-slate-400">
+                  Create a new user account. They will receive an email to set their password.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="add-email">Email *</Label>
+                  <Input
+                    id="add-email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    className="bg-slate-950 border-slate-800"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="add-firstname">First Name</Label>
+                    <Input
+                      id="add-firstname"
+                      placeholder="John"
+                      value={newUserFirstName}
+                      onChange={(e) => setNewUserFirstName(e.target.value)}
+                      className="bg-slate-950 border-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-lastname">Last Name</Label>
+                    <Input
+                      id="add-lastname"
+                      placeholder="Doe"
+                      value={newUserLastName}
+                      onChange={(e) => setNewUserLastName(e.target.value)}
+                      className="bg-slate-950 border-slate-800"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="add-admin"
+                    checked={makeAdmin}
+                    onCheckedChange={setMakeAdmin}
+                  />
+                  <Label htmlFor="add-admin" className="text-slate-300">
+                    Make admin (can access this admin console)
+                  </Label>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateUser}
+                  disabled={isSubmitting || !newUserEmail}
+                  className="bg-amber-500 hover:bg-amber-600 text-slate-950"
+                >
+                  {isSubmitting ? "Creating..." : "Create User"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Stats */}
@@ -151,17 +396,17 @@ export default function UsersPage() {
               value="admins"
               className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400"
             >
-              Admins Only
+              Admins
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="mt-4">
             <UserTable
               users={users}
-              total={total}
+              isLoading={isLoading}
               page={page}
               pageSize={PAGE_SIZE}
-              isLoading={isLoading}
+              total={total}
               onPageChange={setPage}
               onToggleAdmin={handleToggleAdmin}
               onDelete={handleDelete}
@@ -171,10 +416,10 @@ export default function UsersPage() {
           <TabsContent value="admins" className="mt-4">
             <UserTable
               users={users}
-              total={total}
+              isLoading={isLoading}
               page={page}
               pageSize={PAGE_SIZE}
-              isLoading={isLoading}
+              total={total}
               onPageChange={setPage}
               onToggleAdmin={handleToggleAdmin}
               onDelete={handleDelete}

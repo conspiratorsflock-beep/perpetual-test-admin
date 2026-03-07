@@ -187,3 +187,103 @@ export async function getTotalUserCount(): Promise<number> {
   const response = await client.users.getUserList({ limit: 1 });
   return response.totalCount;
 }
+
+/**
+ * Create a new user in Clerk.
+ */
+export async function createUser({
+  email,
+  firstName,
+  lastName,
+  isAdmin = false,
+  skipPasswordRequirement = false,
+}: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  isAdmin?: boolean;
+  skipPasswordRequirement?: boolean;
+}): Promise<{ userId: string; email: string }> {
+  const client = await clerkClient();
+
+  try {
+    // Create user with email
+    const user = await client.users.createUser({
+      emailAddress: [email],
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      publicMetadata: { isAdmin },
+      // Skip password requirement - user will set password via email
+      skipPasswordRequirement,
+    });
+
+    await logAdminAction({
+      action: "user.create",
+      targetType: "user",
+      targetId: user.id,
+      targetName: email,
+      metadata: { email, firstName, lastName, isAdmin },
+    });
+
+    return { userId: user.id, email };
+  } catch (error) {
+    console.error("Failed to create user:", error);
+    throw new Error(error instanceof Error ? error.message : "Failed to create user");
+  }
+}
+
+/**
+ * Invite a user via email (sends invitation email).
+ */
+export async function inviteUser({
+  email,
+  firstName,
+  lastName,
+  isAdmin = false,
+  orgId,
+  role = "basic_member",
+}: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  isAdmin?: boolean;
+  orgId?: string;
+  role?: string;
+}): Promise<{ invitationId: string; email: string }> {
+  const client = await clerkClient();
+
+  try {
+    // Create invitation
+    const invitation = await client.invitations.createInvitation({
+      emailAddress: email,
+      publicMetadata: { isAdmin },
+      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"}/sign-up`,
+    });
+
+    // If orgId provided, also create org invitation
+    if (orgId) {
+      try {
+        await client.organizations.createOrganizationInvitation({
+          organizationId: orgId,
+          emailAddress: email,
+          role,
+        });
+      } catch (orgError) {
+        console.warn("Failed to create org invitation:", orgError);
+        // Don't fail if org invitation fails
+      }
+    }
+
+    await logAdminAction({
+      action: "user.invite",
+      targetType: "user",
+      targetName: email,
+      metadata: { email, firstName, lastName, isAdmin, orgId },
+    });
+
+    return { invitationId: invitation.id, email };
+  } catch (error) {
+    console.error("Failed to invite user:", error);
+    throw new Error(error instanceof Error ? error.message : "Failed to invite user");
+  }
+}
