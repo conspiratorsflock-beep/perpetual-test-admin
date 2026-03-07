@@ -51,7 +51,13 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
     return [];
   }
 
-  return (data || []).map((row) => ({
+  // Filter out ended announcements in code as a safeguard
+  const validData = (data || []).filter((row) => {
+    if (!row.ends_at) return true;
+    return new Date(row.ends_at) > new Date(now);
+  });
+
+  return validData.map((row) => ({
     id: row.id,
     title: row.title,
     content: row.content,

@@ -47,12 +47,18 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
     .lte("starts_at", now)
     .or(`ends_at.is.null,ends_at.gt.${now}`)
     .order("created_at", { ascending: false });
+    
+  // Filter out ended announcements in code as a safeguard
+  const validData = (data || []).filter((row) => {
+    if (!row.ends_at) return true;
+    return new Date(row.ends_at) > new Date(now);
+  });
 
   if (error) {
     throw new Error(`Failed to fetch active announcements: ${error.message}`);
   }
 
-  return (data || []).map((row) => ({
+  return validData.map((row) => ({
     id: row.id,
     title: row.title,
     content: row.content,
