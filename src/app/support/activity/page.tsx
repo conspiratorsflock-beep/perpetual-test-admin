@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Activity, Filter, RefreshCw } from "lucide-react";
+import { Activity, Filter, RefreshCw, Download, FileJson, FileSpreadsheet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { getAuditLogs } from "@/lib/audit/logger";
+import { exportAuditLogsToCSV, exportAuditLogsToJSON } from "@/lib/actions/audit-export";
 import type { AuditLog, AuditTargetType } from "@/types/admin";
 
 const targetTypeLabels: Record<AuditTargetType, string> = {
@@ -59,6 +66,50 @@ export default function ActivityPage() {
     }
   }
 
+  const handleExportCSV = async () => {
+    try {
+      const csv = await exportAuditLogsToCSV({
+        targetType: filter.targetType,
+        adminId: filter.adminId,
+        action: filter.action,
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export logs:", error);
+      alert("Failed to export logs");
+    }
+  };
+
+  const handleExportJSON = async () => {
+    try {
+      const json = await exportAuditLogsToJSON({
+        targetType: filter.targetType,
+        adminId: filter.adminId,
+        action: filter.action,
+      });
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audit-logs-${new Date().toISOString().split("T")[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export logs:", error);
+      alert("Failed to export logs");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -69,10 +120,30 @@ export default function ActivityPage() {
             Global audit trail of all admin actions.
           </p>
         </div>
-        <Button variant="outline" onClick={loadLogs} className="border-slate-700">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={loadLogs} className="border-slate-700">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="border-slate-700">
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-slate-900 border-slate-800">
+              <DropdownMenuItem onClick={handleExportCSV} className="text-slate-300">
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportJSON} className="text-slate-300">
+                <FileJson className="mr-2 h-4 w-4" />
+                Export as JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Filters */}
@@ -86,7 +157,10 @@ export default function ActivityPage() {
             <Select
               value={filter.targetType || "all"}
               onValueChange={(v) =>
-                setFilter((f) => ({ ...f, targetType: v === "all" ? undefined : (v as AuditTargetType) }))
+                setFilter((f) => ({
+                  ...f,
+                  targetType: v === "all" ? undefined : (v as AuditTargetType),
+                }))
               }
             >
               <SelectTrigger className="w-40 bg-slate-950 border-slate-800">
@@ -121,6 +195,11 @@ export default function ActivityPage() {
         </CardContent>
       </Card>
 
+      {/* Stats */}
+      <div className="text-sm text-slate-500">
+        Showing {logs.length} of {total} entries
+      </div>
+
       {/* Activity List */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Loading...</div>
@@ -136,7 +215,10 @@ export default function ActivityPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-slate-200">{log.action}</span>
-                      <Badge variant="outline" className="border-slate-700 text-slate-400 text-xs">
+                      <Badge
+                        variant="outline"
+                        className="border-slate-700 text-slate-400 text-xs"
+                      >
                         {targetTypeLabels[log.targetType]}
                       </Badge>
                       {log.targetName && (
@@ -165,8 +247,6 @@ export default function ActivityPage() {
           )}
         </div>
       )}
-
-      <p className="text-sm text-slate-500">Showing {logs.length} of {total} entries</p>
     </div>
   );
 }

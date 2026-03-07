@@ -18,6 +18,8 @@ import {
   Tag,
   ArrowUpRight,
   ArrowDownRight,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,43 +33,89 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { BillingMetrics } from "@/types/admin";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { BillingMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
+import {
+  getBillingMetrics,
+  getRecentInvoices,
+  getActiveCoupons,
+  getMRRHistory,
+} from "@/lib/actions/billing";
 
-// Mock data - would come from Stripe in production
-const mockMetrics: BillingMetrics = {
-  mrr: 45230,
-  arr: 542760,
-  activeSubscriptions: 142,
-  trialingSubscriptions: 12,
-  pastDueSubscriptions: 3,
-  canceledSubscriptions: 8,
-  churnRate: 2.4,
-  averageRevenuePerUser: 318,
-};
-
-const mrrData = [
-  { month: "Jan", mrr: 35000 },
-  { month: "Feb", mrr: 38000 },
-  { month: "Mar", mrr: 41000 },
-  { month: "Apr", mrr: 39500 },
-  { month: "May", mrr: 42000 },
-  { month: "Jun", mrr: 45230 },
-];
-
-const invoices = [
-  { id: "inv_1", customer: "Acme Corp", amount: 299, status: "paid", date: "2024-03-01" },
-  { id: "inv_2", customer: "TechStart Inc", amount: 99, status: "paid", date: "2024-03-02" },
-  { id: "inv_3", customer: "Global Solutions", amount: 599, status: "open", date: "2024-03-03" },
-  { id: "inv_4", customer: "Digital Agency", amount: 199, status: "paid", date: "2024-03-04" },
-];
-
-const coupons = [
-  { id: "coupon_1", code: "WELCOME20", discount: "20% off", status: "active", redemptions: 45 },
-  { id: "coupon_2", code: "ENTERPRISE50", discount: "$500 off", status: "active", redemptions: 12 },
-];
+interface MRRDataPoint {
+  month: string;
+  mrr: number;
+}
 
 export default function BillingPage() {
-  const [metrics] = useState<BillingMetrics>(mockMetrics);
+  const [metrics, setMetrics] = useState<BillingMetrics | null>(null);
+  const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
+  const [coupons, setCoupons] = useState<StripeCoupon[]>([]);
+  const [mrrData, setMrrData] = useState<MRRDataPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadBillingData() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const [metricsData, invoicesData, couponsData, mrrHistory] = await Promise.all([
+          getBillingMetrics(),
+          getRecentInvoices(),
+          getActiveCoupons(),
+          getMRRHistory(),
+        ]);
+
+        setMetrics(metricsData);
+        setInvoices(invoicesData);
+        setCoupons(couponsData);
+        setMrrData(mrrHistory);
+      } catch (err) {
+        console.error("Failed to load billing data:", err);
+        setError(err instanceof Error ? err.message : "Failed to load billing data");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadBillingData();
+  }, []);
+
+  // Calculate MRR growth
+  const mrrGrowth =
+    mrrData.length >= 2 && mrrData[mrrData.length - 2].mrr > 0
+      ? ((mrrData[mrrData.length - 1].mrr - mrrData[mrrData.length - 2].mrr) /
+          mrrData[mrrData.length - 2].mrr) *
+        100
+      : 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert variant="destructive" className="bg-red-900/20 border-red-800">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <Alert className="bg-amber-900/20 border-amber-800">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>No billing data available</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -93,9 +141,19 @@ export default function BillingPage() {
               <span className="text-2xl font-semibold text-slate-100">
                 ${metrics.mrr.toLocaleString()}
               </span>
-              <Badge className="bg-emerald-500/20 text-emerald-400">
-                <ArrowUpRight className="h-3 w-3 mr-1" />
-                12%
+              <Badge
+                className={
+                  mrrGrowth >= 0
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/20 text-red-400"
+                }
+              >
+                {mrrGrowth >= 0 ? (
+                  <ArrowUpRight className="h-3 w-3 mr-1" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3 mr-1" />
+                )}
+                {Math.abs(mrrGrowth).toFixed(1)}%
               </Badge>
             </div>
           </CardContent>
@@ -129,6 +187,11 @@ export default function BillingPage() {
               <span className="text-2xl font-semibold text-slate-100">
                 {metrics.activeSubscriptions}
               </span>
+              {metrics.trialingSubscriptions > 0 && (
+                <span className="text-xs text-slate-500">
+                  +{metrics.trialingSubscriptions} trialing
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -145,9 +208,16 @@ export default function BillingPage() {
               <span className="text-2xl font-semibold text-slate-100">
                 {metrics.churnRate}%
               </span>
-              <Badge className="bg-emerald-500/20 text-emerald-400">
-                <ArrowDownRight className="h-3 w-3 mr-1" />
-                Good
+              <Badge
+                className={
+                  metrics.churnRate <= 5
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : metrics.churnRate <= 10
+                    ? "bg-amber-500/20 text-amber-400"
+                    : "bg-red-500/20 text-red-400"
+                }
+              >
+                {metrics.churnRate <= 5 ? "Good" : metrics.churnRate <= 10 ? "Fair" : "High"}
               </Badge>
             </div>
           </CardContent>
@@ -171,7 +241,11 @@ export default function BillingPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
                 <XAxis dataKey="month" stroke="#475569" fontSize={12} />
-                <YAxis stroke="#475569" fontSize={12} tickFormatter={(v) => `$${v / 1000}k`} />
+                <YAxis
+                  stroke="#475569"
+                  fontSize={12}
+                  tickFormatter={(v) => `$${v / 1000}k`}
+                />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: "#0f172a",
@@ -197,11 +271,17 @@ export default function BillingPage() {
       {/* Tabs */}
       <Tabs defaultValue="invoices">
         <TabsList className="bg-slate-900 border border-slate-800">
-          <TabsTrigger value="invoices" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+          <TabsTrigger
+            value="invoices"
+            className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400"
+          >
             <Receipt className="mr-2 h-4 w-4" />
             Invoices
           </TabsTrigger>
-          <TabsTrigger value="coupons" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+          <TabsTrigger
+            value="coupons"
+            className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400"
+          >
             <Tag className="mr-2 h-4 w-4" />
             Coupons
           </TabsTrigger>
@@ -222,23 +302,36 @@ export default function BillingPage() {
                 <TableBody>
                   {invoices.map((inv) => (
                     <TableRow key={inv.id} className="border-slate-800">
-                      <TableCell className="text-slate-200">{inv.customer}</TableCell>
-                      <TableCell className="text-slate-300">${inv.amount}</TableCell>
+                      <TableCell className="text-slate-200">{inv.customerName}</TableCell>
+                      <TableCell className="text-slate-300">
+                        ${(inv.amountPaid / 100).toFixed(2)}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={
                             inv.status === "paid"
                               ? "border-emerald-500/30 text-emerald-400"
-                              : "border-amber-500/30 text-amber-400"
+                              : inv.status === "open"
+                              ? "border-amber-500/30 text-amber-400"
+                              : "border-slate-500/30 text-slate-400"
                           }
                         >
                           {inv.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-slate-400">{inv.date}</TableCell>
+                      <TableCell className="text-slate-400">
+                        {new Date(inv.createdAt).toLocaleDateString()}
+                      </TableCell>
                     </TableRow>
                   ))}
+                  {invoices.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                        No invoices found.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -253,7 +346,7 @@ export default function BillingPage() {
                   <TableRow className="border-slate-800 hover:bg-transparent">
                     <TableHead className="text-slate-400">Code</TableHead>
                     <TableHead className="text-slate-400">Discount</TableHead>
-                    <TableHead className="text-slate-400">Status</TableHead>
+                    <TableHead className="text-slate-400">Duration</TableHead>
                     <TableHead className="text-slate-400">Redemptions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -262,21 +355,37 @@ export default function BillingPage() {
                     <TableRow key={coupon.id} className="border-slate-800">
                       <TableCell>
                         <code className="bg-slate-800 px-2 py-1 rounded text-sm text-slate-300">
-                          {coupon.code}
+                          {coupon.id}
                         </code>
+                        {coupon.name && (
+                          <span className="ml-2 text-slate-400">{coupon.name}</span>
+                        )}
                       </TableCell>
-                      <TableCell className="text-slate-300">{coupon.discount}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="border-emerald-500/30 text-emerald-400"
-                        >
-                          {coupon.status}
-                        </Badge>
+                      <TableCell className="text-slate-300">
+                        {coupon.percentOff
+                          ? `${coupon.percentOff}% off`
+                          : coupon.amountOff
+                          ? `$${(coupon.amountOff / 100).toFixed(2)} off`
+                          : "-"}
                       </TableCell>
-                      <TableCell className="text-slate-400">{coupon.redemptions}</TableCell>
+                      <TableCell className="text-slate-400">
+                        {coupon.duration === "repeating" && coupon.durationInMonths
+                          ? `${coupon.durationInMonths} months`
+                          : coupon.duration}
+                      </TableCell>
+                      <TableCell className="text-slate-400">
+                        {coupon.timesRedeemed}
+                        {coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ""}
+                      </TableCell>
                     </TableRow>
                   ))}
+                  {coupons.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-24 text-center text-slate-500">
+                        No active coupons found.
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

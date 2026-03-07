@@ -11,6 +11,7 @@ import {
   Users,
   Zap,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -21,19 +22,22 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalUserCount } from "@/lib/actions/users";
 import { getTotalOrgCount } from "@/lib/actions/organizations";
+import { getApiCallsToday, getApiCallsComparison } from "@/lib/actions/api-usage";
+import { getBillingMetrics } from "@/lib/actions/billing";
 import type { StatCard } from "@/types/admin";
 
-// Placeholder sparkline data
-const sparkData = [
-  { v: 40 }, { v: 45 }, { v: 42 }, { v: 50 }, { v: 55 },
-  { v: 52 }, { v: 60 }, { v: 58 }, { v: 65 }, { v: 70 },
-];
+// Sparkline data placeholder - would come from historical data
+const generateSparkData = (value: number) => {
+  return Array.from({ length: 10 }, (_, i) => ({
+    v: Math.max(0, value * (0.7 + Math.random() * 0.6)),
+  }));
+};
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<StatCard[]>([
     { label: "Total Users", value: "—", change: "—", trend: "neutral" },
     { label: "Active Orgs", value: "—", change: "—", trend: "neutral" },
-    { label: "MRR", value: "$45,230", change: "+12%", trend: "up" },
+    { label: "MRR", value: "—", change: "—", trend: "neutral" },
     { label: "API Calls Today", value: "—", change: "—", trend: "neutral" },
   ]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,16 +45,38 @@ export default function DashboardPage() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const [userCount, orgCount] = await Promise.all([
+        const [userCount, orgCount, billingMetrics, apiComparison] = await Promise.all([
           getTotalUserCount(),
           getTotalOrgCount(),
+          getBillingMetrics().catch(() => null),
+          getApiCallsComparison(),
         ]);
 
         setStats([
-          { label: "Total Users", value: userCount.toLocaleString(), change: "—", trend: "neutral" },
-          { label: "Active Orgs", value: orgCount.toLocaleString(), change: "—", trend: "neutral" },
-          { label: "MRR", value: "$45,230", change: "+12%", trend: "up" },
-          { label: "API Calls Today", value: "—", change: "—", trend: "neutral" },
+          {
+            label: "Total Users",
+            value: userCount.toLocaleString(),
+            change: "—",
+            trend: "neutral",
+          },
+          {
+            label: "Active Orgs",
+            value: orgCount.toLocaleString(),
+            change: "—",
+            trend: "neutral",
+          },
+          {
+            label: "MRR",
+            value: billingMetrics ? `$${billingMetrics.mrr.toLocaleString()}` : "—",
+            change: billingMetrics ? `${billingMetrics.churnRate}% churn` : "—",
+            trend: "neutral",
+          },
+          {
+            label: "API Calls Today",
+            value: apiComparison.today.toLocaleString(),
+            change: `${apiComparison.change >= 0 ? "+" : ""}${apiComparison.change}% vs yesterday`,
+            trend: apiComparison.trend,
+          },
         ]);
       } catch (error) {
         console.error("Failed to load stats:", error);
@@ -72,6 +98,10 @@ export default function DashboardPage() {
   }) {
     const Icon = statIcons[index];
     const TrendIcon = stat.trend === "up" ? TrendingUp : stat.trend === "down" ? TrendingDown : null;
+
+    // Generate sparkline data based on the stat value
+    const numericValue = parseInt(stat.value.replace(/[^0-9]/g, "")) || 0;
+    const sparkData = generateSparkData(numericValue / 10);
 
     return (
       <Card className="bg-slate-900 border-slate-800">
@@ -127,6 +157,14 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      </div>
     );
   }
 
