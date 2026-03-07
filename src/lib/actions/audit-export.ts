@@ -85,16 +85,26 @@ export async function exportAuditLogsToJSON({
 
 /**
  * Download export file (helper to trigger browser download).
+ * 
+ * NOTE: This is a client-side helper. Copy this function to your client component
+ * or use the downloadExport utility from @/lib/utils/export-download
+ * 
+ * Example usage in a client component:
+ * ```tsx
+ * "use client";
+ * import { exportAuditLogsToCSV } from "@/lib/actions/audit-export";
+ * 
+ * async function handleDownload() {
+ *   const csv = await exportAuditLogsToCSV();
+ *   const blob = new Blob([csv], { type: "text/csv" });
+ *   const url = URL.createObjectURL(blob);
+ *   const link = document.createElement("a");
+ *   link.href = url;
+ *   link.download = "audit-logs.csv";
+ *   document.body.appendChild(link);
+ *   link.click();
+ *   document.body.removeChild(link);
+ *   URL.revokeObjectURL(url);
+ * }
+ * ```
  */
-export function downloadExport(content: string, filename: string, contentType: string): void {
-  // This is a client-side helper - should be used in useEffect or event handler
-  const blob = new Blob([content], { type: contentType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
