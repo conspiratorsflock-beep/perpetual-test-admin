@@ -161,6 +161,7 @@ export default function UsersPage() {
               total={total}
               page={page}
               pageSize={PAGE_SIZE}
+              isLoading={isLoading}
               onPageChange={setPage}
               onToggleAdmin={handleToggleAdmin}
               onDelete={handleDelete}
@@ -173,6 +174,7 @@ export default function UsersPage() {
               total={total}
               page={page}
               pageSize={PAGE_SIZE}
+              isLoading={isLoading}
               onPageChange={setPage}
               onToggleAdmin={handleToggleAdmin}
               onDelete={handleDelete}

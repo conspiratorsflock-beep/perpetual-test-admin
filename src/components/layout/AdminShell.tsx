@@ -1,7 +1,19 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
 
+const AUTH_ROUTES = ["/sign-in", "/sign-up", "/unauthorized"];
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAuthRoute = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+
+  if (isAuthRoute) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-950">
       {/* Desktop sidebar */}

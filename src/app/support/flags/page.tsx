@@ -189,6 +189,11 @@ export default function FeatureFlagsPage() {
       {/* Flags Grid */}
       {isLoading ? (
         <div className="text-center py-12 text-slate-500">Loading...</div>
+      ) : flags.length === 0 ? (
+        <div className="text-center py-12 text-slate-500">
+          <ToggleLeft className="h-8 w-8 mx-auto mb-3 text-slate-700" />
+          <p>No feature flags yet. Create one to get started.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {flags.map((flag) => (

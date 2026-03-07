@@ -4,3 +4,6 @@ node_modules
 *.log
 .next/
 .claude/
+
+# clerk configuration (can include secrets)
+/.clerk/

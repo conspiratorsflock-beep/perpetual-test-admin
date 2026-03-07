@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -13,6 +13,7 @@ import {
   User,
   Clock,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -27,28 +28,30 @@ import type { UserWithDetails, AuditLog } from "@/types/admin";
 
 export default function UserDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const userId = params.id as string;
 
   const [user, setUser] = useState<UserWithDetails | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      try {
-        const [userData, logs] = await Promise.all([
-          getUserById(userId),
-          getAuditLogsForTarget("user", userId, 20),
-        ]);
-        setUser(userData);
-        setAuditLogs(logs);
-      } catch (error) {
-        console.error("Failed to load user:", error);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [userData, logs] = await Promise.all([
+        getUserById(userId),
+        getAuditLogsForTarget("user", userId, 20),
+      ]);
+      setUser(userData);
+      setAuditLogs(logs);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadData();
   }, [userId]);
 
@@ -73,7 +76,7 @@ export default function UserDetailPage() {
     }
     try {
       await deleteUser(userId);
-      window.location.href = "/users";
+      router.push("/users");
     } catch (error) {
       console.error("Failed to delete user:", error);
       alert("Failed to delete user.");
@@ -101,6 +104,9 @@ export default function UserDetailPage() {
       </div>
     );
   }
+
+  // Debug log
+  console.log("User data:", { id: user.id, email: user.email, isAdmin: user.isAdmin });
 
   const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed";
 
@@ -137,6 +143,14 @@ export default function UserDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <ImpersonateButton userId={user.id} userEmail={user.email} />
           <Button
             variant="outline"

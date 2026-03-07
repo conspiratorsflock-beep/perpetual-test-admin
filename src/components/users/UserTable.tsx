@@ -36,6 +36,7 @@ interface UserTableProps {
   total: number;
   page: number;
   pageSize: number;
+  isLoading?: boolean;
   onPageChange: (page: number) => void;
   onToggleAdmin?: (userId: string, makeAdmin: boolean) => void;
   onDelete?: (userId: string) => void;
@@ -46,6 +47,7 @@ export function UserTable({
   total,
   page,
   pageSize,
+  isLoading = false,
   onPageChange,
   onToggleAdmin,
   onDelete,
@@ -214,7 +216,13 @@ export function UserTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center text-slate-500">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} className="border-slate-800 hover:bg-slate-900/50">
                   {row.getVisibleCells().map((cell) => (
@@ -238,7 +246,9 @@ export function UserTable({
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} users
+          {total === 0
+            ? "No users found"
+            : `Showing ${(page - 1) * pageSize + 1} to ${Math.min(page * pageSize, total)} of ${total} users`}
         </p>
         <div className="flex items-center gap-2">
           <Button

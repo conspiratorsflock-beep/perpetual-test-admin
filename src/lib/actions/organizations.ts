@@ -25,8 +25,8 @@ export async function searchOrganizations({
   // Clerk's organization list doesn't support complex filtering
   // We'll fetch and filter in memory for now
   const response = await client.organizations.getOrganizationList({
-    limit: 100, // Get more to filter
-    offset,
+    limit: 500, // Fetch enough for in-memory filtering
+    offset: 0,  // Always start from 0; pagination applied after filtering
   });
 
   let orgs = response.data;
