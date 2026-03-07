@@ -1,25 +1,32 @@
 import type { NextConfig } from "next";
+import * as path from "path";
 
 const nextConfig: NextConfig = {
-  // Configure webpack to resolve from the correct directory
-  webpack: (config, { isServer }) => {
-    // Ensure we resolve from the project root
-    config.resolve = {
-      ...config.resolve,
-      modules: ["node_modules"],
-      alias: {
-        ...config.resolve?.alias,
-        "@": __dirname + "/src",
-      },
+  // Disable experimental features that might cause issues
+  experimental: {},
+  
+  // Webpack configuration to ensure correct module resolution
+  webpack: (config) => {
+    // Force resolve from current project directory only
+    config.resolve.modules = [
+      path.resolve(process.cwd(), "node_modules"),
+      "node_modules",
+    ];
+    
+    // Ensure aliases resolve correctly
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": path.resolve(process.cwd(), "src"),
     };
+    
     return config;
   },
   
-  // Turbopack config
+  // Turbopack configuration
   turbopack: {
-    // Resolve aliases
+    root: path.resolve(process.cwd()),
     resolveAlias: {
-      "@/*": __dirname + "/src/*",
+      "@/*": "./src/*",
     },
   },
 };
