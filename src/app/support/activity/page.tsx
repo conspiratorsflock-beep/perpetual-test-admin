@@ -32,6 +32,7 @@ const targetTypeLabels: Record<AuditTargetType, string> = {
   system: "System",
   billing: "Billing",
   announcement: "Announcement",
+  support_ticket: "Support Ticket",
 };
 
 export default function ActivityPage() {

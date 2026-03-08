@@ -43,9 +43,20 @@ const navigation: NavItem[] = [
     icon: FolderKanban,
   },
   {
+    label: "Help Desk",
+    href: "/help-desk",
+    icon: LifeBuoy,
+    children: [
+      { label: "Queue", href: "/help-desk/queue", icon: Activity },
+      { label: "My Tickets", href: "/help-desk/my-tickets", icon: FileText },
+      { label: "Team", href: "/help-desk/team", icon: Users },
+      { label: "Analytics", href: "/help-desk/analytics", icon: Activity },
+    ],
+  },
+  {
     label: "Support",
     href: "/support",
-    icon: LifeBuoy,
+    icon: Settings,
     children: [
       { label: "Activity", href: "/support/activity", icon: Activity },
       { label: "Flags", href: "/support/flags", icon: ToggleLeft },

@@ -1,8 +1,8 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
 import { Bell } from "lucide-react";
 import { MobileSidebar } from "./MobileSidebar";
+import { ClientUserButton } from "./ClientUserButton";
 
 export function AdminHeader() {
   return (
@@ -20,13 +20,7 @@ export function AdminHeader() {
           <Bell className="h-4 w-4" />
         </button>
 
-        <UserButton
-          appearance={{
-            elements: {
-              avatarBox: "h-7 w-7",
-            },
-          }}
-        />
+        <ClientUserButton />
       </div>
     </header>
   );

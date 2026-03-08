@@ -120,7 +120,7 @@ export interface FeatureFlag {
 
 // ─── Audit Logs ─────────────────────────────────────────────────────────────
 
-export type AuditTargetType = "user" | "organization" | "project" | "feature_flag" | "system" | "billing" | "announcement";
+export type AuditTargetType = "user" | "organization" | "project" | "feature_flag" | "system" | "billing" | "announcement" | "support_ticket";
 
 export interface AuditLog {
   id: string;
@@ -266,4 +266,80 @@ export interface DocPage {
   content: string;
   category: string;
   order: number;
+}
+
+// ─── Support Tickets ────────────────────────────────────────────────────────
+
+export type TicketStatus = "open" | "pending" | "in_progress" | "resolved" | "closed" | "escalated";
+export type TicketPriority = "low" | "medium" | "high" | "urgent";
+export type TicketCategory = "billing" | "account" | "technical" | "feature_request" | "bug_report" | "question" | "other";
+
+export interface SupportTicket {
+  id: string;
+  ticketNumber: number;
+  userId: string;
+  userEmail: string;
+  userName: string | null;
+  orgId: string | null;
+  subject: string;
+  description: string;
+  category: TicketCategory;
+  status: TicketStatus;
+  priority: TicketPriority;
+  assignedTo: string | null;
+  assignedAt: string | null;
+  slaDeadline: string | null;
+  firstResponseAt: string | null;
+  resolvedAt: string | null;
+  source: string;
+  tags: string[];
+  browserInfo: string | null;
+  osInfo: string | null;
+  appVersion: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupportTicketComment {
+  id: string;
+  ticketId: string;
+  authorId: string;
+  authorEmail: string;
+  authorName: string | null;
+  isAgent: boolean;
+  isInternal: boolean;
+  content: string;
+  attachments: Array<{ filename: string; url: string; mimeType: string; size: number }>;
+  createdAt: string;
+  editedAt: string | null;
+}
+
+export interface SupportTicketEvent {
+  id: string;
+  ticketId: string;
+  eventType: string;
+  oldValue: string | null;
+  newValue: string | null;
+  performedBy: string;
+  performedByEmail: string | null;
+  createdAt: string;
+}
+
+export interface CannedResponse {
+  id: string;
+  title: string;
+  content: string;
+  category: string | null;
+  useCount: number;
+}
+
+export interface SupportTeamMember {
+  id: string;
+  userId: string;
+  email: string;
+  name: string | null;
+  role: "admin" | "agent" | "viewer";
+  isAvailable: boolean;
+  maxOpenTickets: number;
+  skills: string[];
 }
