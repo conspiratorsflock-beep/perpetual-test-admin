@@ -75,8 +75,9 @@ describe("UserTable", () => {
       <UserTable {...defaultProps} total={50} page={1} onPageChange={onPageChange} />
     );
 
-    // Find all buttons and click the last one (next page)
+    // Find all buttons with ChevronRight (next page)
     const buttons = screen.getAllByRole("button");
+    // The next button is the last one in the pagination
     const nextButton = buttons[buttons.length - 1];
     fireEvent.click(nextButton);
 
@@ -89,33 +90,39 @@ describe("UserTable", () => {
       <UserTable {...defaultProps} total={50} page={2} onPageChange={onPageChange} />
     );
 
-    // Find all buttons - on page 2, previous should be enabled
-    const buttons = screen.getAllByRole("button");
-    // Find first non-disabled button that's not a dropdown
-    const prevButton = buttons.find(btn => 
-      !btn.disabled && btn.getAttribute("aria-haspopup") !== "menu"
-    );
+    // Find pagination buttons - they're in the pagination div
+    // The previous button is the first button in the pagination controls
+    const paginationContainer = screen.getByText(/Page 2 of/i).parentElement;
+    const prevButton = paginationContainer?.querySelector('button:first-child');
     
+    expect(prevButton).not.toBeNull();
     if (prevButton) {
       fireEvent.click(prevButton);
-      expect(onPageChange).toHaveBeenCalled();
+      expect(onPageChange).toHaveBeenCalledWith(1);
     }
   });
 
-  it("has disabled button on first page (previous)", () => {
+  it("has disabled previous button on first page", () => {
     render(<UserTable {...defaultProps} page={1} />);
 
-    const buttons = screen.getAllByRole("button");
-    const disabledButtons = buttons.filter(btn => btn.disabled);
-    // Should have at least one disabled button (previous)
-    expect(disabledButtons.length).toBeGreaterThan(0);
+    // Get the pagination container
+    const paginationText = screen.getByText(/Page 1 of/i);
+    const paginationContainer = paginationText.parentElement;
+    const prevButton = paginationContainer?.querySelector('button:first-child');
+    
+    // Previous button should be disabled on page 1
+    expect(prevButton).toBeDisabled();
   });
 
   it("disables next button on last page", () => {
     render(<UserTable {...defaultProps} total={2} page={1} />);
 
-    const buttons = screen.getAllByRole("button");
-    const nextButton = buttons[buttons.length - 1];
+    // Get the pagination container
+    const paginationText = screen.getByText(/Page 1 of/i);
+    const paginationContainer = paginationText.parentElement;
+    const buttons = paginationContainer?.querySelectorAll('button');
+    const nextButton = buttons?.[buttons.length - 1];
+    
     expect(nextButton).toBeDisabled();
   });
 

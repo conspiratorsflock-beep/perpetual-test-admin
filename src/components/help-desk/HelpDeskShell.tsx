@@ -11,6 +11,7 @@ import { TeamView } from "./TeamView";
 import { CannedResponsesView } from "./CannedResponsesView";
 import { SupportAnalytics } from "./SupportAnalytics";
 import { useSupportTickets } from "./useSupportTickets";
+import { getSupportTicketById } from "@/lib/actions/support-tickets";
 import type { SupportTicket } from "@/types/admin";
 
 export function HelpDeskShell() {
@@ -51,8 +52,15 @@ export function HelpDeskShell() {
     setActiveTab("tickets");
   };
 
-  const handleTicketUpdated = () => {
-    refresh();
+  const handleTicketUpdated = async () => {
+    await refresh();
+    // Refresh the selected ticket data
+    if (selectedTicket) {
+      const updated = await getSupportTicketById(selectedTicket.id);
+      if (updated) {
+        setSelectedTicket(updated);
+      }
+    }
   };
 
   return (

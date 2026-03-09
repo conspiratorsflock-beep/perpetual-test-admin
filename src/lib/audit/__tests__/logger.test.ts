@@ -1,20 +1,34 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { logAdminAction, getAuditLogs, getAuditLogsForTarget } from "../logger";
 
-// Simple mock that returns chainable methods
-const mockChain = {
-  select: vi.fn(function() { return this; }),
-  insert: vi.fn(function() { return Promise.resolve({ error: null }); }),
-  update: vi.fn(function() { return this; }),
-  delete: vi.fn(function() { return this; }),
-  eq: vi.fn(function() { return this; }),
-  gte: vi.fn(function() { return this; }),
-  lte: vi.fn(function() { return this; }),
-  order: vi.fn(function() { return this; }),
-  range: vi.fn(function() { return Promise.resolve({ data: [], error: null, count: 0 }); }),
-  single: vi.fn(function() { return Promise.resolve({ data: null, error: null }); }),
+// Create a proper mock chain that supports method chaining
+// The key insight is that range() should return the chain (not a Promise)
+// and only when the chain is awaited does it resolve to the data
+const createMockChain = () => {
+  const chain = {
+    select: vi.fn(() => chain),
+    insert: vi.fn(function() {
+      // insert doesn't return the chain, it executes
+      return Promise.resolve({ error: null });
+    }),
+    update: vi.fn(() => chain),
+    delete: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    gte: vi.fn(() => chain),
+    lte: vi.fn(() => chain),
+    order: vi.fn(() => chain),
+    range: vi.fn(() => chain),
+    single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+    // Make the chain thenable so it can be awaited
+    then: vi.fn((resolve: (value: any) => void) => {
+      return resolve({ data: [], error: null, count: 0 });
+    }),
+  };
+  return chain;
 };
 
+let mockChain = createMockChain();
+
+// Mock Supabase
 vi.mock("@/lib/supabase/admin", () => ({
   supabaseAdmin: {
     from: vi.fn(() => mockChain),
@@ -37,6 +51,9 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: () => Promise.resolve(mockClerkClient),
 }));
 
+// Import functions after mocking
+import { logAdminAction, getAuditLogs, getAuditLogsForTarget } from "../logger";
+
 describe("Audit Logger", () => {
   const mockAdmin = {
     id: "admin_123",
@@ -47,15 +64,8 @@ describe("Audit Logger", () => {
     vi.clearAllMocks();
     mockAuthUserId = "admin_123";
     mockClerkClient.users.getUser.mockResolvedValue(mockAdmin);
-    // Reset all mock implementations
-    Object.values(mockChain).forEach(fn => {
-      if (typeof fn === 'function' && fn.mockClear) {
-        fn.mockClear();
-      }
-    });
-    // Default return for range
-    mockChain.range.mockResolvedValue({ data: [], error: null, count: 0 });
-    mockChain.insert.mockResolvedValue({ error: null });
+    // Reset the mock chain
+    mockChain = createMockChain();
   });
 
   describe("logAdminAction", () => {
@@ -100,7 +110,9 @@ describe("Audit Logger", () => {
 
     it("should not throw on database error", async () => {
       const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
-      mockChain.insert.mockResolvedValueOnce({ error: { message: "DB Error" } });
+      
+      // Override insert to throw an exception (which is what happens on real DB errors)
+      mockChain.insert.mockRejectedValueOnce(new Error("DB Error"));
 
       await expect(
         logAdminAction({
@@ -145,10 +157,9 @@ describe("Audit Logger", () => {
     };
 
     it("should return logs with default pagination", async () => {
-      mockChain.range.mockResolvedValueOnce({ 
-        data: [mockLog], 
-        error: null, 
-        count: 1 
+      // Override the then method to return data
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({ data: [mockLog], error: null, count: 1 });
       });
 
       const result = await getAuditLogs();
@@ -158,7 +169,9 @@ describe("Audit Logger", () => {
     });
 
     it("should apply filters when provided", async () => {
-      mockChain.range.mockResolvedValueOnce({ data: [], error: null, count: 0 });
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({ data: [], error: null, count: 0 });
+      });
 
       await getAuditLogs({ 
         targetType: "user",
@@ -175,7 +188,9 @@ describe("Audit Logger", () => {
     });
 
     it("should apply date range filters", async () => {
-      mockChain.range.mockResolvedValueOnce({ data: [], error: null, count: 0 });
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({ data: [], error: null, count: 0 });
+      });
 
       await getAuditLogs({
         startDate: "2024-01-01",
@@ -187,9 +202,8 @@ describe("Audit Logger", () => {
     });
 
     it("should handle database error", async () => {
-      mockChain.range.mockResolvedValueOnce({ 
-        data: null, 
-        error: { message: "DB Error" } 
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({ data: null, error: { message: "DB Error" } });
       });
 
       await expect(getAuditLogs()).rejects.toThrow("Failed to fetch audit logs");
@@ -198,22 +212,24 @@ describe("Audit Logger", () => {
 
   describe("getAuditLogsForTarget", () => {
     it("should return logs for specific target", async () => {
-      mockChain.range.mockResolvedValueOnce({
-        data: [
-          {
-            id: "log_1",
-            admin_id: "admin_123",
-            admin_email: "admin@example.com",
-            action: "user.update",
-            target_type: "user",
-            target_id: "user_456",
-            target_name: null,
-            metadata: {},
-            created_at: "2024-01-01T00:00:00Z",
-          },
-        ],
-        error: null,
-        count: 1,
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({
+          data: [
+            {
+              id: "log_1",
+              admin_id: "admin_123",
+              admin_email: "admin@example.com",
+              action: "user.update",
+              target_type: "user",
+              target_id: "user_456",
+              target_name: null,
+              metadata: {},
+              created_at: "2024-01-01T00:00:00Z",
+            },
+          ],
+          error: null,
+          count: 1,
+        });
       });
 
       const result = await getAuditLogsForTarget("user", "user_456");
@@ -223,7 +239,9 @@ describe("Audit Logger", () => {
     });
 
     it("should respect limit parameter", async () => {
-      mockChain.range.mockResolvedValueOnce({ data: [], error: null, count: 0 });
+      mockChain.then = vi.fn((resolve: (value: any) => void) => {
+        return resolve({ data: [], error: null, count: 0 });
+      });
 
       await getAuditLogsForTarget("user", "user_456", 10);
 

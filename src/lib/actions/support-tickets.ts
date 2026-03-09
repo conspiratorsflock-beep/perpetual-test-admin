@@ -78,6 +78,22 @@ export async function getSupportTicketById(id: string): Promise<SupportTicket | 
   return data ? mapTicketFromDB(data) : null;
 }
 
+export async function getSupportTicketByReference(referenceCode: string): Promise<SupportTicket | null> {
+  const { data, error } = await supabaseAdmin
+    .from("support_tickets")
+    .select("*")
+    .eq("reference_code", referenceCode)
+    .is("deleted_at", null)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new Error(`Failed to fetch ticket: ${error.message}`);
+  }
+
+  return data ? mapTicketFromDB(data) : null;
+}
+
 export async function getSupportTicketComments(ticketId: string): Promise<SupportTicketComment[]> {
   const { data, error } = await supabaseAdmin
     .from("support_ticket_comments")
@@ -427,6 +443,7 @@ function mapTicketFromDB(row: Record<string, unknown>): SupportTicket {
   return {
     id: row.id as string,
     ticketNumber: row.ticket_number as number,
+    referenceCode: row.reference_code as string | null,
     userId: row.user_id as string,
     userEmail: row.user_email as string,
     userName: row.user_name as string | null,

@@ -70,6 +70,7 @@ export function useSupportTickets(options: UseSupportTicketsOptions = {}) {
           status = ["open", "pending", "in_progress", "escalated"];
       }
 
+      // Fetch filtered tickets for display
       const { tickets: data, count } = await getSupportTickets({
         status,
         unassigned,
@@ -79,9 +80,14 @@ export function useSupportTickets(options: UseSupportTicketsOptions = {}) {
 
       setTickets(data);
 
-      // Calculate counts
+      // Fetch ALL tickets for accurate counts (regardless of filter)
+      const { tickets: allTickets } = await getSupportTickets({
+        limit: 1000, // Get all tickets for counting
+      });
+
+      // Calculate counts from ALL tickets
       const newCounts: TicketCounts = {
-        total: count,
+        total: allTickets.length,
         open: 0,
         pending: 0,
         inProgress: 0,
@@ -92,7 +98,7 @@ export function useSupportTickets(options: UseSupportTicketsOptions = {}) {
         overdue: 0,
       };
 
-      data.forEach((ticket) => {
+      allTickets.forEach((ticket) => {
         switch (ticket.status) {
           case "open":
             newCounts.open++;

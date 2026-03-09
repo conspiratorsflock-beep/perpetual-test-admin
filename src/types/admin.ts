@@ -277,6 +277,7 @@ export type TicketCategory = "billing" | "account" | "technical" | "feature_requ
 export interface SupportTicket {
   id: string;
   ticketNumber: number;
+  referenceCode: string | null;
   userId: string;
   userEmail: string;
   userName: string | null;
@@ -342,4 +343,96 @@ export interface SupportTeamMember {
   isAvailable: boolean;
   maxOpenTickets: number;
   skills: string[];
+  isOnline?: boolean;
+  avatarUrl?: string | null;
+}
+
+// ─── Ticket Assignment & Seeding ────────────────────────────────────────────
+
+export interface TicketSeedingConfig {
+  strategy: 'round_robin' | 'workload_balanced' | 'skill_based';
+  respectSchedule: boolean;
+  maxPerAgent: number;
+  categories: string[];
+}
+
+export interface TicketSeedingResult {
+  seeded: number;
+  assignments: {
+    ticketId: string;
+    agentId: string;
+    agentName: string;
+  }[];
+  errors: string[];
+}
+
+// ─── Agent Scheduling ───────────────────────────────────────────────────────
+
+export interface AgentSchedule {
+  id: string;
+  agentId: string;
+  timezone: string;
+  isActive: boolean;
+  shifts: ScheduleShift[];
+  exceptions: ScheduleException[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleShift {
+  id: string;
+  scheduleId: string;
+  dayOfWeek: number; // 0-6 (Sun-Sat)
+  startTime: string; // "09:00"
+  endTime: string;   // "17:00"
+  isActive: boolean;
+}
+
+export interface ScheduleException {
+  id: string;
+  scheduleId: string;
+  exceptionDate: string; // YYYY-MM-DD
+  type: 'pto' | 'holiday' | 'custom';
+  note?: string;
+  isFullDay: boolean;
+  startTime?: string;
+  endTime?: string;
+}
+
+// ─── Agent Availability ─────────────────────────────────────────────────────
+
+export interface AgentAvailability {
+  agentId: string;
+  agentName: string;
+  isOnline: boolean;
+  isOnDuty: boolean;
+  timezone: string;
+  currentWorkload: number; // Open tickets
+  maxCapacity: number;
+  skills: string[];
+}
+
+// ─── Extended Ticket with Assignment Info ───────────────────────────────────
+
+export interface SupportTicketWithAssignee extends Omit<SupportTicket, 'assignedTo' | 'assignedAt'> {
+  assignedTo?: SupportTeamMember;
+  assignedAt?: string;
+  autoAssigned: boolean;
+  recentComments?: SupportTicketComment[];
+  slaStatus: 'healthy' | 'at_risk' | 'breached';
+  slaMinutesRemaining: number;
+}
+
+// ─── Ticket Counts ──────────────────────────────────────────────────────────
+
+export interface TicketCounts {
+  total: number;
+  open: number;
+  pending: number;
+  inProgress: number;
+  resolved: number;
+  closed: number;
+  escalated: number;
+  unassigned: number;
+  overdue: number;
 }
