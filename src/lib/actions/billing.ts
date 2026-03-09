@@ -35,12 +35,6 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
   }
 
   try {
-    // Get all active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      status: "all",
-      limit: 100,
-    });
-
     let mrr = 0;
     let activeSubscriptions = 0;
     let trialingSubscriptions = 0;
@@ -49,8 +43,10 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
 
     const now = Math.floor(Date.now() / 1000);
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
+    const customerIds = new Set<string>();
 
-    for (const sub of subscriptions.data) {
+    // Paginate through all subscriptions — avoids 100-record truncation
+    for await (const sub of stripe.subscriptions.list({ status: "all", limit: 100 })) {
       // Calculate MRR from active subscriptions
       if (sub.status === "active" || sub.status === "trialing") {
         for (const item of sub.items.data) {
@@ -88,10 +84,9 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
           }
           break;
       }
-    }
 
-    // Get unique customers for ARPU calculation
-    const customerIds = new Set(subscriptions.data.map((s) => s.customer as string));
+      customerIds.add(sub.customer as string);
+    }
 
     // Calculate churn rate (canceled in last 30 days / total active at start of period)
     const activeAtStart = activeSubscriptions + canceledSubscriptions;
@@ -195,17 +190,15 @@ export async function getMRRHistory(months = 6): Promise<{ month: string; mrr: n
   }
 
   try {
-    // Get all subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      status: "all",
-      limit: 100,
-    });
+    // Paginate through all subscriptions — avoids 100-record truncation
+    const allSubs: Awaited<ReturnType<typeof stripe.subscriptions.list>>["data"] = [];
+    for await (const sub of stripe.subscriptions.list({ status: "all", limit: 100 })) {
+      allSubs.push(sub);
+    }
 
     const now = new Date();
     const history: { month: string; mrr: number }[] = [];
 
-    // Generate historical data by looking at subscription creation dates
-    // and calculating MRR at each month point
     for (let i = months - 1; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
@@ -213,7 +206,7 @@ export async function getMRRHistory(months = 6): Promise<{ month: string; mrr: n
 
       let monthMrr = 0;
 
-      for (const sub of subscriptions.data) {
+      for (const sub of allSubs) {
         // Only count subscriptions that were active at this point in time
         if (sub.created <= monthTimestamp && (!sub.canceled_at || sub.canceled_at > monthTimestamp)) {
           for (const item of sub.items.data) {

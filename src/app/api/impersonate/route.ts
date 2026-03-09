@@ -1,11 +1,26 @@
+import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { validateImpersonationToken } from "@/lib/actions/impersonation";
 
 /**
  * API route to validate an impersonation token and redirect to the main app.
  * This would be called by the main app's middleware to handle impersonation.
+ * Requires an authenticated admin session.
  */
 export async function GET(request: NextRequest) {
+  const { userId, sessionClaims } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  const isAdmin =
+    (sessionClaims?.publicMetadata as { isAdmin?: boolean })?.isAdmin === true;
+
+  if (!isAdmin) {
+    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  }
+
   const token = request.nextUrl.searchParams.get("token");
 
   if (!token) {

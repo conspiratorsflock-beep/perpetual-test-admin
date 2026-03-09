@@ -115,6 +115,8 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
 
 /**
  * Update a user's basic information.
+ * Name fields use updateUser(); metadata uses updateUserMetadata() (merge semantics)
+ * to avoid accidentally overwriting existing keys like isAdmin.
  */
 export async function updateUser(
   userId: string,
@@ -126,11 +128,20 @@ export async function updateUser(
 ): Promise<void> {
   const client = await clerkClient();
 
-  await client.users.updateUser(userId, {
-    firstName: data.firstName,
-    lastName: data.lastName,
-    publicMetadata: data.publicMetadata,
-  });
+  // Update name fields only if provided — avoids touching metadata
+  if (data.firstName !== undefined || data.lastName !== undefined) {
+    await client.users.updateUser(userId, {
+      firstName: data.firstName,
+      lastName: data.lastName,
+    });
+  }
+
+  // Use updateUserMetadata for merge semantics — never overwrites other keys
+  if (data.publicMetadata !== undefined) {
+    await client.users.updateUserMetadata(userId, {
+      publicMetadata: data.publicMetadata,
+    });
+  }
 
   await logAdminAction({
     action: "user.update",
@@ -252,12 +263,19 @@ export async function inviteUser({
 }): Promise<{ invitationId: string; email: string }> {
   const client = await clerkClient();
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    throw new Error(
+      "NEXT_PUBLIC_APP_URL environment variable is not set. Cannot generate a valid invitation redirect URL."
+    );
+  }
+
   try {
     // Create invitation
     const invitation = await client.invitations.createInvitation({
       emailAddress: email,
       publicMetadata: { isAdmin },
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001"}/sign-up`,
+      redirectUrl: `${appUrl}/sign-up`,
     });
 
     // If orgId provided, also create org invitation

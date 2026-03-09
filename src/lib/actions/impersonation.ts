@@ -66,7 +66,8 @@ export async function generateImpersonationToken(targetUserId: string): Promise<
 
 /**
  * Validates an impersonation token and returns the target user ID if valid.
- * Marks the token as used.
+ * Uses a single atomic UPDATE ... WHERE used_at IS NULL to prevent race conditions
+ * where two simultaneous requests could both pass the "already used" check.
  */
 export async function validateImpersonationToken(token: string): Promise<{
   valid: boolean;
@@ -75,33 +76,36 @@ export async function validateImpersonationToken(token: string): Promise<{
   error?: string;
 }> {
   const tokenHash = createHash("sha256").update(token).digest("hex");
+  const now = new Date().toISOString();
 
-  // Find the token
+  // Atomically mark as used only if it exists, is unused, and is not expired.
+  // If another request already claimed it, no rows are returned.
   const { data, error } = await supabaseAdmin
     .from("impersonation_tokens")
-    .select("*")
+    .update({ used_at: now })
     .eq("token_hash", tokenHash)
-    .single();
+    .is("used_at", null)
+    .gt("expires_at", now)
+    .select("target_user_id, admin_id, expires_at")
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error("Failed to validate impersonation token:", error);
     return { valid: false, error: "Invalid token" };
   }
 
-  // Check if already used
-  if (data.used_at) {
-    return { valid: false, error: "Token already used" };
-  }
+  if (!data) {
+    // Could be invalid hash, already used, or expired — fetch to distinguish for logging
+    const { data: existing } = await supabaseAdmin
+      .from("impersonation_tokens")
+      .select("used_at, expires_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
 
-  // Check expiry
-  if (new Date(data.expires_at) < new Date()) {
+    if (!existing) return { valid: false, error: "Invalid token" };
+    if (existing.used_at) return { valid: false, error: "Token already used" };
     return { valid: false, error: "Token expired" };
   }
-
-  // Mark as used
-  await supabaseAdmin
-    .from("impersonation_tokens")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", data.id);
 
   return {
     valid: true,

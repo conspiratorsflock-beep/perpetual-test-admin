@@ -25,17 +25,16 @@ export async function logAdminAction({
   metadata = {},
 }: LogAdminActionParams): Promise<void> {
   try {
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
       console.error("Cannot log admin action: no authenticated user");
       return;
     }
 
-    // Get admin email from Clerk
-    const { clerkClient } = await import("@clerk/nextjs/server");
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    const adminEmail = user.emailAddresses[0]?.emailAddress || "unknown";
+    // Read email from JWT claims — avoids an extra Clerk API round-trip per log entry.
+    // Falls back to the claims email field or "unknown" if not present.
+    const adminEmail =
+      (sessionClaims as { email?: string } | null)?.email || "unknown";
 
     // Get request headers for IP and user agent
     const headersList = await headers();

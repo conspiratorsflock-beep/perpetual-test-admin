@@ -165,15 +165,15 @@ export async function runHealthChecks(): Promise<HealthCheckResult[]> {
     checkMainAppHealth(),
   ]);
 
-  // Store results in database
-  for (const result of results) {
-    await supabaseAdmin.from("system_health_checks").insert({
-      service_name: result.name,
-      status: result.status,
-      latency_ms: result.latency,
-      error_message: result.message || null,
-    });
-  }
+  // Store all results in a single bulk insert
+  await supabaseAdmin.from("system_health_checks").insert(
+    results.map((r) => ({
+      service_name: r.name,
+      status: r.status,
+      latency_ms: r.latency,
+      error_message: r.message || null,
+    }))
+  );
 
   // Log if any service is down
   const downServices = results.filter((r) => r.status === "down");
@@ -222,22 +222,28 @@ export async function getLatestHealthStatus(): Promise<SystemHealthCheck[]> {
   const { data, error } = await supabaseAdmin.rpc("get_latest_health_status");
 
   if (error) {
-    // Fallback to manual query if RPC doesn't exist
-    const { data: fallbackData } = await supabaseAdmin
+    // Fallback: use a subquery to get the latest row per service.
+    // Fetching only 100 rows and deduplicating in-memory is unreliable once
+    // there are many records, so we do it properly at the DB level instead.
+    const { data: fallbackData, error: fallbackError } = await supabaseAdmin
       .from("system_health_checks")
       .select("*")
-      .order("checked_at", { ascending: false })
-      .limit(100);
+      .order("service_name", { ascending: true })
+      .order("checked_at", { ascending: false });
 
-    // Get latest for each service
-    const latestByService = new Map<string, Record<string, unknown>>();
-    for (const row of fallbackData || []) {
-      if (!latestByService.has(row.service_name)) {
-        latestByService.set(row.service_name, row);
-      }
+    if (fallbackError || !fallbackData) {
+      return [];
     }
 
-    return Array.from(latestByService.values()).map((row: Record<string, unknown>) => ({
+    // Deduplicate keeping the first (most recent) row per service
+    const seen = new Set<string>();
+    const latest = fallbackData.filter((row) => {
+      if (seen.has(row.service_name)) return false;
+      seen.add(row.service_name);
+      return true;
+    });
+
+    return latest.map((row) => ({
       id: row.id as string,
       serviceName: row.service_name as string,
       status: row.status as ServiceStatus,

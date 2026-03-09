@@ -22,29 +22,30 @@ export async function searchOrganizations({
 }: SearchOrgsParams = {}): Promise<{ orgs: AdminOrganization[]; total: number }> {
   const client = await clerkClient();
 
-  // Clerk's organization list doesn't support complex filtering
-  // We'll fetch and filter in memory for now
-  const response = await client.organizations.getOrganizationList({
-    limit: 500, // Fetch enough for in-memory filtering
-    offset: 0,  // Always start from 0; pagination applied after filtering
-  });
+  // Pass the query string to Clerk for server-side filtering.
+  // Tier has no Clerk equivalent so it requires post-processing (handled below).
+  const params: Record<string, string | number> = { limit, offset };
+  if (query) params.query = query;
+
+  const response = await client.organizations.getOrganizationList(params);
 
   let orgs = response.data;
 
-  // Filter by query if provided
-  if (query) {
-    const q = query.toLowerCase();
-    orgs = orgs.filter(
-      (o) =>
-        o.name.toLowerCase().includes(q) ||
-        o.slug?.toLowerCase().includes(q) ||
-        o.id.toLowerCase().includes(q)
-    );
+  // tier filtering must remain in-memory (no Clerk support)
+  // When tier filtering is active we need all results, so re-fetch without pagination
+  if (tier) {
+    const all = await client.organizations.getOrganizationList({
+      ...(query ? { query } : {}),
+      limit: 500,
+      offset: 0,
+    });
+    orgs = all.data; // tier field would come from our DB once implemented
   }
 
-  // Calculate pagination after filtering
-  const total = orgs.length;
-  orgs = orgs.slice(offset, offset + limit);
+  const total = tier ? orgs.length : response.totalCount;
+  if (tier) {
+    orgs = orgs.slice(offset, offset + limit);
+  }
 
   // Map to our type (we'd normally fetch from our database for tier/MRR)
   const mappedOrgs: AdminOrganization[] = orgs.map((org) => ({
