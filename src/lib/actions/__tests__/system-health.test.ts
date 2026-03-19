@@ -106,7 +106,13 @@ describe("System Health Actions", () => {
       order: mockSupabaseOrder,
     });
     mockSupabaseOrder.mockReturnValue({
+      order: mockSupabaseOrder, // supports chained .order().order()
       limit: mockSupabaseLimit,
+      // Make the result awaitable so double-.order() chains resolve correctly
+      then: (
+        onFulfilled: (v: unknown) => unknown,
+        onRejected: (e: unknown) => unknown
+      ) => Promise.resolve({ data: [], error: null }).then(onFulfilled, onRejected),
     });
     mockSupabaseLimit.mockResolvedValue({
       data: [],
@@ -139,7 +145,16 @@ describe("System Health Actions", () => {
 
       await runHealthChecks();
 
-      expect(mockSupabaseInsert).toHaveBeenCalledTimes(4);
+      // All 4 results are stored in a single bulk insert
+      expect(mockSupabaseInsert).toHaveBeenCalledTimes(1);
+      expect(mockSupabaseInsert).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ service_name: "Supabase Database" }),
+          expect.objectContaining({ service_name: "Clerk Auth" }),
+          expect.objectContaining({ service_name: "Stripe API" }),
+          expect.objectContaining({ service_name: "Main App" }),
+        ])
+      );
     });
 
     it("should log alert when service is down", async () => {
@@ -277,9 +292,19 @@ describe("System Health Actions", () => {
         },
       ];
 
-      mockSupabaseLimit.mockResolvedValue({
-        data: mockData,
-        error: null,
+      // The fallback uses .select().order().order() (no .limit()), so we make
+      // mockSupabaseOrder resolve to mockData when awaited directly.
+      mockSupabaseOrder.mockReturnValue({
+        order: mockSupabaseOrder,
+        limit: mockSupabaseLimit,
+        then: (
+          onFulfilled: (v: unknown) => unknown,
+          onRejected: (e: unknown) => unknown
+        ) =>
+          Promise.resolve({ data: mockData, error: null }).then(
+            onFulfilled,
+            onRejected
+          ),
       });
 
       const result = await getLatestHealthStatus();

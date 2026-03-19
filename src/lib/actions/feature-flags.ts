@@ -2,12 +2,18 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { FeatureFlag } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 /**
  * Get all feature flags.
  */
 export async function getFeatureFlags(): Promise<FeatureFlag[]> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("feature_flags")
     .select("*")
@@ -34,6 +40,7 @@ export async function getFeatureFlags(): Promise<FeatureFlag[]> {
  * Get a single feature flag by ID.
  */
 export async function getFeatureFlagById(id: string): Promise<FeatureFlag | null> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("feature_flags")
     .select("*")
@@ -64,6 +71,7 @@ export async function createFeatureFlag(data: {
   description?: string;
   enabledGlobally?: boolean;
 }): Promise<FeatureFlag> {
+  await requireAdmin();
   const { data: row, error } = await supabaseAdmin
     .from("feature_flags")
     .insert({
@@ -113,6 +121,7 @@ export async function updateFeatureFlag(
     enabledForUsers?: string[];
   }
 ): Promise<void> {
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("feature_flags")
     .update({
@@ -147,6 +156,7 @@ export async function toggleFeatureFlagGlobal(id: string, enabled: boolean): Pro
  * Delete a feature flag.
  */
 export async function deleteFeatureFlag(id: string): Promise<void> {
+  await requireAdmin();
   const flag = await getFeatureFlagById(id);
 
   const { error } = await supabaseAdmin.from("feature_flags").delete().eq("id", id);

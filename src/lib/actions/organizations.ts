@@ -2,7 +2,12 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminOrganization, OrganizationWithDetails, OrgTier } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 interface SearchOrgsParams {
   query?: string;
@@ -20,6 +25,7 @@ export async function searchOrganizations({
   limit = 50,
   offset = 0,
 }: SearchOrgsParams = {}): Promise<{ orgs: AdminOrganization[]; total: number }> {
+  await requireAdmin();
   const client = await clerkClient();
 
   // Pass the query string to Clerk for server-side filtering.
@@ -66,6 +72,7 @@ export async function searchOrganizations({
  * Get a single organization by ID with full details.
  */
 export async function getOrganizationById(orgId: string): Promise<OrganizationWithDetails | null> {
+  await requireAdmin();
   const client = await clerkClient();
 
   try {
@@ -118,6 +125,7 @@ export async function changeOrgTier(
   newTier: OrgTier,
   reason?: string
 ): Promise<void> {
+  await requireAdmin();
   // In a real implementation, this would:
   // 1. Update the tier in your database
   // 2. Potentially update Stripe subscription
@@ -135,6 +143,7 @@ export async function changeOrgTier(
  * Get total organization count for dashboard.
  */
 export async function getTotalOrgCount(): Promise<number> {
+  await requireAdmin();
   const client = await clerkClient();
   const response = await client.organizations.getOrganizationList({ limit: 1 });
   return response.totalCount;

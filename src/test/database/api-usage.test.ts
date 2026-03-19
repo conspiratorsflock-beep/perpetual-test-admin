@@ -6,16 +6,20 @@ import { createClient } from "@supabase/supabase-js";
 const skipIfNoDatabase = process.env.SUPABASE_SERVICE_ROLE_KEY ? false : true;
 
 describe.skipIf(skipIfNoDatabase)("API Usage Database", () => {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+  // Only create the client when the env vars are actually present to avoid
+  // a module-level error when this describe block is skipped.
+  const supabase = skipIfNoDatabase
+    ? (null as ReturnType<typeof createClient>)
+    : createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
 
   beforeAll(async () => {
     // Ensure the table exists

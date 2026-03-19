@@ -2,12 +2,18 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminAnnouncement, AnnouncementType } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 /**
  * Get all announcements.
  */
 export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("admin_announcements")
     .select("*")
@@ -91,6 +97,7 @@ export async function createAnnouncement(
   createdBy: string,
   createdByEmail: string
 ): Promise<AdminAnnouncement> {
+  await requireAdmin();
   const { data: row, error } = await supabaseAdmin
     .from("admin_announcements")
     .insert({
@@ -153,6 +160,7 @@ export async function updateAnnouncement(
     isActive?: boolean;
   }
 ): Promise<void> {
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("admin_announcements")
     .update({
@@ -190,6 +198,7 @@ export async function toggleAnnouncementActive(id: string, isActive: boolean): P
  * Delete an announcement.
  */
 export async function deleteAnnouncement(id: string): Promise<void> {
+  await requireAdmin();
   const { data: row } = await supabaseAdmin
     .from("admin_announcements")
     .select("title")

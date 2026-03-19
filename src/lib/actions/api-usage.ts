@@ -1,6 +1,11 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 interface ApiUsageRecord {
   date: string;
@@ -15,6 +20,7 @@ interface ApiUsageRecord {
  * Get API calls for today
  */
 export async function getApiCallsToday(): Promise<number> {
+  await requireAdmin();
   try {
     const today = new Date().toISOString().split("T")[0];
 
@@ -43,6 +49,7 @@ export async function getApiCallsToday(): Promise<number> {
  * Get API usage for the last N days
  */
 export async function getApiUsageHistory(days = 7): Promise<ApiUsageRecord[]> {
+  await requireAdmin();
   try {
     const endDate = new Date();
     const startDate = new Date();
@@ -68,6 +75,7 @@ export async function getApiUsageHistory(days = 7): Promise<ApiUsageRecord[]> {
  * Get total API calls for current month
  */
 export async function getApiCallsThisMonth(): Promise<number> {
+  await requireAdmin();
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -97,6 +105,7 @@ export async function getApiCallsComparison(): Promise<{
   change: number;
   trend: "up" | "down" | "neutral";
 }> {
+  await requireAdmin();
   try {
     const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
@@ -127,7 +136,8 @@ export async function getApiCallsComparison(): Promise<{
 
 /**
  * Record an API call (to be called from the main app's API routes)
- * This is a utility for the main Perpetual Test application to call
+ * NOTE: If this needs to be called cross-app without an admin session, convert
+ * this to an API route that authenticates via a shared ADMIN_API_SECRET env var.
  */
 export async function recordApiCall({
   endpoint,
@@ -140,6 +150,7 @@ export async function recordApiCall({
   userId?: string;
   orgId?: string;
 }): Promise<void> {
+  await requireAdmin();
   try {
     // Use the database function to increment
     await supabaseAdmin.rpc("increment_api_calls", {

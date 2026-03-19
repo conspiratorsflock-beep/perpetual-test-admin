@@ -1,7 +1,12 @@
 "use server";
 
 import { getAuditLogs } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AuditTargetType } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 /**
  * Export audit logs to CSV format.
@@ -19,6 +24,7 @@ export async function exportAuditLogsToCSV({
   adminId?: string;
   action?: string;
 } = {}): Promise<string> {
+  await requireAdmin();
   const { logs } = await getAuditLogs({
     limit: 10000, // Max export
     startDate,
@@ -71,6 +77,7 @@ export async function exportAuditLogsToJSON({
   adminId?: string;
   action?: string;
 } = {}): Promise<string> {
+  await requireAdmin();
   const { logs } = await getAuditLogs({
     limit: 10000,
     startDate,

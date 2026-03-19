@@ -2,7 +2,12 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { SupportTicket, SupportTicketComment, SupportTicketEvent, TicketCategory, TicketStatus, TicketPriority } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 // ============================================
 // Ticket Queries
@@ -18,6 +23,7 @@ export async function getSupportTickets(params: {
   limit?: number;
   offset?: number;
 } = {}): Promise<{ tickets: SupportTicket[]; count: number }> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("support_tickets")
     .select("*", { count: "exact" })
@@ -63,6 +69,7 @@ export async function getSupportTickets(params: {
 }
 
 export async function getSupportTicketById(id: string): Promise<SupportTicket | null> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_tickets")
     .select("*")
@@ -79,6 +86,7 @@ export async function getSupportTicketById(id: string): Promise<SupportTicket | 
 }
 
 export async function getSupportTicketByReference(referenceCode: string): Promise<SupportTicket | null> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_tickets")
     .select("*")
@@ -95,6 +103,7 @@ export async function getSupportTicketByReference(referenceCode: string): Promis
 }
 
 export async function getSupportTicketComments(ticketId: string): Promise<SupportTicketComment[]> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_ticket_comments")
     .select("*")
@@ -109,6 +118,7 @@ export async function getSupportTicketComments(ticketId: string): Promise<Suppor
 }
 
 export async function getSupportTicketEvents(ticketId: string): Promise<SupportTicketEvent[]> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_ticket_events")
     .select("*")
@@ -131,6 +141,7 @@ export async function assignTicket(
   agentId: string,
   agentEmail: string
 ): Promise<void> {
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("support_tickets")
     .update({
@@ -163,6 +174,7 @@ export async function updateTicketStatus(
   agentId: string,
   agentEmail: string
 ): Promise<void> {
+  await requireAdmin();
   const updates: Record<string, string> = {
     status,
     updated_at: new Date().toISOString(),
@@ -198,6 +210,7 @@ export async function updateTicketPriority(
   agentId: string,
   agentEmail: string
 ): Promise<void> {
+  await requireAdmin();
   // Recalculate SLA deadline
   const { data: ticket } = await supabaseAdmin
     .from("support_tickets")
@@ -231,6 +244,7 @@ export async function addTicketComment(
   isAgent: boolean = true,
   attachments: Array<{ filename: string; url: string; mimeType: string; size: number }> = []
 ): Promise<SupportTicketComment> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_ticket_comments")
     .insert({
@@ -277,6 +291,7 @@ export async function closeTicket(
   agentEmail: string,
   resolution?: string
 ): Promise<void> {
+  await requireAdmin();
   const { error } = await supabaseAdmin
     .from("support_tickets")
     .update({
@@ -310,6 +325,7 @@ export async function getCannedResponses(category?: string): Promise<Array<{
   content: string;
   category: string | null;
 }>> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("support_canned_responses")
     .select("*")
@@ -330,6 +346,7 @@ export async function getCannedResponses(category?: string): Promise<Array<{
 }
 
 export async function incrementCannedResponseUse(id: string): Promise<void> {
+  await requireAdmin();
   await supabaseAdmin.rpc("increment", { table_name: "support_canned_responses", id });
 }
 
@@ -347,6 +364,7 @@ export async function getSupportTeam(): Promise<Array<{
   maxOpenTickets: number;
   skills: string[];
 }>> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_team_members")
     .select("*")
@@ -374,6 +392,7 @@ export async function addTeamMember(
   name: string | null,
   role: string = "agent"
 ): Promise<void> {
+  await requireAdmin();
   const { error } = await supabaseAdmin.from("support_team_members").insert({
     user_id: userId,
     email,
@@ -402,6 +421,7 @@ export async function getSupportAnalytics(params: {
   avgResolutionTime: number;
   satisfactionScore: number | null;
 }> {
+  await requireAdmin();
   // This would be implemented with more complex aggregations
   // For now, return basic counts
   const { data: tickets, error } = await supabaseAdmin

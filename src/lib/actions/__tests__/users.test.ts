@@ -178,13 +178,17 @@ describe("User Actions", () => {
         publicMetadata: { customField: "value" },
       });
 
+      // Name fields go through updateUser; publicMetadata uses updateUserMetadata (merge semantics)
       expect(mockClerkClient.users.updateUser).toHaveBeenCalledWith(
         "user_123",
         expect.objectContaining({
           firstName: "Jane",
           lastName: "Smith",
-          publicMetadata: { customField: "value" },
         })
+      );
+      expect(mockClerkClient.users.updateUserMetadata).toHaveBeenCalledWith(
+        "user_123",
+        { publicMetadata: { customField: "value" } }
       );
     });
   });

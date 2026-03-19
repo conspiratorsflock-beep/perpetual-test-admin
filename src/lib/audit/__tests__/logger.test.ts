@@ -47,6 +47,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   auth: () =>
     Promise.resolve({
       userId: mockAuthUserId,
+      sessionClaims: { email: "admin@example.com" },
     }),
   clerkClient: () => Promise.resolve(mockClerkClient),
 }));

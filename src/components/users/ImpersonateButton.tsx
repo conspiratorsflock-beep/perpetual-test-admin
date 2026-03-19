@@ -47,10 +47,22 @@ export function ImpersonateButton({ userId, userEmail }: ImpersonateButtonProps)
   };
 
   const handleImpersonate = () => {
-    // Open main app with impersonation token
-    // The main app middleware should handle token validation
+    if (!token) return;
+    // POST the token in a hidden form so it is never exposed in the URL,
+    // browser history, or server access logs.
     const mainAppUrl = process.env.NEXT_PUBLIC_MAIN_APP_URL || "http://localhost:3000";
-    window.open(`${mainAppUrl}/api/impersonate?token=${token}`, "_blank");
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = `${mainAppUrl}/api/impersonate`;
+    form.target = "_blank";
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = "token";
+    input.value = token;
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
   };
 
   const handleClose = () => {

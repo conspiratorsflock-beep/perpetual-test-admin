@@ -54,6 +54,11 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(_request: NextRequest) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from("system_settings")
       .select("value")

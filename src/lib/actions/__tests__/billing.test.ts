@@ -53,6 +53,15 @@ import {
   mockStripeCouponsDel,
 } from "@/lib/stripe/client";
 
+/** Creates an async iterable from an array — mirrors the Stripe auto-pagination API. */
+function makeAsyncIterable<T>(items: T[]) {
+  return {
+    [Symbol.asyncIterator]: async function* () {
+      for (const item of items) yield item;
+    },
+  };
+}
+
 describe("Billing Actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,10 +69,11 @@ describe("Billing Actions", () => {
 
   describe("getBillingMetrics", () => {
     it("should calculate MRR from monthly subscriptions", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [
+      mockStripeSubscriptionsList.mockReturnValue(
+        makeAsyncIterable([
           {
             status: "active",
+            customer: "cus_1",
             items: {
               data: [
                 {
@@ -76,8 +86,8 @@ describe("Billing Actions", () => {
               ],
             },
           },
-        ],
-      });
+        ])
+      );
 
       const result = await getBillingMetrics();
 
@@ -87,10 +97,11 @@ describe("Billing Actions", () => {
     });
 
     it("should calculate MRR from yearly subscriptions", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [
+      mockStripeSubscriptionsList.mockReturnValue(
+        makeAsyncIterable([
           {
             status: "active",
+            customer: "cus_1",
             items: {
               data: [
                 {
@@ -103,8 +114,8 @@ describe("Billing Actions", () => {
               ],
             },
           },
-        ],
-      });
+        ])
+      );
 
       const result = await getBillingMetrics();
 
@@ -112,15 +123,15 @@ describe("Billing Actions", () => {
     });
 
     it("should count subscription statuses correctly", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [
-          { status: "active", items: { data: [] } },
-          { status: "active", items: { data: [] } },
-          { status: "trialing", items: { data: [] } },
-          { status: "past_due", items: { data: [] } },
-          { status: "canceled", canceled_at: Date.now() / 1000, items: { data: [] } },
-        ],
-      });
+      mockStripeSubscriptionsList.mockReturnValue(
+        makeAsyncIterable([
+          { status: "active", customer: "cus_1", items: { data: [] } },
+          { status: "active", customer: "cus_2", items: { data: [] } },
+          { status: "trialing", customer: "cus_3", items: { data: [] } },
+          { status: "past_due", customer: "cus_4", items: { data: [] } },
+          { status: "canceled", canceled_at: Date.now() / 1000, customer: "cus_5", items: { data: [] } },
+        ])
+      );
 
       const result = await getBillingMetrics();
 
@@ -131,14 +142,14 @@ describe("Billing Actions", () => {
     });
 
     it("should calculate churn rate", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [
-          { status: "active", items: { data: [] } },
-          { status: "active", items: { data: [] } },
-          { status: "active", items: { data: [] } },
-          { status: "canceled", canceled_at: Date.now() / 1000, items: { data: [] } },
-        ],
-      });
+      mockStripeSubscriptionsList.mockReturnValue(
+        makeAsyncIterable([
+          { status: "active", customer: "cus_1", items: { data: [] } },
+          { status: "active", customer: "cus_2", items: { data: [] } },
+          { status: "active", customer: "cus_3", items: { data: [] } },
+          { status: "canceled", canceled_at: Date.now() / 1000, customer: "cus_4", items: { data: [] } },
+        ])
+      );
 
       const result = await getBillingMetrics();
 
@@ -146,9 +157,7 @@ describe("Billing Actions", () => {
     });
 
     it("should handle empty subscriptions", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [],
-      });
+      mockStripeSubscriptionsList.mockReturnValue(makeAsyncIterable([]));
 
       const result = await getBillingMetrics();
 
@@ -289,8 +298,8 @@ describe("Billing Actions", () => {
 
   describe("getMRRHistory", () => {
     it("should return historical MRR data", async () => {
-      mockStripeSubscriptionsList.mockResolvedValue({
-        data: [
+      mockStripeSubscriptionsList.mockReturnValue(
+        makeAsyncIterable([
           {
             created: 1600000000, // Old subscription
             canceled_at: null,
@@ -306,8 +315,8 @@ describe("Billing Actions", () => {
               ],
             },
           },
-        ],
-      });
+        ])
+      );
 
       const result = await getMRRHistory(6);
 

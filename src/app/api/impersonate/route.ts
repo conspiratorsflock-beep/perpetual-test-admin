@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateImpersonationToken } from "@/lib/actions/impersonation";
 
 /**
- * API route to validate an impersonation token and redirect to the main app.
- * This would be called by the main app's middleware to handle impersonation.
+ * POST /api/impersonate
+ *
+ * Validates an impersonation token and returns the target user info.
+ * Token is accepted in the request body (not the URL) to avoid exposure in logs.
+ * Called by the main app's middleware to handle impersonation.
  * Requires an authenticated admin session.
  */
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   const { userId, sessionClaims } = await auth();
 
   if (!userId) {
@@ -21,7 +24,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Not authorized" }, { status: 403 });
   }
 
-  const token = request.nextUrl.searchParams.get("token");
+  let token: string | undefined;
+  try {
+    const body = await request.json();
+    token = body?.token;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
   if (!token) {
     return NextResponse.json({ error: "Missing token" }, { status: 400 });
@@ -33,8 +42,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 401 });
   }
 
-  // Return the target user info - the main app would use this to create
-  // an impersonation session
+  // Return the target user info — the main app uses this to create an impersonation session
   return NextResponse.json({
     success: true,
     targetUserId: result.targetUserId,

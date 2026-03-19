@@ -126,27 +126,41 @@ describe("Impersonation Actions", () => {
   });
 
   describe("validateImpersonationToken", () => {
-    const mockTokenData = {
-      id: "token_123",
-      token_hash: "abc123...",
-      admin_id: "admin_123",
-      target_user_id: "user_456",
-      expires_at: new Date(Date.now() + 1000 * 60 * 30).toISOString(), // 30 min from now
-      used_at: null,
-    };
+    const futureExpiry = new Date(Date.now() + 1000 * 60 * 30).toISOString();
+
+    /** Builds the atomic update chain: .update().eq().is().gt().select().maybeSingle() */
+    const makeUpdateChain = (resolvedData: unknown) =>
+      vi.fn(() => ({
+        eq: vi.fn(() => ({
+          is: vi.fn(() => ({
+            gt: vi.fn(() => ({
+              select: vi.fn(() => ({
+                maybeSingle: vi.fn(() =>
+                  Promise.resolve({ data: resolvedData, error: null })
+                ),
+              })),
+            })),
+          })),
+        })),
+      }));
+
+    /** Builds the fallback select chain: .select().eq().maybeSingle() */
+    const makeFallbackSelect = (resolvedData: unknown) =>
+      vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(() =>
+            Promise.resolve({ data: resolvedData, error: null })
+          ),
+        })),
+      }));
 
     it("should validate valid token", async () => {
       mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() =>
-              Promise.resolve({ data: mockTokenData, error: null })
-            ),
-          })),
-        })),
-        update: vi.fn(() => ({
-          eq: vi.fn(() => Promise.resolve({ error: null })),
-        })),
+        update: makeUpdateChain({
+          target_user_id: "user_456",
+          admin_id: "admin_123",
+          expires_at: futureExpiry,
+        }),
       });
 
       const result = await validateImpersonationToken("valid_token");
@@ -157,19 +171,12 @@ describe("Impersonation Actions", () => {
     });
 
     it("should mark token as used after validation", async () => {
-      const mockUpdate = vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ error: null })),
-      }));
-      mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() =>
-              Promise.resolve({ data: mockTokenData, error: null })
-            ),
-          })),
-        })),
-        update: mockUpdate,
+      const mockUpdate = makeUpdateChain({
+        target_user_id: "user_456",
+        admin_id: "admin_123",
+        expires_at: futureExpiry,
       });
+      mockSupabaseFrom.mockReturnValue({ update: mockUpdate });
 
       await validateImpersonationToken("valid_token");
 
@@ -177,14 +184,10 @@ describe("Impersonation Actions", () => {
     });
 
     it("should reject invalid token", async () => {
+      // Update finds no matching rows; fallback select also finds nothing
       mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() =>
-              Promise.resolve({ data: null, error: { code: "PGRST116" } })
-            ),
-          })),
-        })),
+        update: makeUpdateChain(null),
+        select: makeFallbackSelect(null),
       });
 
       const result = await validateImpersonationToken("invalid_token");
@@ -194,17 +197,13 @@ describe("Impersonation Actions", () => {
     });
 
     it("should reject already used token", async () => {
+      // Update finds no rows (used_at IS NULL filter fails); fallback shows used_at set
       mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() =>
-              Promise.resolve({
-                data: { ...mockTokenData, used_at: new Date().toISOString() },
-                error: null,
-              })
-            ),
-          })),
-        })),
+        update: makeUpdateChain(null),
+        select: makeFallbackSelect({
+          used_at: new Date().toISOString(),
+          expires_at: futureExpiry,
+        }),
       });
 
       const result = await validateImpersonationToken("used_token");
@@ -214,20 +213,13 @@ describe("Impersonation Actions", () => {
     });
 
     it("should reject expired token", async () => {
+      // Update finds no rows (expires_at > now filter fails); fallback shows null used_at
       mockSupabaseFrom.mockReturnValue({
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            single: vi.fn(() =>
-              Promise.resolve({
-                data: {
-                  ...mockTokenData,
-                  expires_at: new Date(Date.now() - 1000).toISOString(),
-                },
-                error: null,
-              })
-            ),
-          })),
-        })),
+        update: makeUpdateChain(null),
+        select: makeFallbackSelect({
+          used_at: null,
+          expires_at: new Date(Date.now() - 1000).toISOString(),
+        }),
       });
 
       const result = await validateImpersonationToken("expired_token");

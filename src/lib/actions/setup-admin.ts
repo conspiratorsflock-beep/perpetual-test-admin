@@ -1,21 +1,25 @@
 "use server";
 
 import { clerkClient } from "@clerk/nextjs/server";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 
 /**
- * ONE-TIME SETUP: Promotes a user to admin by email.
- * Run this by calling it from a page or API route.
- * 
- * Usage: Call this from browser console or create a temporary page:
- * await promoteUserToAdminByEmail("butteredpeanuts@gmail.com");
+ * Promotes a user to admin by email.
+ * Requires the caller to already be an admin.
+ * To bootstrap the very first admin, set isAdmin: true manually in the Clerk Dashboard
+ * under Users → select user → Public Metadata.
  */
 export async function promoteUserToAdminByEmail(email: string): Promise<{
   success: boolean;
   message: string;
 }> {
+  if (!(await isCurrentUserAdmin())) {
+    return { success: false, message: "Unauthorized" };
+  }
+
   try {
     const client = await clerkClient();
-    
+
     // Find user by email
     const users = await client.users.getUserList({
       emailAddress: [email],
@@ -54,17 +58,7 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
     console.error("Failed to promote user:", error);
     return {
       success: false,
-      message: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      message: "Failed to promote user",
     };
   }
-}
-
-/**
- * Emergency admin setup - call this to make butteredpeanuts@gmail.com an admin
- */
-export async function setupEmergencyAdmin(): Promise<{
-  success: boolean;
-  message: string;
-}> {
-  return promoteUserToAdminByEmail("butteredpeanuts@gmail.com");
 }

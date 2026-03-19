@@ -2,10 +2,17 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminErrorLog } from "@/types/admin";
+
+async function requireAdmin() {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+}
 
 /**
  * Log an error (to be called from the main app or API routes).
+ * NOTE: If this needs to be called cross-app without an admin session, convert
+ * this to an API route that authenticates via a shared ADMIN_API_SECRET env var.
  */
 export async function logError({
   errorType,
@@ -24,6 +31,7 @@ export async function logError({
   path?: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
+  await requireAdmin();
   try {
     await supabaseAdmin.from("admin_error_logs").insert({
       error_type: errorType,
@@ -64,6 +72,7 @@ export async function getErrorLogs({
   endDate?: string;
   search?: string;
 } = {}): Promise<{ logs: AdminErrorLog[]; count: number }> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("admin_error_logs")
     .select("*", { count: "exact" })
@@ -121,6 +130,7 @@ export async function getErrorStats(hours = 24): Promise<{
   byType: Record<string, number>;
   byPath: Record<string, number>;
 }> {
+  await requireAdmin();
   const since = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 
   const { data, error } = await supabaseAdmin
@@ -153,6 +163,7 @@ export async function getErrorStats(hours = 24): Promise<{
  * Delete old error logs.
  */
 export async function purgeOldErrors(daysToKeep = 30): Promise<{ deleted: number }> {
+  await requireAdmin();
   const cutoff = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toISOString();
 
   const { error, count } = await supabaseAdmin
@@ -185,6 +196,7 @@ export async function exportErrorLogsToCSV({
   endDate?: string;
   errorType?: string;
 } = {}): Promise<string> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("admin_error_logs")
     .select("*")
