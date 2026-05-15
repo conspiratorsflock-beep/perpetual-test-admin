@@ -6,6 +6,7 @@ import {
   Activity,
   BookOpen,
   Building2,
+  Container,
   CreditCard,
   FileText,
   FolderKanban,
@@ -14,9 +15,11 @@ import {
   LayoutDashboard,
   LifeBuoy,
   Megaphone,
+  Plug,
   Settings,
   Sliders,
   ToggleLeft,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +50,21 @@ const navigation: NavItem[] = [
     label: "API Keys",
     href: "/api-keys",
     icon: Key,
+  },
+  {
+    label: "Integrations",
+    href: "/integrations",
+    icon: Plug,
+  },
+  {
+    label: "Build Queue",
+    href: "/builds",
+    icon: Container,
+  },
+  {
+    label: "Leads",
+    href: "/leads",
+    icon: UserPlus,
   },
   {
     label: "Help Desk",

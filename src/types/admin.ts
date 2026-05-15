@@ -519,19 +519,28 @@ export interface TicketCounts {
   overdue: number;
 }
 
+export type IntegrationStatus = "active" | "expired" | "error" | "not_configured";
+export type IntegrationProvider = "jira" | "github" | "gitlab" | "slack" | "teams" | "custom";
+
 // ─── Integration Health ─────────────────────────────────────────────────────
 
 export interface IntegrationHealth {
+  id: string;
   provider: string;
   orgId: string;
   orgName: string;
   projectId: string | null;
   projectName: string | null;
-  status: "active" | "expired" | "error" | "not_configured";
+  status: IntegrationStatus;
   connectedAt: string | null;
   lastSyncAt: string | null;
   errorMessage: string | null;
+  config: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
+
+export type BuildQueueItemStatus = "pending" | "running" | "success" | "failed" | "cancelled";
 
 // ─── Build Queue ────────────────────────────────────────────────────────────
 
@@ -540,8 +549,18 @@ export interface BuildQueueItem {
   name: string;
   cicdProvider: string;
   cicdExternalId: string;
-  receivedAt: string;
   assignedProjectId: string | null;
+  projectName: string | null;
+  status: BuildQueueItemStatus;
+  receivedAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  branch: string | null;
+  commitSha: string | null;
+  authorEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Sandbox Leads ──────────────────────────────────────────────────────────
@@ -552,6 +571,8 @@ export interface SandboxLead {
   orgId: string | null;
   orgName: string | null;
   source: string;
+  notes: string | null;
+  convertedAt: string | null;
   createdAt: string;
 }
 
