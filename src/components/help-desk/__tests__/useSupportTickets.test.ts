@@ -19,6 +19,7 @@ const mockTickets: SupportTicket[] = [
   {
     id: "ticket_1",
     ticketNumber: 1001,
+    referenceCode: null,
     userId: "user_1",
     userEmail: "user1@example.com",
     userName: "John Doe",
@@ -33,6 +34,9 @@ const mockTickets: SupportTicket[] = [
     slaDeadline: tomorrow, // Not overdue
     firstResponseAt: null,
     resolvedAt: null,
+    closedAt: null,
+    isActive: true,
+    metadata: {},
     source: "web",
     tags: [],
     browserInfo: null,
@@ -44,6 +48,7 @@ const mockTickets: SupportTicket[] = [
   {
     id: "ticket_2",
     ticketNumber: 1002,
+    referenceCode: null,
     userId: "user_2",
     userEmail: "user2@example.com",
     userName: "Jane Smith",
@@ -58,6 +63,9 @@ const mockTickets: SupportTicket[] = [
     slaDeadline: tomorrow, // Not overdue
     firstResponseAt: null,
     resolvedAt: null,
+    closedAt: null,
+    isActive: true,
+    metadata: {},
     source: "web",
     tags: [],
     browserInfo: null,
@@ -69,6 +77,7 @@ const mockTickets: SupportTicket[] = [
   {
     id: "ticket_3",
     ticketNumber: 1003,
+    referenceCode: null,
     userId: "user_3",
     userEmail: "user3@example.com",
     userName: "Bob Wilson",
@@ -83,6 +92,9 @@ const mockTickets: SupportTicket[] = [
     slaDeadline: yesterday, // Overdue (in the past)
     firstResponseAt: twoDaysAgo,
     resolvedAt: yesterday,
+    closedAt: yesterday,
+    isActive: false,
+    metadata: {},
     source: "web",
     tags: [],
     browserInfo: null,

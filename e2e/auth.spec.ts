@@ -9,7 +9,7 @@ test.describe("Authentication", () => {
   test("sign-in page renders correctly", async ({ page }) => {
     await page.goto("/sign-in");
     
-    await expect(page.getByText("Perpetual Test")).toBeVisible();
+    await expect(page.getByText("Lathe Studio")).toBeVisible();
     await expect(page.getByText("Admin")).toBeVisible();
     await expect(page.getByText("Sign in to continue")).toBeVisible();
   });

@@ -48,7 +48,7 @@ const configVars: ConfigVar[] = [
     key: "MAIN_APP_URL",
     value: process.env.MAIN_APP_URL || "Not configured",
     isSecret: false,
-    description: "Main Perpetual Test app URL",
+    description: "Main Lathe Studio app URL",
   },
 ];
 

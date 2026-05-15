@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { GET } from "../route";
+import { POST } from "../route";
 import { NextRequest } from "next/server";
 
 // Mock impersonation actions
@@ -17,7 +17,7 @@ describe("API: /api/impersonate", () => {
 
   it("returns 400 when token is missing", async () => {
     const request = new NextRequest("http://localhost:3001/api/impersonate");
-    const response = await GET(request);
+    const response = await POST(request);
 
     expect(response.status).toBe(400);
     const body = await response.json();
@@ -33,7 +33,7 @@ describe("API: /api/impersonate", () => {
     const request = new NextRequest(
       "http://localhost:3001/api/impersonate?token=invalid_token"
     );
-    const response = await GET(request);
+    const response = await POST(request);
 
     expect(response.status).toBe(401);
     const body = await response.json();
@@ -49,7 +49,7 @@ describe("API: /api/impersonate", () => {
     const request = new NextRequest(
       "http://localhost:3001/api/impersonate?token=expired_token"
     );
-    const response = await GET(request);
+    const response = await POST(request);
 
     expect(response.status).toBe(401);
     const body = await response.json();
@@ -65,7 +65,7 @@ describe("API: /api/impersonate", () => {
     const request = new NextRequest(
       "http://localhost:3001/api/impersonate?token=used_token"
     );
-    const response = await GET(request);
+    const response = await POST(request);
 
     expect(response.status).toBe(401);
     const body = await response.json();
@@ -82,7 +82,7 @@ describe("API: /api/impersonate", () => {
     const request = new NextRequest(
       "http://localhost:3001/api/impersonate?token=valid_token"
     );
-    const response = await GET(request);
+    const response = await POST(request);
 
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -98,10 +98,11 @@ describe("API: /api/impersonate", () => {
       adminId: "admin_456",
     });
 
-    const request = new NextRequest(
-      "http://localhost:3001/api/impersonate?token=my_test_token"
-    );
-    await GET(request);
+    const request = new NextRequest("http://localhost:3001/api/impersonate", {
+      method: "POST",
+      body: JSON.stringify({ token: "my_test_token" }),
+    });
+    await POST(request);
 
     expect(mockValidateImpersonationToken).toHaveBeenCalledWith("my_test_token");
   });
@@ -114,13 +115,12 @@ describe("API: /api/impersonate", () => {
     });
 
     const token = "token+with/special=chars";
-    const encodedToken = encodeURIComponent(token);
-    const request = new NextRequest(
-      `http://localhost:3001/api/impersonate?token=${encodedToken}`
-    );
-    await GET(request);
+    const request = new NextRequest("http://localhost:3001/api/impersonate", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    });
+    await POST(request);
 
-    // NextRequest automatically decodes query params
     expect(mockValidateImpersonationToken).toHaveBeenCalledWith(token);
   });
 });

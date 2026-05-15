@@ -1,8 +1,8 @@
-# Perpetual Test Admin Console — Agent Guide
+# Lathe Studio Admin Console — Agent Guide
 
 ## Project Overview
 
-This is an internal admin console for the Perpetual Test platform. It provides comprehensive tools for managing users, organizations, billing, feature flags, system health, and audit logging.
+This is an internal admin console for the Lathe Studio platform. It provides comprehensive tools for managing users, organizations, billing, feature flags, system health, and audit logging.
 
 **Key Characteristics:**
 - Dark-mode only admin interface (slate + amber accent theme)

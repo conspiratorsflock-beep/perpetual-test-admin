@@ -3,7 +3,8 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
-import type { AdminOrganization, OrganizationWithDetails, OrgTier } from "@/types/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { AdminOrganization, OrganizationWithDetails, TrialLockState } from "@/types/admin";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
@@ -11,61 +12,69 @@ async function requireAdmin() {
 
 interface SearchOrgsParams {
   query?: string;
-  tier?: OrgTier;
+  trialState?: TrialLockState;
   limit?: number;
   offset?: number;
 }
 
 /**
  * Search organizations with filtering.
+ * Joins Clerk data with lathe-studio's organizations table.
  */
 export async function searchOrganizations({
   query,
-  tier,
+  trialState,
   limit = 50,
   offset = 0,
 }: SearchOrgsParams = {}): Promise<{ orgs: AdminOrganization[]; total: number }> {
   await requireAdmin();
   const client = await clerkClient();
 
-  // Pass the query string to Clerk for server-side filtering.
-  // Tier has no Clerk equivalent so it requires post-processing (handled below).
   const params: Record<string, string | number> = { limit, offset };
   if (query) params.query = query;
 
   const response = await client.organizations.getOrganizationList(params);
-
   let orgs = response.data;
 
-  // tier filtering must remain in-memory (no Clerk support)
-  // When tier filtering is active we need all results, so re-fetch without pagination
-  if (tier) {
-    const all = await client.organizations.getOrganizationList({
-      ...(query ? { query } : {}),
-      limit: 500,
-      offset: 0,
-    });
-    orgs = all.data; // tier field would come from our DB once implemented
+  // Fetch lathe-studio org data for all results
+  const clerkOrgIds = orgs.map((o) => o.id);
+  const { data: dbOrgs } = await supabaseAdmin
+    .from("organizations")
+    .select("clerk_org_id, trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id")
+    .in("clerk_org_id", clerkOrgIds);
+
+  const dbOrgMap = new Map(dbOrgs?.map((o) => [o.clerk_org_id, o]) ?? []);
+
+  const mappedOrgs: AdminOrganization[] = orgs.map((org) => {
+    const dbOrg = dbOrgMap.get(org.id);
+    return {
+      id: org.id,
+      clerkOrgId: org.id,
+      name: org.name,
+      slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
+      memberCount: org.membersCount || 0,
+      trialLockState: (dbOrg?.trial_lock_state as TrialLockState) || "active",
+      trialStartedAt: dbOrg?.trial_started_at ?? null,
+      trialEndsAt: dbOrg?.trial_ends_at ?? null,
+      trialExtensionUsed: dbOrg?.trial_extension_used ?? false,
+      stripeCustomerId: dbOrg?.stripe_customer_id ?? null,
+      stripeSubscriptionId: dbOrg?.stripe_subscription_id ?? null,
+      stripePriceId: dbOrg?.stripe_price_id ?? null,
+      mrr: 0, // Calculated from Stripe separately
+      createdAt: org.createdAt ? new Date(org.createdAt).toISOString() : new Date().toISOString(),
+    };
+  });
+
+  // Filter by trial state if specified
+  let filtered = mappedOrgs;
+  if (trialState) {
+    filtered = mappedOrgs.filter((o) => o.trialLockState === trialState);
   }
 
-  const total = tier ? orgs.length : response.totalCount;
-  if (tier) {
-    orgs = orgs.slice(offset, offset + limit);
-  }
+  const total = trialState ? filtered.length : response.totalCount;
+  const paginated = trialState ? filtered.slice(offset, offset + limit) : filtered;
 
-  // Map to our type (we'd normally fetch from our database for tier/MRR)
-  const mappedOrgs: AdminOrganization[] = orgs.map((org) => ({
-    id: org.id,
-    clerkOrgId: org.id,
-    name: org.name,
-    slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
-    memberCount: org.membersCount || 0,
-    tier: "free", // Would come from database
-    mrr: 0, // Would come from Stripe
-    createdAt: org.createdAt ? new Date(org.createdAt).toISOString() : new Date().toISOString(),
-  }));
-
-  return { orgs: mappedOrgs, total };
+  return { orgs: paginated, total };
 }
 
 /**
@@ -78,7 +87,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
   try {
     const org = await client.organizations.getOrganization({ organizationId: orgId });
 
-    // Get members
+    // Get members from Clerk
     const memberships = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
     });
@@ -92,21 +101,62 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
       joinedAt: m.createdAt ? new Date(m.createdAt).toISOString() : new Date().toISOString(),
     }));
 
-    // Placeholder data - would come from database/Stripe
+    // Get lathe-studio org data
+    const { data: dbOrg } = await supabaseAdmin
+      .from("organizations")
+      .select("trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id")
+      .eq("clerk_org_id", orgId)
+      .single();
+
+    // Get projects from lathe-studio
+    const { data: projects } = await supabaseAdmin
+      .from("projects")
+      .select("id, name, created_at")
+      .eq("org_id", dbOrg ? await getOrgUuidFromClerkId(orgId) : null)
+      .is("deleted_at", null);
+
+    // Get usage stats
+    const orgUuid = dbOrg ? await getOrgUuidFromClerkId(orgId) : null;
+    const { count: apiCalls } = await supabaseAdmin
+      .from("api_usage_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("org_id", orgUuid)
+      .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
     return {
       id: org.id,
       clerkOrgId: org.id,
       name: org.name,
       slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
       memberCount: org.membersCount || 0,
-      tier: "free",
+      trialLockState: (dbOrg?.trial_lock_state as TrialLockState) || "active",
+      trialStartedAt: dbOrg?.trial_started_at ?? null,
+      trialEndsAt: dbOrg?.trial_ends_at ?? null,
+      trialExtensionUsed: dbOrg?.trial_extension_used ?? false,
+      stripeCustomerId: dbOrg?.stripe_customer_id ?? null,
+      stripeSubscriptionId: dbOrg?.stripe_subscription_id ?? null,
+      stripePriceId: dbOrg?.stripe_price_id ?? null,
       mrr: 0,
       createdAt: org.createdAt ? new Date(org.createdAt).toISOString() : new Date().toISOString(),
       members,
-      projects: [], // Would fetch from database
-      subscription: null, // Would fetch from Stripe
+      projects: projects?.map((p) => ({
+        id: p.id,
+        name: p.name,
+        createdAt: p.created_at,
+      })) ?? [],
+      subscription: dbOrg?.stripe_subscription_id
+        ? {
+            id: dbOrg.stripe_subscription_id,
+            stripeSubscriptionId: dbOrg.stripe_subscription_id,
+            stripeCustomerId: dbOrg.stripe_customer_id,
+            status: dbOrg.trial_lock_state === "paid" ? "active" : "trialing",
+            currentPeriodStart: dbOrg.trial_started_at ?? new Date().toISOString(),
+            currentPeriodEnd: dbOrg.trial_ends_at ?? new Date().toISOString(),
+            cancelAtPeriodEnd: false,
+          }
+        : null,
       usage: {
-        apiCallsThisMonth: 0,
+        apiCallsThisMonth: apiCalls ?? 0,
         storageUsedBytes: 0,
         lastActiveAt: null,
       },
@@ -118,25 +168,121 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
 }
 
 /**
- * Change an organization's tier.
+ * Change an organization's trial state.
  */
-export async function changeOrgTier(
+export async function changeTrialState(
   orgId: string,
-  newTier: OrgTier,
+  newState: TrialLockState,
   reason?: string
 ): Promise<void> {
   await requireAdmin();
-  // In a real implementation, this would:
-  // 1. Update the tier in your database
-  // 2. Potentially update Stripe subscription
-  // 3. Log the action
+
+  const orgUuid = await getOrgUuidFromClerkId(orgId);
+  if (!orgUuid) {
+    throw new Error("Organization not found in database");
+  }
+
+  const { error } = await supabaseAdmin
+    .from("organizations")
+    .update({ trial_lock_state: newState })
+    .eq("id", orgUuid);
+
+  if (error) {
+    throw new Error(`Failed to update trial state: ${error.message}`);
+  }
 
   await logAdminAction({
-    action: "org.tier_change",
+    action: "org.trial_state_change",
     targetType: "organization",
     targetId: orgId,
-    metadata: { newTier, reason },
+    metadata: { newState, reason },
   });
+}
+
+/**
+ * Extend an organization's trial by N days.
+ */
+export async function extendTrial(orgId: string, days: number): Promise<void> {
+  await requireAdmin();
+
+  const orgUuid = await getOrgUuidFromClerkId(orgId);
+  if (!orgUuid) {
+    throw new Error("Organization not found in database");
+  }
+
+  const { data: org } = await supabaseAdmin
+    .from("organizations")
+    .select("trial_ends_at, trial_extension_used")
+    .eq("id", orgUuid)
+    .single();
+
+  const currentEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : new Date();
+  const newEnd = new Date(currentEnd.getTime() + days * 24 * 60 * 60 * 1000);
+
+  const { error } = await supabaseAdmin
+    .from("organizations")
+    .update({
+      trial_ends_at: newEnd.toISOString(),
+      trial_extension_used: true,
+    })
+    .eq("id", orgUuid);
+
+  if (error) {
+    throw new Error(`Failed to extend trial: ${error.message}`);
+  }
+
+  await logAdminAction({
+    action: "org.extend_trial",
+    targetType: "organization",
+    targetId: orgId,
+    metadata: { days, newEnd: newEnd.toISOString() },
+  });
+}
+
+/**
+ * Get trial metrics for the dashboard.
+ */
+export async function getTrialMetrics(): Promise<{
+  activeTrials: number;
+  softLocked: number;
+  hardLocked: number;
+  paid: number;
+  conversionRate: number;
+}> {
+  await requireAdmin();
+
+  const { data, error } = await supabaseAdmin
+    .from("organizations")
+    .select("trial_lock_state");
+
+  if (error || !data) {
+    return { activeTrials: 0, softLocked: 0, hardLocked: 0, paid: 0, conversionRate: 0 };
+  }
+
+  const counts = {
+    active: 0,
+    soft_locked: 0,
+    hard_locked: 0,
+    paid: 0,
+  };
+
+  for (const row of data) {
+    const state = row.trial_lock_state as TrialLockState;
+    if (state in counts) {
+      counts[state as keyof typeof counts]++;
+    }
+  }
+
+  const total = data.length;
+  const conversionRate = total > 0 ? Math.round((counts.paid / total) * 1000) / 10 : 0;
+
+  return {
+    activeTrials: counts.active,
+    softLocked: counts.soft_locked,
+    hardLocked: counts.hard_locked,
+    paid: counts.paid,
+    conversionRate,
+  };
 }
 
 /**
@@ -147,4 +293,16 @@ export async function getTotalOrgCount(): Promise<number> {
   const client = await clerkClient();
   const response = await client.organizations.getOrganizationList({ limit: 1 });
   return response.totalCount;
+}
+
+/**
+ * Helper: Convert Clerk org ID to lathe-studio UUID.
+ */
+async function getOrgUuidFromClerkId(clerkOrgId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("id")
+    .eq("clerk_org_id", clerkOrgId)
+    .single();
+  return data?.id ?? null;
 }

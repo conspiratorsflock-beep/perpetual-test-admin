@@ -59,7 +59,7 @@ These components are not referenced by any route. They were part of an earlier t
 
 ## Main App Integration (not yet built)
 
-These live in the Perpetual Test main app (`/Users/bryanjadrich/DEV/Perpetual Test/perpetual-test/`), not here. See `HELP_DESK_SETUP.md` for full code examples.
+These live in the Lathe Studio main app (`/Users/bryanjadrich/DEV/Lathe Studio/perpetual-test/`), not here. See `HELP_DESK_SETUP.md` for full code examples.
 
 - [ ] `POST /api/support/tickets` — route handler for ticket creation
 - [ ] `GET /api/support/tickets?userId=` — route for fetching a user's tickets

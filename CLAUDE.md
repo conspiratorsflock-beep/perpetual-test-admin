@@ -1,6 +1,6 @@
-# Perpetual Test Admin Console
+# Lathe Studio Admin Console
 
-Internal admin console for the Perpetual Test platform. Runs on port **3001** alongside the main app at `/Users/bryanjadrich/DEV/Perpetual Test/perpetual-test/`.
+Internal admin console for the Lathe Studio platform. Runs on port **3001** alongside the main app at `/Users/bryanjadrich/DEV/lathe-studio/`.
 
 ## Quick Reference
 

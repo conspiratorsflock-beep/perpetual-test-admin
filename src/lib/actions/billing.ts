@@ -2,18 +2,20 @@
 
 import { stripe, isStripeConfigured } from "@/lib/stripe/client";
 import { logAdminAction } from "@/lib/audit/logger";
-import type { BillingMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
+import type { BillingMetrics, TrialMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 // Mock data for when Stripe is not configured
 const mockMetrics: BillingMetrics = {
   mrr: 0,
   arr: 0,
   activeSubscriptions: 0,
-  trialingSubscriptions: 0,
-  pastDueSubscriptions: 0,
-  canceledSubscriptions: 0,
-  churnRate: 0,
-  averageRevenuePerUser: 0,
+  activeTrials: 0,
+  softLockedOrgs: 0,
+  hardLockedOrgs: 0,
+  paidOrgs: 0,
+  trialToPaidConversionRate: 0,
+  avgTimeToConversion: 0,
 };
 
 const mockMRRHistory = [
@@ -37,9 +39,8 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
   try {
     let mrr = 0;
     let activeSubscriptions = 0;
-    let trialingSubscriptions = 0;
-    let pastDueSubscriptions = 0;
-    let canceledSubscriptions = 0;
+    // Stripe subscription counts — kept for MRR calculation but not returned
+    // as primary metric since lathe-studio uses trial_lock_state
 
     const now = Math.floor(Date.now() / 1000);
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60;
@@ -68,39 +69,62 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
       }
 
       // Count by status
-      switch (sub.status) {
-        case "active":
-          activeSubscriptions++;
-          break;
-        case "trialing":
-          trialingSubscriptions++;
-          break;
-        case "past_due":
-          pastDueSubscriptions++;
-          break;
-        case "canceled":
-          if (sub.canceled_at && sub.canceled_at > thirtyDaysAgo) {
-            canceledSubscriptions++;
-          }
-          break;
+      if (sub.status === "active") {
+        activeSubscriptions++;
       }
 
       customerIds.add(sub.customer as string);
     }
 
-    // Calculate churn rate (canceled in last 30 days / total active at start of period)
-    const activeAtStart = activeSubscriptions + canceledSubscriptions;
-    const churnRate = activeAtStart > 0 ? (canceledSubscriptions / activeAtStart) * 100 : 0;
+    // Fetch trial state distribution from lathe-studio DB
+    const { data: orgStates } = await supabaseAdmin
+      .from("organizations")
+      .select("trial_lock_state, trial_started_at, trial_ends_at");
+
+    let activeTrials = 0;
+    let softLocked = 0;
+    let hardLocked = 0;
+    let paid = 0;
+    let totalConversionDays = 0;
+    let convertedCount = 0;
+
+    for (const row of orgStates ?? []) {
+      switch (row.trial_lock_state) {
+        case "active":
+          activeTrials++;
+          break;
+        case "soft_locked":
+          softLocked++;
+          break;
+        case "hard_locked":
+          hardLocked++;
+          break;
+        case "paid":
+          paid++;
+          if (row.trial_started_at && row.trial_ends_at) {
+            const started = new Date(row.trial_started_at).getTime();
+            const ended = new Date(row.trial_ends_at).getTime();
+            totalConversionDays += (ended - started) / (1000 * 60 * 60 * 24);
+            convertedCount++;
+          }
+          break;
+      }
+    }
+
+    const totalOrgs = (orgStates ?? []).length;
+    const conversionRate = totalOrgs > 0 ? Math.round((paid / totalOrgs) * 1000) / 10 : 0;
+    const avgTimeToConversion = convertedCount > 0 ? Math.round(totalConversionDays / convertedCount) : 0;
 
     return {
       mrr: Math.round(mrr),
       arr: Math.round(mrr * 12),
       activeSubscriptions,
-      trialingSubscriptions,
-      pastDueSubscriptions,
-      canceledSubscriptions,
-      churnRate: Math.round(churnRate * 10) / 10,
-      averageRevenuePerUser: customerIds.size > 0 ? Math.round(mrr / customerIds.size) : 0,
+      activeTrials,
+      softLockedOrgs: softLocked,
+      hardLockedOrgs: hardLocked,
+      paidOrgs: paid,
+      trialToPaidConversionRate: conversionRate,
+      avgTimeToConversion,
     };
   } catch (error) {
     console.error("Failed to get billing metrics:", error);

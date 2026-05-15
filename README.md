@@ -1,6 +1,6 @@
-# Perpetual Test Admin Console
+# Lathe Studio Admin Console
 
-A comprehensive admin console for managing the Perpetual Test platform.
+A comprehensive admin console for managing the Lathe Studio platform.
 
 ## Features
 

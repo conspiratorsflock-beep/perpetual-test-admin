@@ -10,6 +10,7 @@ import {
   FileText,
   FolderKanban,
   HeartPulse,
+  Key,
   LayoutDashboard,
   LifeBuoy,
   Megaphone,
@@ -41,6 +42,11 @@ const navigation: NavItem[] = [
     label: "Projects",
     href: "/projects",
     icon: FolderKanban,
+  },
+  {
+    label: "API Keys",
+    href: "/api-keys",
+    icon: Key,
   },
   {
     label: "Help Desk",
@@ -127,7 +133,7 @@ export function AdminSidebar() {
       {/* Logo */}
       <div className="flex h-14 items-center border-b border-slate-800 px-4">
         <span className="text-sm font-semibold text-slate-100">
-          Perpetual Test{" "}
+          Lathe Studio{" "}
           <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-medium text-amber-400">
             Admin
           </span>

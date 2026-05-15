@@ -5,8 +5,8 @@ import { AdminShell } from "@/components/layout/AdminShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Perpetual Test — Admin Console",
-  description: "Internal admin console for Perpetual Test",
+  title: "Lathe Studio — Admin Console",
+  description: "Internal admin console for Lathe Studio",
 };
 
 export default function RootLayout({

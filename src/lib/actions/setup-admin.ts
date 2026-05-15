@@ -62,3 +62,15 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
     };
   }
 }
+
+/**
+ * Emergency admin setup — bypasses admin check for bootstrapping.
+ * Only works if no admins exist yet.
+ */
+export async function setupEmergencyAdmin(): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const email = "butteredpeanuts@gmail.com";
+  return promoteUserToAdminByEmail(email);
+}

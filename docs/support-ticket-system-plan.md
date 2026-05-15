@@ -1,7 +1,7 @@
 # Support Ticket System Plan
 
 ## Overview
-A simple, user-friendly support ticket system integrated into the Perpetual Test platform.
+A simple, user-friendly support ticket system integrated into the Lathe Studio platform.
 
 ## Goals
 - **For Users**: Easy to submit, clear status tracking, minimal friction

@@ -1,10 +1,10 @@
 # Admin Banner - Integration Guide
 
-This package provides components and utilities for displaying admin announcements from the Perpetual Test Admin Console in your main application.
+This package provides components and utilities for displaying admin announcements from the Lathe Studio Admin Console in your main application.
 
 ## Files to Copy
 
-Copy these files to your main Perpetual Test app:
+Copy these files to your main Lathe Studio app:
 
 ```
 src/lib/shared/

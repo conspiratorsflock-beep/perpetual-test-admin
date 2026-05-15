@@ -29,6 +29,8 @@ export interface UserWithDetails extends AdminUser {
   organizations: UserOrganization[];
   lastActivity: string | null;
   isImpersonating?: boolean;
+  isBillingOwner?: boolean;
+  projectMemberships?: ProjectMembership[];
 }
 
 export interface UserOrganization {
@@ -37,7 +39,15 @@ export interface UserOrganization {
   role: string;
 }
 
+export interface ProjectMembership {
+  projectId: string;
+  projectName: string;
+  role: "owner" | "admin" | "tester" | "viewer";
+}
+
 // ─── Organizations ──────────────────────────────────────────────────────────
+
+export type TrialLockState = "active" | "soft_locked" | "hard_locked" | "paid";
 
 export interface AdminOrganization {
   id: string;
@@ -45,12 +55,16 @@ export interface AdminOrganization {
   name: string;
   slug: string;
   memberCount: number;
-  tier: OrgTier;
+  trialLockState: TrialLockState;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
+  trialExtensionUsed: boolean;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  stripePriceId: string | null;
   mrr: number;
   createdAt: string;
 }
-
-export type OrgTier = "free" | "basic" | "pro" | "enterprise";
 
 export interface OrganizationWithDetails extends AdminOrganization {
   members: OrgMember[];
@@ -96,12 +110,47 @@ export interface AdminProject {
   id: string;
   name: string;
   description: string | null;
-  organizationId: string;
-  organizationName: string;
+  projectCode: string | null;
+  jiraProjectKey: string | null;
+  requirementsEnabled: boolean;
+  orgId: string;
+  orgName: string;
+  memberCount: number;
+  testCaseCount: number;
+  testRunCount: number;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  testCount: number;
-  lastActivityAt: string | null;
+}
+
+// ─── API Keys ──────────────────────────────────────────────────────────────
+
+export interface ApiKey {
+  id: string;
+  orgId: string;
+  projectId: string | null;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+// ─── Org Settings ──────────────────────────────────────────────────────────
+
+export interface OrgSettings {
+  id: string;
+  orgId: string;
+  featureRequirementsEnabled: boolean;
+  require2fa: boolean;
+  sessionTimeoutMinutes: number;
+  defaultNotificationChannel: "email" | "slack" | "teams" | "none";
+  notifyOnRunComplete: boolean;
+  notifyOnBuildStatusChange: boolean;
+  defaultInheritancePolicy: "lenient" | "strict";
+  defaultCoverageTargetPct: number;
+  defaultEnvironment: "dev" | "staging" | "production" | "custom";
+  updatedAt: string;
 }
 
 // ─── Feature Flags ──────────────────────────────────────────────────────────
@@ -120,7 +169,20 @@ export interface FeatureFlag {
 
 // ─── Audit Logs ─────────────────────────────────────────────────────────────
 
-export type AuditTargetType = "user" | "organization" | "project" | "feature_flag" | "system" | "billing" | "announcement" | "support_ticket";
+export type AuditTargetType =
+  | "user"
+  | "organization"
+  | "project"
+  | "feature_flag"
+  | "system"
+  | "billing"
+  | "announcement"
+  | "support_ticket"
+  | "api_key"
+  | "integration"
+  | "build_queue"
+  | "lead"
+  | "org_setting";
 
 export interface AuditLog {
   id: string;
@@ -141,7 +203,7 @@ export interface DashboardMetrics {
   activeOrgs: number;
   mrr: number;
   apiCallsToday: number;
-  userGrowth: number;     // percentage vs last month
+  userGrowth: number; // percentage vs last month
   orgGrowth: number;
   mrrGrowth: number;
   apiGrowth: number;
@@ -167,6 +229,8 @@ export interface AdminAnnouncement {
   type: AnnouncementType;
   targetTiers: string[];
   targetOrgs: string[];
+  linkUrl: string | null;
+  linkText: string | null;
   startsAt: string;
   endsAt: string | null;
   isActive: boolean;
@@ -209,11 +273,22 @@ export interface BillingMetrics {
   mrr: number;
   arr: number;
   activeSubscriptions: number;
-  trialingSubscriptions: number;
-  pastDueSubscriptions: number;
-  canceledSubscriptions: number;
-  churnRate: number;
-  averageRevenuePerUser: number;
+  activeTrials: number;
+  softLockedOrgs: number;
+  hardLockedOrgs: number;
+  paidOrgs: number;
+  trialToPaidConversionRate: number;
+  avgTimeToConversion: number;
+}
+
+export interface TrialMetrics {
+  totalOrgs: number;
+  activeTrials: number;
+  softLocked: number;
+  hardLocked: number;
+  paid: number;
+  avgDaysRemaining: number;
+  conversionRate: number;
 }
 
 export interface StripeInvoice {
@@ -292,6 +367,9 @@ export interface SupportTicket {
   slaDeadline: string | null;
   firstResponseAt: string | null;
   resolvedAt: string | null;
+  closedAt: string | null;
+  isActive: boolean;
+  metadata: Record<string, unknown>;
   source: string;
   tags: string[];
   browserInfo: string | null;
@@ -309,10 +387,12 @@ export interface SupportTicketComment {
   authorName: string | null;
   isAgent: boolean;
   isInternal: boolean;
+  isEdited: boolean;
   content: string;
   attachments: Array<{ filename: string; url: string; mimeType: string; size: number }>;
   createdAt: string;
   editedAt: string | null;
+  editedBy: string | null;
 }
 
 export interface SupportTicketEvent {
@@ -343,6 +423,8 @@ export interface SupportTeamMember {
   isAvailable: boolean;
   maxOpenTickets: number;
   skills: string[];
+  notifyOnNewTicket: boolean;
+  notifyOnAssigned: boolean;
   isOnline?: boolean;
   avatarUrl?: string | null;
 }
@@ -350,7 +432,7 @@ export interface SupportTeamMember {
 // ─── Ticket Assignment & Seeding ────────────────────────────────────────────
 
 export interface TicketSeedingConfig {
-  strategy: 'round_robin' | 'workload_balanced' | 'skill_based';
+  strategy: "round_robin" | "workload_balanced" | "skill_based";
   respectSchedule: boolean;
   maxPerAgent: number;
   categories: string[];
@@ -384,7 +466,7 @@ export interface ScheduleShift {
   scheduleId: string;
   dayOfWeek: number; // 0-6 (Sun-Sat)
   startTime: string; // "09:00"
-  endTime: string;   // "17:00"
+  endTime: string; // "17:00"
   isActive: boolean;
 }
 
@@ -392,7 +474,7 @@ export interface ScheduleException {
   id: string;
   scheduleId: string;
   exceptionDate: string; // YYYY-MM-DD
-  type: 'pto' | 'holiday' | 'custom';
+  type: "pto" | "holiday" | "custom";
   note?: string;
   isFullDay: boolean;
   startTime?: string;
@@ -414,12 +496,12 @@ export interface AgentAvailability {
 
 // ─── Extended Ticket with Assignment Info ───────────────────────────────────
 
-export interface SupportTicketWithAssignee extends Omit<SupportTicket, 'assignedTo' | 'assignedAt'> {
+export interface SupportTicketWithAssignee extends Omit<SupportTicket, "assignedTo" | "assignedAt"> {
   assignedTo?: SupportTeamMember;
   assignedAt?: string;
   autoAssigned: boolean;
   recentComments?: SupportTicketComment[];
-  slaStatus: 'healthy' | 'at_risk' | 'breached';
+  slaStatus: "healthy" | "at_risk" | "breached";
   slaMinutesRemaining: number;
 }
 
@@ -435,4 +517,54 @@ export interface TicketCounts {
   escalated: number;
   unassigned: number;
   overdue: number;
+}
+
+// ─── Integration Health ─────────────────────────────────────────────────────
+
+export interface IntegrationHealth {
+  provider: string;
+  orgId: string;
+  orgName: string;
+  projectId: string | null;
+  projectName: string | null;
+  status: "active" | "expired" | "error" | "not_configured";
+  connectedAt: string | null;
+  lastSyncAt: string | null;
+  errorMessage: string | null;
+}
+
+// ─── Build Queue ────────────────────────────────────────────────────────────
+
+export interface BuildQueueItem {
+  id: string;
+  name: string;
+  cicdProvider: string;
+  cicdExternalId: string;
+  receivedAt: string;
+  assignedProjectId: string | null;
+}
+
+// ─── Sandbox Leads ──────────────────────────────────────────────────────────
+
+export interface SandboxLead {
+  id: string;
+  email: string;
+  orgId: string | null;
+  orgName: string | null;
+  source: string;
+  createdAt: string;
+}
+
+// ─── Lathe Studio Audit Logs ────────────────────────────────────────────────
+
+export interface LatheAuditLog {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  oldValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
+  performedBy: string;
+  performedByEmail: string | null;
+  createdAt: string;
 }

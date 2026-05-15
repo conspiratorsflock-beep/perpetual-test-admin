@@ -1,5 +1,5 @@
 /**
- * Admin Banner - Shared code for the main Perpetual Test app
+ * Admin Banner - Shared code for the main Lathe Studio app
  * 
  * This file contains types and utilities for displaying admin announcements
  * in the main software testing application.
@@ -16,6 +16,8 @@ export interface AdminAnnouncement {
   type: AnnouncementType;
   targetTiers: string[];
   targetOrgs: string[];
+  linkUrl: string | null;
+  linkText: string | null;
   startsAt: string;
   endsAt: string | null;
   isActive: boolean;

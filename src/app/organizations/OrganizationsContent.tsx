@@ -18,15 +18,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { searchOrganizations } from "@/lib/actions/organizations";
-import type { AdminOrganization, OrgTier } from "@/types/admin";
+import type { AdminOrganization, TrialLockState } from "@/types/admin";
 
 const PAGE_SIZE = 25;
 
-const tierColors: Record<OrgTier, string> = {
-  free: "bg-slate-500/20 text-slate-400 border-slate-500/30",
-  basic: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  pro: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  enterprise: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+const trialStateColors: Record<TrialLockState, string> = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  soft_locked: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  hard_locked: "bg-red-500/20 text-red-400 border-red-500/30",
+  paid: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+};
+
+const trialStateLabels: Record<TrialLockState, string> = {
+  active: "Trial",
+  soft_locked: "Soft Locked",
+  hard_locked: "Hard Locked",
+  paid: "Paid",
 };
 
 export function OrganizationsContent() {
@@ -85,7 +92,7 @@ export function OrganizationsContent() {
         <div>
           <h1 className="text-xl font-semibold text-slate-100">Organizations</h1>
           <p className="mt-1 text-sm text-slate-400">
-            Manage organizations, view memberships, and control billing tiers.
+            Manage organizations, view memberships, and control trial states.
           </p>
         </div>
       </div>
@@ -133,7 +140,7 @@ export function OrganizationsContent() {
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
               <TableHead className="text-slate-400">Organization</TableHead>
-              <TableHead className="text-slate-400">Tier</TableHead>
+              <TableHead className="text-slate-400">Trial State</TableHead>
               <TableHead className="text-slate-400">Members</TableHead>
               <TableHead className="text-slate-400">MRR</TableHead>
               <TableHead className="text-slate-400">Created</TableHead>
@@ -153,8 +160,8 @@ export function OrganizationsContent() {
                     <p className="text-xs text-slate-500">{org.slug}</p>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={tierColors[org.tier]}>
-                      {org.tier}
+                    <Badge variant="outline" className={trialStateColors[org.trialLockState]}>
+                      {trialStateLabels[org.trialLockState]}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-slate-300">{org.memberCount}</TableCell>

@@ -478,6 +478,9 @@ function mapTicketFromDB(row: Record<string, unknown>): SupportTicket {
     slaDeadline: row.sla_deadline as string | null,
     firstResponseAt: row.first_response_at as string | null,
     resolvedAt: row.resolved_at as string | null,
+    closedAt: row.closed_at as string | null,
+    isActive: row.is_active as boolean,
+    metadata: row.metadata as Record<string, unknown> || {},
     source: row.source as string,
     tags: row.tags as string[] || [],
     browserInfo: row.browser_info as string | null,
@@ -497,10 +500,12 @@ function mapCommentFromDB(row: Record<string, unknown>): SupportTicketComment {
     authorName: row.author_name as string | null,
     isAgent: row.is_agent as boolean,
     isInternal: row.is_internal as boolean,
+    isEdited: row.is_edited as boolean,
     content: row.content as string,
     attachments: row.attachments as Array<{ filename: string; url: string; mimeType: string; size: number }>,
     createdAt: row.created_at as string,
     editedAt: row.edited_at as string | null,
+    editedBy: row.edited_by as string | null,
   };
 }
 

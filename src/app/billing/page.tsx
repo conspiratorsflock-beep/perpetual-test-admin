@@ -202,19 +202,20 @@ export default function BillingPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center gap-2">
               <Users className="h-3 w-3" />
-              Active Subscriptions
+              Trial / Paid
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-semibold text-slate-100">
-                {metrics.activeSubscriptions}
+                {metrics.activeTrials}
               </span>
-              {metrics.trialingSubscriptions > 0 && (
-                <span className="text-xs text-slate-500">
-                  +{metrics.trialingSubscriptions} trialing
-                </span>
-              )}
+              <span className="text-xs text-slate-500">trials</span>
+              <span className="text-slate-600">/</span>
+              <span className="text-2xl font-semibold text-slate-100">
+                {metrics.paidOrgs}
+              </span>
+              <span className="text-xs text-slate-500">paid</span>
             </div>
           </CardContent>
         </Card>
@@ -223,24 +224,24 @@ export default function BillingPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-slate-400 flex items-center gap-2">
               <TrendingUp className="h-3 w-3" />
-              Churn Rate
+              Conversion Rate
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-semibold text-slate-100">
-                {metrics.churnRate}%
+                {metrics.trialToPaidConversionRate}%
               </span>
               <Badge
                 className={
-                  metrics.churnRate <= 5
+                  metrics.trialToPaidConversionRate >= 20
                     ? "bg-emerald-500/20 text-emerald-400"
-                    : metrics.churnRate <= 10
+                    : metrics.trialToPaidConversionRate >= 10
                     ? "bg-amber-500/20 text-amber-400"
                     : "bg-red-500/20 text-red-400"
                 }
               >
-                {metrics.churnRate <= 5 ? "Good" : metrics.churnRate <= 10 ? "Fair" : "High"}
+                {metrics.trialToPaidConversionRate >= 20 ? "Good" : metrics.trialToPaidConversionRate >= 10 ? "Fair" : "Low"}
               </Badge>
             </div>
           </CardContent>

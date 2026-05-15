@@ -32,6 +32,7 @@ vi.mock("date-fns", () => ({
 const mockTicket: SupportTicket = {
   id: "ticket_123",
   ticketNumber: 1001,
+  referenceCode: null,
   userId: "user_123",
   userEmail: "user@example.com",
   userName: "John Doe",
@@ -46,6 +47,9 @@ const mockTicket: SupportTicket = {
   slaDeadline: "2026-03-08T10:00:00Z",
   firstResponseAt: null,
   resolvedAt: null,
+  closedAt: null,
+  isActive: true,
+  metadata: {},
   source: "web",
   tags: ["bug", "urgent"],
   browserInfo: "Chrome 120",
@@ -64,10 +68,12 @@ const mockComments = [
     authorName: "John Doe",
     isAgent: false,
     isInternal: false,
+    isEdited: false,
     content: "Original ticket description",
     attachments: [],
     createdAt: "2026-03-07T10:00:00Z",
     editedAt: null,
+    editedBy: null,
   },
   {
     id: "comment_2",
@@ -77,10 +83,12 @@ const mockComments = [
     authorName: "Support Agent",
     isAgent: true,
     isInternal: false,
+    isEdited: false,
     content: "I'll help you with this issue",
     attachments: [],
     createdAt: "2026-03-07T11:00:00Z",
     editedAt: null,
+    editedBy: null,
   },
 ];
 
@@ -96,6 +104,18 @@ describe("TicketDetail", () => {
     vi.mocked(supportTicketsActions.addTicketComment).mockResolvedValue({
       ...mockComments[0],
       id: "comment_3",
+      ticketId: "ticket_123",
+      authorId: "agent_123",
+      authorEmail: "agent@example.com",
+      authorName: "Support Agent",
+      isAgent: true,
+      isInternal: false,
+      isEdited: false,
+      content: "New reply",
+      attachments: [],
+      createdAt: "2026-03-07T12:00:00Z",
+      editedAt: null,
+      editedBy: null,
     });
     vi.mocked(supportTicketsActions.updateTicketStatus).mockResolvedValue();
     vi.mocked(supportTicketsActions.assignTicket).mockResolvedValue();

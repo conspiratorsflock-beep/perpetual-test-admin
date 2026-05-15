@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to the Perpetual Test Admin Console.
+Welcome to the Lathe Studio Admin Console.
 
 ## Overview
 

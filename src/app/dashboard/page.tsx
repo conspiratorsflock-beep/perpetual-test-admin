@@ -68,7 +68,7 @@ export default function DashboardPage() {
           {
             label: "MRR",
             value: billingMetrics ? `$${billingMetrics.mrr.toLocaleString()}` : "—",
-            change: billingMetrics ? `${billingMetrics.churnRate}% churn` : "—",
+            change: billingMetrics ? `${billingMetrics.trialToPaidConversionRate}% conversion` : "—",
             trend: "neutral",
           },
           {
@@ -173,7 +173,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-100">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Overview of Perpetual Test platform metrics.
+          Overview of Lathe Studio platform metrics.
         </p>
       </div>
 
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="font-medium text-slate-200">Organizations</p>
-                    <p className="text-xs text-slate-500">Manage orgs and billing tiers</p>
+                    <p className="text-xs text-slate-500">Manage orgs and trial states</p>
                   </div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-slate-600 group-hover:text-amber-400" />

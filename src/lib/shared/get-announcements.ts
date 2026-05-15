@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * Get Active Announcements - For the main Perpetual Test app
+ * Get Active Announcements - For the main Lathe Studio app
  * 
  * This server action fetches active announcements from the admin console database.
  * Copy this file to your main app and update the import path for supabaseAdmin.
@@ -64,6 +64,8 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
     type: row.type as AnnouncementType,
     targetTiers: row.target_tiers || [],
     targetOrgs: row.target_orgs || [],
+    linkUrl: row.link_url ?? null,
+    linkText: row.link_text ?? null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isActive: row.is_active,

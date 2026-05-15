@@ -2,7 +2,8 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
-import type { AdminUser, UserWithDetails } from "@/types/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
+import type { AdminUser, UserWithDetails, ProjectMembership } from "@/types/admin";
 
 interface SearchUsersParams {
   query?: string;
@@ -14,6 +15,7 @@ interface SearchUsersParams {
 
 /**
  * Search users across Clerk with filtering.
+ * Enriches with lathe-studio user data (billing owner flag).
  */
 export async function searchUsers({
   query,
@@ -24,7 +26,6 @@ export async function searchUsers({
 }: SearchUsersParams): Promise<{ users: AdminUser[]; total: number }> {
   const client = await clerkClient();
 
-  // Build search parameters
   const params: Record<string, string | number | boolean> = {
     limit,
     offset,
@@ -32,7 +33,6 @@ export async function searchUsers({
   };
 
   if (query) {
-    // Clerk supports email and name search via query parameter
     params.query = query;
   }
 
@@ -55,25 +55,39 @@ export async function searchUsers({
     );
   }
 
-  const mappedUsers: AdminUser[] = users.map((user) => ({
-    id: user.id,
-    clerkId: user.id,
-    email: user.emailAddresses[0]?.emailAddress || "",
-    firstName: user.firstName,
-    lastName: user.lastName,
-    imageUrl: user.imageUrl,
-    isAdmin: (user.publicMetadata as { isAdmin?: boolean })?.isAdmin === true,
-    createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
-    lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt).toISOString() : null,
-    organizationId: null, // Will be populated separately if needed
-    organizationName: null,
-  }));
+  // Enrich with lathe-studio billing owner flag
+  const clerkIds = users.map((u) => u.id);
+  const { data: dbUsers } = await supabaseAdmin
+    .from("users")
+    .select("clerk_user_id, is_billing_owner")
+    .in("clerk_user_id", clerkIds);
+
+  const dbUserMap = new Map(dbUsers?.map((u) => [u.clerk_user_id, u]) ?? []);
+
+  const mappedUsers: AdminUser[] = users.map((user) => {
+    const dbUser = dbUserMap.get(user.id);
+    return {
+      id: user.id,
+      clerkId: user.id,
+      email: user.emailAddresses[0]?.emailAddress || "",
+      firstName: user.firstName,
+      lastName: user.lastName,
+      imageUrl: user.imageUrl,
+      isAdmin: (user.publicMetadata as { isAdmin?: boolean })?.isAdmin === true,
+      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+      lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt).toISOString() : null,
+      organizationId: null,
+      organizationName: null,
+      isBillingOwner: dbUser?.is_billing_owner ?? false,
+    };
+  });
 
   return { users: mappedUsers, total: response.totalCount };
 }
 
 /**
  * Get a single user by ID with full details.
+ * Includes project memberships from lathe-studio.
  */
 export async function getUserById(userId: string): Promise<UserWithDetails | null> {
   const client = await clerkClient();
@@ -81,7 +95,7 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
   try {
     const user = await client.users.getUser(userId);
 
-    // Get user's organizations
+    // Get user's organizations from Clerk
     const orgMemberships = await client.users.getOrganizationMembershipList({
       userId: user.id,
     });
@@ -91,6 +105,29 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
       name: membership.organization.name,
       role: membership.role,
     }));
+
+    // Get lathe-studio user data
+    const { data: dbUser } = await supabaseAdmin
+      .from("users")
+      .select("is_billing_owner, org_id")
+      .eq("clerk_user_id", userId)
+      .single();
+
+    // Get project memberships from lathe-studio
+    let projectMemberships: ProjectMembership[] = [];
+    if (dbUser?.org_id) {
+      const { data: projMembers } = await supabaseAdmin
+        .from("project_members")
+        .select("project_id, role, projects(name)")
+        .eq("clerk_user_id", userId);
+
+      projectMemberships =
+        projMembers?.map((pm) => ({
+          projectId: pm.project_id,
+          projectName: (pm.projects as unknown as { name: string })?.name ?? "Unknown",
+          role: pm.role as ProjectMembership["role"],
+        })) ?? [];
+    }
 
     return {
       id: user.id,
@@ -106,6 +143,8 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
       organizationName: organizations[0]?.name || null,
       organizations,
       lastActivity: user.lastSignInAt ? new Date(user.lastSignInAt).toISOString() : null,
+      isBillingOwner: dbUser?.is_billing_owner ?? false,
+      projectMemberships,
     };
   } catch (error) {
     console.error("Failed to get user:", error);
@@ -115,8 +154,6 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
 
 /**
  * Update a user's basic information.
- * Name fields use updateUser(); metadata uses updateUserMetadata() (merge semantics)
- * to avoid accidentally overwriting existing keys like isAdmin.
  */
 export async function updateUser(
   userId: string,
@@ -128,7 +165,6 @@ export async function updateUser(
 ): Promise<void> {
   const client = await clerkClient();
 
-  // Update name fields only if provided — avoids touching metadata
   if (data.firstName !== undefined || data.lastName !== undefined) {
     await client.users.updateUser(userId, {
       firstName: data.firstName,
@@ -136,7 +172,6 @@ export async function updateUser(
     });
   }
 
-  // Use updateUserMetadata for merge semantics — never overwrites other keys
   if (data.publicMetadata !== undefined) {
     await client.users.updateUserMetadata(userId, {
       publicMetadata: data.publicMetadata,
@@ -157,7 +192,6 @@ export async function updateUser(
 export async function deleteUser(userId: string): Promise<void> {
   const client = await clerkClient();
 
-  // Get user info before deletion for audit log
   const user = await client.users.getUser(userId);
   const email = user.emailAddresses[0]?.emailAddress || "unknown";
 
@@ -218,13 +252,11 @@ export async function createUser({
   const client = await clerkClient();
 
   try {
-    // Create user with email
     const user = await client.users.createUser({
       emailAddress: [email],
       firstName: firstName || undefined,
       lastName: lastName || undefined,
       publicMetadata: { isAdmin },
-      // Skip password requirement - user will set password via email
       skipPasswordRequirement,
     });
 
@@ -271,14 +303,12 @@ export async function inviteUser({
   }
 
   try {
-    // Create invitation
     const invitation = await client.invitations.createInvitation({
       emailAddress: email,
       publicMetadata: { isAdmin },
       redirectUrl: `${appUrl}/sign-up`,
     });
 
-    // If orgId provided, also create org invitation
     if (orgId) {
       try {
         await client.organizations.createOrganizationInvitation({
@@ -288,7 +318,6 @@ export async function inviteUser({
         });
       } catch (orgError) {
         console.warn("Failed to create org invitation:", orgError);
-        // Don't fail if org invitation fails
       }
     }
 

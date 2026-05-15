@@ -4,25 +4,38 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Building2, Users, CreditCard, Activity } from "lucide-react";
+import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Settings as SettingsIcon, ToggleLeft, Shield, Bell, Target, Clock } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getOrganizationById, changeOrgTier } from "@/lib/actions/organizations";
+import { getOrganizationById, changeTrialState, extendTrial } from "@/lib/actions/organizations";
+import { getOrgSettings, updateOrgSettings } from "@/lib/actions/org-settings";
 import { getAuditLogsForTarget } from "@/lib/audit/logger";
-import type { OrganizationWithDetails, AuditLog, OrgTier } from "@/types/admin";
+import type { OrganizationWithDetails, AuditLog, TrialLockState, OrgSettings } from "@/types/admin";
 
-const tierOptions: OrgTier[] = ["free", "basic", "pro", "enterprise"];
-
-const tierColors: Record<OrgTier, string> = {
-  free: "bg-slate-500/20 text-slate-400 border-slate-500/30",
-  basic: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  pro: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  enterprise: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+const trialStateColors: Record<TrialLockState, string> = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  soft_locked: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  hard_locked: "bg-red-500/20 text-red-400 border-red-500/30",
+  paid: "bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
+
+const trialStateLabels: Record<TrialLockState, string> = {
+  active: "Trial Active",
+  soft_locked: "Soft Locked",
+  hard_locked: "Hard Locked",
+  paid: "Paid",
+};
+
+const trialActions: { state: TrialLockState; label: string }[] = [
+  { state: "active", label: "Activate Trial" },
+  { state: "soft_locked", label: "Soft Lock" },
+  { state: "hard_locked", label: "Hard Lock" },
+  { state: "paid", label: "Mark Paid" },
+];
 
 export default function OrganizationDetailPage() {
   const params = useParams();
@@ -30,18 +43,21 @@ export default function OrganizationDetailPage() {
 
   const [org, setOrg] = useState<OrganizationWithDetails | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [orgData, logs] = await Promise.all([
+        const [orgData, logs, settings] = await Promise.all([
           getOrganizationById(orgId),
           getAuditLogsForTarget("organization", orgId, 20),
+          getOrgSettings(orgId),
         ]);
         setOrg(orgData);
         setAuditLogs(logs);
+        setOrgSettings(settings);
       } catch (error) {
         console.error("Failed to load organization:", error);
       } finally {
@@ -51,16 +67,31 @@ export default function OrganizationDetailPage() {
     loadData();
   }, [orgId]);
 
-  const handleTierChange = async (newTier: OrgTier) => {
-    if (!org || newTier === org.tier) return;
-    if (!confirm(`Change tier from ${org.tier} to ${newTier}?`)) return;
+  const handleTrialChange = async (newState: TrialLockState) => {
+    if (!org || newState === org.trialLockState) return;
+    if (!confirm(`Change trial state to "${trialStateLabels[newState]}"?`)) return;
 
     try {
-      await changeOrgTier(orgId, newTier, "Manual tier change by admin");
-      setOrg({ ...org, tier: newTier });
+      await changeTrialState(orgId, newState, "Manual trial state change by admin");
+      setOrg({ ...org, trialLockState: newState });
     } catch (error) {
-      console.error("Failed to change tier:", error);
-      alert("Failed to update tier.");
+      console.error("Failed to change trial state:", error);
+      alert("Failed to update trial state.");
+    }
+  };
+
+  const handleExtendTrial = async () => {
+    if (!org) return;
+    if (!confirm("Extend trial by 30 days?")) return;
+
+    try {
+      await extendTrial(orgId, 30);
+      // Reload to get updated trial_ends_at
+      const updated = await getOrganizationById(orgId);
+      setOrg(updated);
+    } catch (error) {
+      console.error("Failed to extend trial:", error);
+      alert("Failed to extend trial.");
     }
   };
 
@@ -105,8 +136,8 @@ export default function OrganizationDetailPage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-semibold text-slate-100">{org.name}</h1>
-              <Badge variant="outline" className={tierColors[org.tier]}>
-                {org.tier}
+              <Badge variant="outline" className={trialStateColors[org.trialLockState]}>
+                {trialStateLabels[org.trialLockState]}
               </Badge>
             </div>
             <p className="text-sm text-slate-400">{org.slug}</p>
@@ -123,8 +154,14 @@ export default function OrganizationDetailPage() {
           <TabsTrigger value="members" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Members
           </TabsTrigger>
+          <TabsTrigger value="projects" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+            Projects
+          </TabsTrigger>
           <TabsTrigger value="billing" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Billing
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+            Settings
           </TabsTrigger>
           <TabsTrigger value="activity" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Activity
@@ -164,28 +201,39 @@ export default function OrganizationDetailPage() {
 
             <Card className="bg-slate-900 border-slate-800">
               <CardHeader>
-                <CardTitle className="text-sm font-medium text-slate-400">Change Tier</CardTitle>
+                <CardTitle className="text-sm font-medium text-slate-400">Trial Management</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-2">
-                  {tierOptions.map((tier) => (
+                  {trialActions.map((action) => (
                     <Button
-                      key={tier}
-                      variant={org.tier === tier ? "default" : "outline"}
-                      onClick={() => handleTierChange(tier)}
+                      key={action.state}
+                      variant={org.trialLockState === action.state ? "default" : "outline"}
+                      onClick={() => handleTrialChange(action.state)}
                       className={
-                        org.tier === tier
+                        org.trialLockState === action.state
                           ? "bg-amber-500 hover:bg-amber-600 text-slate-950"
                           : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
                       }
                     >
-                      {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                      {action.label}
                     </Button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-3">
-                  Changing tiers may affect billing. Stripe subscription will be updated automatically.
-                </p>
+                <Button
+                  variant="outline"
+                  onClick={handleExtendTrial}
+                  className="w-full border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  Extend Trial (+30 days)
+                </Button>
+                {org.trialEndsAt && (
+                  <p className="text-xs text-slate-500">
+                    Trial ends: {format(new Date(org.trialEndsAt), "PPP")}
+                    {org.trialExtensionUsed && " (extension used)"}
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -229,6 +277,36 @@ export default function OrganizationDetailPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="projects" className="mt-4">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-slate-400">Projects</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {org.projects.length > 0 ? (
+                <div className="space-y-3">
+                  {org.projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-slate-800 bg-slate-950"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-slate-200">{project.name}</p>
+                        <p className="text-xs text-slate-500 font-mono">{project.id}</p>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Created {format(new Date(project.createdAt), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No projects found.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="billing" className="mt-4">
           <Card className="bg-slate-900 border-slate-800">
             <CardHeader>
@@ -258,9 +336,112 @@ export default function OrganizationDetailPage() {
                       {format(new Date(org.subscription.currentPeriodEnd), "MMM d, yyyy")}
                     </span>
                   </div>
+                  <Separator className="bg-slate-800" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">API Calls (30d)</span>
+                    <span className="text-sm text-slate-300">{org.usage.apiCallsThisMonth.toLocaleString()}</span>
+                  </div>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">No subscription found. Organization is on free tier.</p>
+                <p className="text-sm text-slate-500">No subscription found. Organization is in trial.</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4 space-y-4">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-slate-400">Organization Settings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {orgSettings ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <ToggleLeft className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-300">Feature Requirements</p>
+                        <p className="text-xs text-slate-500">Enable requirements module</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant={orgSettings.featureRequirementsEnabled ? "default" : "outline"}
+                      onClick={async () => {
+                        if (!orgSettings) return;
+                        try {
+                          await updateOrgSettings(orgSettings.orgId, { featureRequirementsEnabled: !orgSettings.featureRequirementsEnabled });
+                          setOrgSettings({ ...orgSettings, featureRequirementsEnabled: !orgSettings.featureRequirementsEnabled });
+                        } catch (e) {
+                          alert("Failed to update setting.");
+                        }
+                      }}
+                      className={orgSettings.featureRequirementsEnabled ? "bg-emerald-500 hover:bg-emerald-600 text-slate-950" : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"}
+                    >
+                      {orgSettings.featureRequirementsEnabled ? "Enabled" : "Disabled"}
+                    </Button>
+                  </div>
+                  <Separator className="bg-slate-800" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Shield className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-300">Require 2FA</p>
+                        <p className="text-xs text-slate-500">Enforce two-factor authentication</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant={orgSettings.require2fa ? "default" : "outline"}
+                      onClick={async () => {
+                        if (!orgSettings) return;
+                        try {
+                          await updateOrgSettings(orgSettings.orgId, { require2fa: !orgSettings.require2fa });
+                          setOrgSettings({ ...orgSettings, require2fa: !orgSettings.require2fa });
+                        } catch (e) {
+                          alert("Failed to update setting.");
+                        }
+                      }}
+                      className={orgSettings.require2fa ? "bg-emerald-500 hover:bg-emerald-600 text-slate-950" : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"}
+                    >
+                      {orgSettings.require2fa ? "Required" : "Optional"}
+                    </Button>
+                  </div>
+                  <Separator className="bg-slate-800" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Bell className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-300">Notification Channel</p>
+                        <p className="text-xs text-slate-500">{orgSettings.defaultNotificationChannel}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="border-slate-700 text-slate-400">{orgSettings.defaultNotificationChannel}</Badge>
+                  </div>
+                  <Separator className="bg-slate-800" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Target className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-300">Coverage Target</p>
+                        <p className="text-xs text-slate-500">Default test coverage target</p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-slate-300">{orgSettings.defaultCoverageTargetPct}%</span>
+                  </div>
+                  <Separator className="bg-slate-800" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-300">Session Timeout</p>
+                        <p className="text-xs text-slate-500">Idle session timeout in minutes (0 = never)</p>
+                      </div>
+                    </div>
+                    <span className="text-sm text-slate-300">{orgSettings.sessionTimeoutMinutes} min</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No settings configured for this organization.</p>
               )}
             </CardContent>
           </Card>

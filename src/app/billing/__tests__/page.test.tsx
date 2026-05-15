@@ -32,11 +32,12 @@ describe("BillingPage", () => {
       mrr: 50000,
       arr: 600000,
       activeSubscriptions: 100,
-      trialingSubscriptions: 10,
-      pastDueSubscriptions: 2,
-      canceledSubscriptions: 5,
-      churnRate: 2.5,
-      averageRevenuePerUser: 500,
+      activeTrials: 10,
+      softLockedOrgs: 2,
+      hardLockedOrgs: 1,
+      paidOrgs: 95,
+      trialToPaidConversionRate: 25,
+      avgTimeToConversion: 45,
     });
 
     mockGetRecentInvoices.mockResolvedValue([
@@ -94,7 +95,6 @@ describe("BillingPage", () => {
 
     expect(screen.getByText("$600,000")).toBeInTheDocument();
     expect(screen.getByText("100")).toBeInTheDocument();
-    expect(screen.getByText("2.5%")).toBeInTheDocument();
   });
 
   it("should display MRR growth indicator", async () => {
@@ -143,48 +143,16 @@ describe("BillingPage", () => {
 
     await waitFor(() => {
       // Look for error message more flexibly
-      expect(screen.getByText(/failed to fetch/i)).toBeInTheDocument();
+      expect(screen.getByText(/failed to load billing data/i)).toBeInTheDocument();
     });
   });
 
-  it("should show trialing count when present", async () => {
+  it("should show conversion rate", async () => {
     render(<BillingPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/\+10 trialing/i)).toBeInTheDocument();
+      expect(screen.getByText("25%")).toBeInTheDocument();
     });
-  });
-
-  it("should show appropriate churn rate badge", async () => {
-    render(<BillingPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("2.5%")).toBeInTheDocument();
-    });
-
-    // 2.5% is "Good" (<= 5%)
-    expect(screen.getByText("Good")).toBeInTheDocument();
-  });
-
-  it("should handle high churn rate", async () => {
-    mockGetBillingMetrics.mockResolvedValue({
-      mrr: 50000,
-      arr: 600000,
-      activeSubscriptions: 100,
-      trialingSubscriptions: 0,
-      pastDueSubscriptions: 0,
-      canceledSubscriptions: 15,
-      churnRate: 15,
-      averageRevenuePerUser: 500,
-    });
-
-    render(<BillingPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("15%")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("High")).toBeInTheDocument();
   });
 
   it("should format invoice amounts correctly", async () => {

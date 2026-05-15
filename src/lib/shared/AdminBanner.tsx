@@ -37,7 +37,7 @@ interface AdminBannerProps {
 /**
  * AdminBanner Component
  * 
- * Displays admin announcements from the Perpetual Test Admin Console.
+ * Displays admin announcements from the Lathe Studio Admin Console.
  * 
  * Usage:
  * ```tsx

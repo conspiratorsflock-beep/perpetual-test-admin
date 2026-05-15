@@ -176,7 +176,7 @@ export default function SystemDashboardPage() {
       name: "Main Application",
       icon: Globe,
       status: services.find((s) => s.serviceName === "Main App")?.status || "healthy",
-      description: "Perpetual Test main app",
+      description: "Lathe Studio main app",
       configured: !!process.env.NEXT_PUBLIC_MAIN_APP_URL,
       lastChecked: services.find((s) => s.serviceName === "Main App")?.checkedAt,
     },

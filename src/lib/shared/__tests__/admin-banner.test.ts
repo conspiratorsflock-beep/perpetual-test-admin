@@ -51,6 +51,8 @@ describe("Admin Banner", () => {
       type: "info",
       targetTiers: [],
       targetOrgs: [],
+      linkUrl: null,
+      linkText: null,
       startsAt: new Date(Date.now() - 1000).toISOString(), // Started 1 second ago
       endsAt: null,
       isActive: true,
@@ -255,6 +257,8 @@ describe("Admin Banner", () => {
       type: "info",
       targetTiers: [],
       targetOrgs: [],
+      linkUrl: null,
+      linkText: null,
       startsAt: new Date(Date.now() - 1000).toISOString(),
       endsAt: null,
       isActive: true,

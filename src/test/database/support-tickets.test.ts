@@ -436,7 +436,7 @@ describe.skip("Support Tickets Database Integration", () => {
         .eq("id", response.id)
         .single();
 
-      expect(updated.use_count).toBe(1);
+      expect(updated!.use_count).toBe(1);
     });
   });
 
@@ -489,9 +489,9 @@ describe.skip("Support Tickets Database Integration", () => {
         .eq("is_active", true);
 
       expect(error).toBeNull();
-      expect(data.length).toBeGreaterThanOrEqual(4);
+      expect(data!.length).toBeGreaterThanOrEqual(4);
 
-      const priorities = data.map((s) => s.priority);
+      const priorities = data!.map((s) => s.priority);
       expect(priorities).toContain("urgent");
       expect(priorities).toContain("high");
       expect(priorities).toContain("medium");
@@ -514,7 +514,7 @@ describe.skip("Support Tickets Database Integration", () => {
         .single();
 
       // Urgent should have shorter response time than low
-      expect(urgentSla.first_response_time).toBeLessThan(lowSla.first_response_time);
+      expect(urgentSla!.first_response_time).toBeLessThan(lowSla!.first_response_time);
     });
   });
 

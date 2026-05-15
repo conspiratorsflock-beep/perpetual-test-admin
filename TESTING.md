@@ -1,6 +1,6 @@
 # Testing Guide
 
-This document outlines the testing strategy and how to run tests for the Perpetual Test Admin Console.
+This document outlines the testing strategy and how to run tests for the Lathe Studio Admin Console.
 
 ## Test Structure
 

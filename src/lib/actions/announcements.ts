@@ -30,6 +30,8 @@ export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
     type: row.type as AnnouncementType,
     targetTiers: row.target_tiers || [],
     targetOrgs: row.target_orgs || [],
+    linkUrl: row.link_url ?? null,
+    linkText: row.link_text ?? null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isActive: row.is_active,
@@ -71,6 +73,8 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
     type: row.type as AnnouncementType,
     targetTiers: row.target_tiers || [],
     targetOrgs: row.target_orgs || [],
+    linkUrl: row.link_url ?? null,
+    linkText: row.link_text ?? null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isActive: row.is_active,
@@ -91,6 +95,8 @@ export async function createAnnouncement(
     type: AnnouncementType;
     targetTiers?: string[];
     targetOrgs?: string[];
+    linkUrl?: string | null;
+    linkText?: string | null;
     startsAt?: string;
     endsAt?: string | null;
   },
@@ -106,6 +112,8 @@ export async function createAnnouncement(
       type: data.type,
       target_tiers: data.targetTiers || [],
       target_orgs: data.targetOrgs || [],
+      link_url: data.linkUrl ?? null,
+      link_text: data.linkText ?? null,
       starts_at: data.startsAt || new Date().toISOString(),
       ends_at: data.endsAt || null,
       is_active: true,
@@ -134,6 +142,8 @@ export async function createAnnouncement(
     type: row.type as AnnouncementType,
     targetTiers: row.target_tiers || [],
     targetOrgs: row.target_orgs || [],
+    linkUrl: row.link_url ?? null,
+    linkText: row.link_text ?? null,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     isActive: row.is_active,
