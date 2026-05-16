@@ -8,58 +8,71 @@ async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
 }
 
-export async function searchLatheAuditLogs({
-  entityType,
-  entityId,
-  action,
-  performedBy,
-  limit = 50,
-  offset = 0,
-}: {
-  entityType?: string;
-  entityId?: string;
+interface SearchLatheAuditLogsParams {
+  resourceType?: string;
+  resourceId?: string;
   action?: string;
-  performedBy?: string;
+  userId?: string;
+  orgId?: string;
   limit?: number;
   offset?: number;
-}): Promise<{ logs: LatheAuditLog[]; total: number }> {
+}
+
+/**
+ * Search audit logs with filtering.
+ */
+export async function searchLatheAuditLogs({
+  resourceType,
+  resourceId,
+  action,
+  userId,
+  orgId,
+  limit = 50,
+  offset = 0,
+}: SearchLatheAuditLogsParams = {}): Promise<{ logs: LatheAuditLog[]; total: number }> {
   await requireAdmin();
 
   let query = supabaseAdmin
-    .from("lathe_audit_logs")
+    .from("audit_logs")
     .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (entityType) query = query.eq("entity_type", entityType);
-  if (entityId) query = query.eq("entity_id", entityId);
-  if (action) query = query.eq("action", action);
-  if (performedBy) query = query.eq("performed_by", performedBy);
+  if (resourceType) query = query.eq("resource_type", resourceType);
+  if (resourceId) query = query.eq("resource_id", resourceId);
+  if (action) query = query.ilike("action", `%${action}%`);
+  if (userId) query = query.eq("user_id", userId);
+  if (orgId) query = query.eq("org_id", orgId);
 
   const { data, error, count } = await query;
 
   if (error) throw new Error(`Failed to fetch audit logs: ${error.message}`);
 
-  const logs = (data || []).map((row) => ({
+  const logs: LatheAuditLog[] = (data || []).map((row) => ({
     id: row.id,
-    entityType: row.entity_type,
-    entityId: row.entity_id,
+    userId: row.user_id,
+    orgId: row.org_id,
+    projectId: row.project_id,
     action: row.action,
-    oldValue: row.old_value as Record<string, unknown> | null,
-    newValue: row.new_value as Record<string, unknown> | null,
-    performedBy: row.performed_by,
-    performedByEmail: row.performed_by_email,
+    resourceType: row.resource_type,
+    resourceId: row.resource_id,
+    oldValue: row.old_value,
+    newValue: row.new_value,
+    metadata: row.metadata,
     createdAt: row.created_at,
   }));
 
   return { logs, total: count || 0 };
 }
 
+/**
+ * Get a single audit log by ID.
+ */
 export async function getLatheAuditLogById(id: string): Promise<LatheAuditLog | null> {
   await requireAdmin();
 
   const { data, error } = await supabaseAdmin
-    .from("lathe_audit_logs")
+    .from("audit_logs")
     .select("*")
     .eq("id", id)
     .single();
@@ -68,29 +81,37 @@ export async function getLatheAuditLogById(id: string): Promise<LatheAuditLog | 
 
   return {
     id: data.id,
-    entityType: data.entity_type,
-    entityId: data.entity_id,
+    userId: data.user_id,
+    orgId: data.org_id,
+    projectId: data.project_id,
     action: data.action,
-    oldValue: data.old_value as Record<string, unknown> | null,
-    newValue: data.new_value as Record<string, unknown> | null,
-    performedBy: data.performed_by,
-    performedByEmail: data.performed_by_email,
+    resourceType: data.resource_type,
+    resourceId: data.resource_id,
+    oldValue: data.old_value,
+    newValue: data.new_value,
+    metadata: data.metadata,
     createdAt: data.created_at,
   };
 }
 
-export async function getLatheAuditEntityTypes(): Promise<string[]> {
+/**
+ * Get distinct resource types.
+ */
+export async function getLatheAuditResourceTypes(): Promise<string[]> {
   await requireAdmin();
 
   const { data, error } = await supabaseAdmin
-    .from("lathe_audit_logs")
-    .select("entity_type");
+    .from("audit_logs")
+    .select("resource_type");
 
-  if (error) throw new Error(`Failed to fetch entity types: ${error.message}`);
+  if (error) {
+    console.error("Failed to fetch resource types:", error);
+    return [];
+  }
 
   const types = new Set<string>();
   for (const row of data || []) {
-    types.add(row.entity_type);
+    if (row.resource_type) types.add(row.resource_type);
   }
   return Array.from(types).sort();
 }

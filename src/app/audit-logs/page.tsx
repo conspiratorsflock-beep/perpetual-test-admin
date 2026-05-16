@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   ScrollText,
@@ -12,6 +13,8 @@ import {
   Tag,
   Eye,
   EyeOff,
+  Building2,
+  FolderKanban,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,18 +35,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { searchLatheAuditLogs, getLatheAuditEntityTypes } from "@/lib/actions/lathe-audit";
+import { searchLatheAuditLogs, getLatheAuditResourceTypes } from "@/lib/actions/lathe-audit";
 import type { LatheAuditLog } from "@/types/admin";
 
 const PAGE_SIZE = 50;
+
+function tryParseJson(value: string | null): unknown {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState<LatheAuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [entityTypeFilter, setEntityTypeFilter] = useState("");
+  const [resourceTypeFilter, setResourceTypeFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
-  const [entityTypes, setEntityTypes] = useState<string[]>([]);
+  const [resourceTypes, setResourceTypes] = useState<string[]>([]);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,22 +64,22 @@ export default function AuditLogsPage() {
     try {
       const [result, types] = await Promise.all([
         searchLatheAuditLogs({
-          entityType: entityTypeFilter || undefined,
+          resourceType: resourceTypeFilter || undefined,
           action: actionFilter || undefined,
           limit: PAGE_SIZE,
           offset: (page - 1) * PAGE_SIZE,
         }),
-        getLatheAuditEntityTypes(),
+        getLatheAuditResourceTypes(),
       ]);
       setLogs(result.logs);
       setTotal(result.total);
-      setEntityTypes(types);
+      setResourceTypes(types);
     } catch (error) {
       console.error("Failed to fetch audit logs:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [entityTypeFilter, actionFilter, page]);
+  }, [resourceTypeFilter, actionFilter, page]);
 
   useEffect(() => {
     fetchData();
@@ -105,8 +117,8 @@ export default function AuditLogsPage() {
                 <Tag className="h-5 w-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-slate-100">{entityTypes.length}</p>
-                <p className="text-xs text-slate-500">Entity Types</p>
+                <p className="text-2xl font-semibold text-slate-100">{resourceTypes.length}</p>
+                <p className="text-xs text-slate-500">Resource Types</p>
               </div>
             </div>
           </CardContent>
@@ -133,13 +145,13 @@ export default function AuditLogsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Select value={entityTypeFilter} onValueChange={(v) => { setEntityTypeFilter(v); setPage(1); }}>
+        <Select value={resourceTypeFilter} onValueChange={(v) => { setResourceTypeFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[180px] bg-slate-900 border-slate-700 text-slate-300">
-            <SelectValue placeholder="All entity types" />
+            <SelectValue placeholder="All resource types" />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-slate-700">
-            <SelectItem value="" className="text-slate-300">All entity types</SelectItem>
-            {entityTypes.map((t) => (
+            <SelectItem value="" className="text-slate-300">All resource types</SelectItem>
+            {resourceTypes.map((t) => (
               <SelectItem key={t} value={t} className="text-slate-300">{t}</SelectItem>
             ))}
           </SelectContent>
@@ -151,10 +163,10 @@ export default function AuditLogsPage() {
           onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
           className="w-[200px] bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-600"
         />
-        {(entityTypeFilter || actionFilter) && (
+        {(resourceTypeFilter || actionFilter) && (
           <Button
             variant="ghost"
-            onClick={() => { setEntityTypeFilter(""); setActionFilter(""); }}
+            onClick={() => { setResourceTypeFilter(""); setActionFilter(""); }}
             className="text-slate-400 hover:text-slate-100"
           >
             Clear filters
@@ -167,10 +179,11 @@ export default function AuditLogsPage() {
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
               <TableHead className="text-slate-400">Time</TableHead>
-              <TableHead className="text-slate-400">Entity</TableHead>
+              <TableHead className="text-slate-400">Resource</TableHead>
               <TableHead className="text-slate-400">Action</TableHead>
-              <TableHead className="text-slate-400">Entity ID</TableHead>
-              <TableHead className="text-slate-400">Performed By</TableHead>
+              <TableHead className="text-slate-400">User</TableHead>
+              <TableHead className="text-slate-400">Org</TableHead>
+              <TableHead className="text-slate-400">Project</TableHead>
               <TableHead className="text-slate-400 w-[60px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -183,19 +196,51 @@ export default function AuditLogsPage() {
                       {format(new Date(log.createdAt), "MMM d, HH:mm:ss")}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="border-slate-700 text-slate-400 text-xs">
-                        {log.entityType}
-                      </Badge>
+                      <div className="flex flex-col gap-0.5">
+                        <Badge variant="outline" className="border-slate-700 text-slate-400 text-xs w-fit">
+                          {log.resourceType}
+                        </Badge>
+                        <span className="text-xs text-slate-500 font-mono truncate max-w-[120px]">
+                          {log.resourceId}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-slate-300 text-sm">{log.action}</TableCell>
-                    <TableCell className="text-slate-400 text-sm font-mono truncate max-w-[150px]">
-                      {log.entityId}
+                    <TableCell className="text-slate-400 text-sm">
+                      {log.userId ? (
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          <Link href={`/users/${log.userId}`} className="hover:text-amber-400">
+                            {log.userId.slice(0, 8)}…
+                          </Link>
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-slate-400 text-sm">
-                      <span className="flex items-center gap-1">
-                        <User className="h-3 w-3" />
-                        {log.performedByEmail || log.performedBy}
-                      </span>
+                      {log.orgId ? (
+                        <span className="flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          <Link href={`/organizations/${log.orgId}`} className="hover:text-amber-400">
+                            {log.orgId.slice(0, 8)}…
+                          </Link>
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-slate-400 text-sm">
+                      {log.projectId ? (
+                        <span className="flex items-center gap-1">
+                          <FolderKanban className="h-3 w-3" />
+                          <Link href={`/projects/${log.projectId}`} className="hover:text-amber-400">
+                            {log.projectId.slice(0, 8)}…
+                          </Link>
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Button
@@ -214,13 +259,13 @@ export default function AuditLogsPage() {
                   </TableRow>
                   {expandedLogId === log.id && (
                     <TableRow className="border-slate-800 bg-slate-950">
-                      <TableCell colSpan={6} className="py-3">
+                      <TableCell colSpan={7} className="py-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {log.oldValue && (
                             <div>
                               <p className="text-xs font-medium text-slate-500 mb-1">Old Value</p>
                               <pre className="text-xs text-slate-400 bg-slate-900 p-2 rounded border border-slate-800 overflow-auto max-h-40">
-                                {JSON.stringify(log.oldValue, null, 2)}
+                                {JSON.stringify(tryParseJson(log.oldValue), null, 2)}
                               </pre>
                             </div>
                           )}
@@ -228,7 +273,15 @@ export default function AuditLogsPage() {
                             <div>
                               <p className="text-xs font-medium text-slate-500 mb-1">New Value</p>
                               <pre className="text-xs text-slate-400 bg-slate-900 p-2 rounded border border-slate-800 overflow-auto max-h-40">
-                                {JSON.stringify(log.newValue, null, 2)}
+                                {JSON.stringify(tryParseJson(log.newValue), null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                          {log.metadata && Object.keys(log.metadata).length > 0 && (
+                            <div className="md:col-span-2">
+                              <p className="text-xs font-medium text-slate-500 mb-1">Metadata</p>
+                              <pre className="text-xs text-slate-400 bg-slate-900 p-2 rounded border border-slate-800 overflow-auto max-h-40">
+                                {JSON.stringify(log.metadata, null, 2)}
                               </pre>
                             </div>
                           )}
@@ -240,7 +293,7 @@ export default function AuditLogsPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={7} className="h-24 text-center text-slate-500">
                   {isLoading ? "Loading..." : "No audit logs found."}
                 </TableCell>
               </TableRow>

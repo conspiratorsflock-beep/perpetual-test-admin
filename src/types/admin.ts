@@ -686,12 +686,48 @@ export interface TestRun {
 
 export interface LatheAuditLog {
   id: string;
+  userId: string | null;
+  orgId: string | null;
+  projectId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  oldValue: string | null;
+  newValue: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+// ─── API Key Usage ──────────────────────────────────────────────────────────
+
+export interface ApiKeyUsage {
+  id: string;
+  apiKeyId: string;
+  orgId: string;
+  endpoint: string;
+  method: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  statusCode: number;
+  requestAt: string;
+  responseTimeMs: number;
+  rateLimitHit: boolean;
+}
+
+// ─── Integration Event Log ──────────────────────────────────────────────────
+
+export interface IntegrationEventLog {
+  id: string;
+  orgId: string;
+  projectId: string | null;
+  ruleId: string | null;
+  eventType: string;
+  source: string;
+  status: string;
   entityType: string;
   entityId: string;
-  action: string;
-  oldValue: Record<string, unknown> | null;
-  newValue: Record<string, unknown> | null;
-  performedBy: string;
-  performedByEmail: string | null;
+  payload: Record<string, unknown> | null;
+  errorMessage: string | null;
+  destinationId: string | null;
   createdAt: string;
 }
