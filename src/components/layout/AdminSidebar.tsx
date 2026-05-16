@@ -16,6 +16,7 @@ import {
   LifeBuoy,
   Megaphone,
   Plug,
+  ScrollText,
   Settings,
   Sliders,
   ToggleLeft,
@@ -86,6 +87,11 @@ const navigation: NavItem[] = [
       { label: "Flags", href: "/support/flags", icon: ToggleLeft },
       { label: "Announcements", href: "/support/announcements", icon: Megaphone },
     ],
+  },
+  {
+    label: "Audit Logs",
+    href: "/audit-logs",
+    icon: ScrollText,
   },
   {
     label: "Billing",

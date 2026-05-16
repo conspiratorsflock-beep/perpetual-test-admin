@@ -576,6 +576,74 @@ export interface SandboxLead {
   createdAt: string;
 }
 
+// ─── Test Cases ─────────────────────────────────────────────────────────────
+
+export interface TestCaseStep {
+  order: number;
+  action: string;
+  expectedResult: string;
+}
+
+export type TestCasePriority = "p0" | "p1" | "p2" | "p3";
+export type TestCaseStatus = "draft" | "review" | "active" | "deprecated";
+export type AutomationStatus = "not_automated" | "automated" | "partial";
+export type ExecutionMode = "manual" | "automated";
+export type TestCaseType = "standard" | "gherkin";
+
+export interface TestCase {
+  id: string;
+  projectId: string;
+  sectionId: string | null;
+  title: string;
+  description: string | null;
+  priority: TestCasePriority;
+  status: TestCaseStatus;
+  steps: TestCaseStep[];
+  isAdhoc: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  tcSequenceNumber: number;
+  preconditions: string | null;
+  externalId: string | null;
+  automationStatus: AutomationStatus;
+  executionMode: ExecutionMode;
+  version: number;
+  isLatestVersion: boolean;
+  previousVersionId: string | null;
+  versionNotes: string | null;
+  testCaseType: TestCaseType;
+  gherkinContent: string | null;
+  gherkinScenarioType: string | null;
+}
+
+// ─── Test Runs ──────────────────────────────────────────────────────────────
+
+export type TestRunStatus = "planned" | "running" | "completed" | "failed" | "cancelled";
+export type InheritancePolicy = "snapshot" | "live";
+
+export interface TestRun {
+  id: string;
+  projectId: string;
+  releaseId: string | null;
+  buildId: string | null;
+  name: string;
+  description: string | null;
+  environment: string | null;
+  customEnvironment: string | null;
+  status: TestRunStatus;
+  inheritancePolicy: InheritancePolicy;
+  parentRunId: string | null;
+  createdBy: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  runSequenceNumber: number | null;
+  configurationCount: number;
+}
+
 // ─── Lathe Studio Audit Logs ────────────────────────────────────────────────
 
 export interface LatheAuditLog {
