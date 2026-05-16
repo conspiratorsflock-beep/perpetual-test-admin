@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Clock } from "lucide-react";
+import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Clock, Info } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,16 +78,27 @@ export default function OrganizationDetailPage() {
 
   const handleExtendTrial = async () => {
     if (!org) return;
-    if (!confirm("Extend trial by 30 days?")) return;
+
+    const isPaid = org.trialLockState === "paid";
+    const alreadyExtended = org.trialExtensionUsed;
+
+    if (isPaid) {
+      alert("Cannot extend trial for a paid organization.");
+      return;
+    }
+    if (alreadyExtended) {
+      alert("Trial extension already used. Internal policy allows one extension only.");
+      return;
+    }
+
+    if (!confirm("Extend trial by 30 days? This can only be done once per organization.")) return;
 
     try {
-      await extendTrial(orgId, 30);
-      // Reload to get updated trial_ends_at
-      const updated = await getOrganizationById(orgId);
-      setOrg(updated);
+      const { newTrialEndsAt } = await extendTrial(orgId, 30);
+      setOrg({ ...org, trialEndsAt: newTrialEndsAt, trialExtensionUsed: true });
     } catch (error) {
       console.error("Failed to extend trial:", error);
-      alert("Failed to extend trial.");
+      alert(error instanceof Error ? error.message : "Failed to extend trial.");
     }
   };
 
@@ -216,7 +227,8 @@ export default function OrganizationDetailPage() {
                 <Button
                   variant="outline"
                   onClick={handleExtendTrial}
-                  className="w-full border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                  disabled={org.trialLockState === "paid" || org.trialExtensionUsed}
+                  className="w-full border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Calendar className="mr-2 h-4 w-4" />
                   Extend Trial (+30 days)
@@ -224,7 +236,15 @@ export default function OrganizationDetailPage() {
                 {org.trialEndsAt && (
                   <p className="text-xs text-slate-500">
                     Trial ends: {format(new Date(org.trialEndsAt), "PPP")}
-                    {org.trialExtensionUsed && " (extension used)"}
+                    {org.trialExtensionUsed && (
+                      <span className="text-amber-400 ml-1">(extension used)</span>
+                    )}
+                  </p>
+                )}
+                {org.trialExtensionUsed && (
+                  <p className="text-xs text-slate-600 flex items-center gap-1">
+                    <Info className="h-3 w-3" />
+                    Internal policy: one extension per organization
                   </p>
                 )}
               </CardContent>

@@ -201,8 +201,9 @@ export async function changeTrialState(
 
 /**
  * Extend an organization's trial by N days.
+ * Enforces a one-time-only extension policy.
  */
-export async function extendTrial(orgId: string, days: number): Promise<void> {
+export async function extendTrial(orgId: string, days: number): Promise<{ newTrialEndsAt: string }> {
   await requireAdmin();
 
   const orgUuid = await getOrgUuidFromClerkId(orgId);
@@ -212,17 +213,30 @@ export async function extendTrial(orgId: string, days: number): Promise<void> {
 
   const { data: org } = await supabaseAdmin
     .from("organizations")
-    .select("trial_ends_at, trial_extension_used")
+    .select("trial_ends_at, trial_extension_used, trial_lock_state")
     .eq("id", orgUuid)
     .single();
 
-  const currentEnd = org?.trial_ends_at ? new Date(org.trial_ends_at) : new Date();
+  if (!org) {
+    throw new Error("Organization not found");
+  }
+
+  if (org.trial_lock_state === "paid") {
+    throw new Error("Cannot extend trial for a paid organization");
+  }
+
+  if (org.trial_extension_used) {
+    throw new Error("Trial extension already used. Internal policy allows one extension only.");
+  }
+
+  const currentEnd = org.trial_ends_at ? new Date(org.trial_ends_at) : new Date();
   const newEnd = new Date(currentEnd.getTime() + days * 24 * 60 * 60 * 1000);
+  const newTrialEndsAt = newEnd.toISOString();
 
   const { error } = await supabaseAdmin
     .from("organizations")
     .update({
-      trial_ends_at: newEnd.toISOString(),
+      trial_ends_at: newTrialEndsAt,
       trial_extension_used: true,
     })
     .eq("id", orgUuid);
@@ -235,8 +249,10 @@ export async function extendTrial(orgId: string, days: number): Promise<void> {
     action: "org.extend_trial",
     targetType: "organization",
     targetId: orgId,
-    metadata: { days, newEnd: newEnd.toISOString() },
+    metadata: { days, previousEnd: org.trial_ends_at, newEnd: newTrialEndsAt },
   });
+
+  return { newTrialEndsAt };
 }
 
 /**

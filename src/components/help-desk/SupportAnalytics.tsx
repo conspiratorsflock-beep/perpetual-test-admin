@@ -17,12 +17,13 @@ export function SupportAnalytics() {
   const [timeRange, setTimeRange] = useState("7d");
   const [stats, setStats] = useState<{
     totalTickets: number;
+    openTickets: number;
     byStatus: Record<string, number>;
     byPriority: Record<string, number>;
     byCategory: Record<string, number>;
-    avgResponseTime: number;
-    avgResolutionTime: number;
-    satisfactionScore: number | null;
+    avgResponseTimeMinutes: number;
+    avgResolutionTimeMinutes: number;
+    slaCompliancePct: number;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -125,7 +126,7 @@ export function SupportAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-slate-100">
-                  {stats?.avgResponseTime ? `${stats.avgResponseTime.toFixed(1)}h` : "N/A"}
+                  {stats?.avgResponseTimeMinutes ? `${(stats.avgResponseTimeMinutes / 60).toFixed(1)}h` : "N/A"}
                 </div>
                 <p className="text-xs text-slate-500">First response</p>
               </CardContent>
@@ -140,7 +141,7 @@ export function SupportAnalytics() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-slate-100">
-                  {stats?.avgResolutionTime ? `${stats.avgResolutionTime.toFixed(1)}h` : "N/A"}
+                  {stats?.avgResolutionTimeMinutes ? `${(stats.avgResolutionTimeMinutes / 60).toFixed(1)}h` : "N/A"}
                 </div>
                 <p className="text-xs text-slate-500">Time to resolve</p>
               </CardContent>
@@ -149,15 +150,15 @@ export function SupportAnalytics() {
             <Card className="bg-slate-800 border-slate-700">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-slate-400">
-                  CSAT Score
+                  SLA Compliance
                 </CardTitle>
                 <TrendingUp className="h-4 w-4 text-slate-400" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-slate-100">
-                  {stats?.satisfactionScore ? `${stats.satisfactionScore}/5` : "N/A"}
+                  {stats?.slaCompliancePct ? `${stats.slaCompliancePct}%` : "N/A"}
                 </div>
-                <p className="text-xs text-slate-500">Customer satisfaction</p>
+                <p className="text-xs text-slate-500">SLA compliance</p>
               </CardContent>
             </Card>
           </div>

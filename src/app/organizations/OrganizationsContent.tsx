@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Building2, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Search, Calendar, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,8 +148,9 @@ export function OrganizationsContent() {
             <TableRow className="border-slate-800 hover:bg-transparent">
               <TableHead className="text-slate-400">Organization</TableHead>
               <TableHead className="text-slate-400">Trial State</TableHead>
+              <TableHead className="text-slate-400">Trial Ends</TableHead>
+              <TableHead className="text-slate-400">Extension</TableHead>
               <TableHead className="text-slate-400">Members</TableHead>
-              <TableHead className="text-slate-400">MRR</TableHead>
               <TableHead className="text-slate-400">Created</TableHead>
             </TableRow>
           </TableHeader>
@@ -171,10 +172,27 @@ export function OrganizationsContent() {
                       {trialStateLabels[org.trialLockState]}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-slate-300">{org.memberCount}</TableCell>
                   <TableCell className="text-slate-300">
-                    ${org.mrr.toLocaleString()}
+                    {org.trialEndsAt ? (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="h-3 w-3 text-slate-500" />
+                        {format(new Date(org.trialEndsAt), "MMM d, yyyy")}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">—</span>
+                    )}
                   </TableCell>
+                  <TableCell>
+                    {org.trialExtensionUsed ? (
+                      <span className="flex items-center gap-1 text-xs text-amber-400">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Used
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-600">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-slate-300">{org.memberCount}</TableCell>
                   <TableCell className="text-slate-400">
                     {format(new Date(org.createdAt), "MMM d, yyyy")}
                   </TableCell>
@@ -182,7 +200,7 @@ export function OrganizationsContent() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-slate-500">
+                <TableCell colSpan={6} className="h-24 text-center text-slate-500">
                   {isLoading ? "Loading..." : "No organizations found."}
                 </TableCell>
               </TableRow>
