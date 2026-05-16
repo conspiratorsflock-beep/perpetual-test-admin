@@ -179,7 +179,6 @@ export function TicketList({
           <TableHeader>
             <TableRow className="border-slate-700 hover:bg-transparent">
               <TableHead className="text-slate-400">Ticket</TableHead>
-              <TableHead className="text-slate-400">Reference</TableHead>
               <TableHead className="text-slate-400">Requester</TableHead>
               <TableHead className="text-slate-400">Subject</TableHead>
               <TableHead className="text-slate-400">Status</TableHead>
@@ -193,13 +192,13 @@ export function TicketList({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-slate-400">
+                <TableCell colSpan={9} className="text-center py-8 text-slate-400">
                   Loading tickets...
                 </TableCell>
               </TableRow>
             ) : tickets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-slate-400">
+                <TableCell colSpan={9} className="text-center py-8 text-slate-400">
                   No tickets found
                 </TableCell>
               </TableRow>
@@ -212,15 +211,6 @@ export function TicketList({
                 >
                   <TableCell className="font-medium text-slate-200">
                     #{ticket.ticketNumber}
-                  </TableCell>
-                  <TableCell>
-                    {ticket.referenceCode ? (
-                      <code className="text-xs bg-slate-700 px-1.5 py-0.5 rounded text-amber-400">
-                        {ticket.referenceCode}
-                      </code>
-                    ) : (
-                      <span className="text-slate-500 text-xs">—</span>
-                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

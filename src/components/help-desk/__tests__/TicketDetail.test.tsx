@@ -32,7 +32,6 @@ vi.mock("date-fns", () => ({
 const mockTicket: SupportTicket = {
   id: "ticket_123",
   ticketNumber: 1001,
-  referenceCode: null,
   userId: "user_123",
   userEmail: "user@example.com",
   userName: "John Doe",
@@ -43,15 +42,12 @@ const mockTicket: SupportTicket = {
   status: "open",
   priority: "high",
   assignedTo: null,
-  assignedAt: null,
   slaDeadline: "2026-03-08T10:00:00Z",
-  firstResponseAt: null,
   resolvedAt: null,
   closedAt: null,
   isActive: true,
   metadata: {},
   source: "web",
-  tags: ["bug", "urgent"],
   browserInfo: "Chrome 120",
   osInfo: "macOS",
   appVersion: "1.0.0",
@@ -73,7 +69,6 @@ const mockComments = [
     attachments: [],
     createdAt: "2026-03-07T10:00:00Z",
     editedAt: null,
-    editedBy: null,
   },
   {
     id: "comment_2",
@@ -88,7 +83,6 @@ const mockComments = [
     attachments: [],
     createdAt: "2026-03-07T11:00:00Z",
     editedAt: null,
-    editedBy: null,
   },
 ];
 
@@ -115,7 +109,6 @@ describe("TicketDetail", () => {
       attachments: [],
       createdAt: "2026-03-07T12:00:00Z",
       editedAt: null,
-      editedBy: null,
     });
     vi.mocked(supportTicketsActions.updateTicketStatus).mockResolvedValue();
     vi.mocked(supportTicketsActions.assignTicket).mockResolvedValue();
@@ -332,22 +325,6 @@ describe("TicketDetail", () => {
     // Status selector should be present (combobox role)
     const statusSelector = screen.getByRole("combobox");
     expect(statusSelector).toBeInTheDocument();
-  });
-
-  it("displays tags", async () => {
-    render(
-      <TicketDetail
-        ticket={mockTicket}
-        onBack={mockOnBack}
-        onTicketUpdated={mockOnTicketUpdated}
-      />
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("bug")).toBeInTheDocument();
-    });
-
-    expect(screen.getByText("urgent")).toBeInTheDocument();
   });
 
   it("displays timeline information", async () => {

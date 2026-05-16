@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, FolderKanban, Building2, Users, TestTube, GitBranch, ToggleLeft, Trash2, RotateCcw, ListChecks, PlayCircle, ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { ArrowLeft, FolderKanban, Building2, Users, TestTube, GitBranch, ToggleLeft, Trash2, RotateCcw, ListChecks, PlayCircle, ChevronLeft, ChevronRight, FileText, Tag, Rocket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getProjectById, getProjectMembers, toggleRequirementsEnabled, softDeleteProject, restoreProject } from "@/lib/actions/projects";
 import { getProjectTestCases } from "@/lib/actions/test-cases";
 import { getProjectTestRuns } from "@/lib/actions/test-runs";
-import type { AdminProject, TestCase, TestRun } from "@/types/admin";
+import { searchReleases } from "@/lib/actions/releases";
+import type { AdminProject, TestCase, TestRun, Release } from "@/types/admin";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -27,6 +28,9 @@ export default function ProjectDetailPage() {
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [testRunTotal, setTestRunTotal] = useState(0);
   const [testRunPage, setTestRunPage] = useState(1);
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [releaseTotal, setReleaseTotal] = useState(0);
+  const [releasePage, setReleasePage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -79,6 +83,23 @@ export default function ProjectDetailPage() {
     }
     loadTestRuns();
   }, [projectId, testRunPage]);
+
+  useEffect(() => {
+    async function loadReleases() {
+      try {
+        const result = await searchReleases({
+          projectId,
+          limit: 25,
+          offset: (releasePage - 1) * 25,
+        });
+        setReleases(result.releases);
+        setReleaseTotal(result.total);
+      } catch (error) {
+        console.error("Failed to load releases:", error);
+      }
+    }
+    loadReleases();
+  }, [projectId, releasePage]);
 
   const handleToggleRequirements = async () => {
     if (!project) return;
@@ -183,6 +204,9 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="test-runs" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Test Runs
           </TabsTrigger>
+          <TabsTrigger value="releases" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+            Releases
+          </TabsTrigger>
           <TabsTrigger value="settings" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Settings
           </TabsTrigger>
@@ -225,6 +249,19 @@ export default function ProjectDetailPage() {
                   <div>
                     <p className="text-2xl font-semibold text-slate-100">{project.testRunCount}</p>
                     <p className="text-xs text-slate-500">Test Runs</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                    <Tag className="h-5 w-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-semibold text-slate-100">{project.releaseCount}</p>
+                    <p className="text-xs text-slate-500">Releases</p>
                   </div>
                 </div>
               </CardContent>
@@ -534,6 +571,84 @@ export default function ProjectDetailPage() {
                       size="sm"
                       onClick={() => setTestRunPage(testRunPage + 1)}
                       disabled={testRunPage >= Math.ceil(testRunTotal / 25)}
+                      className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="releases" className="mt-4 space-y-4">
+          <Card className="bg-slate-900 border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-slate-400">
+                Releases ({releaseTotal})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {releases.length > 0 ? (
+                <div className="space-y-3">
+                  {releases.map((rel) => (
+                    <div key={rel.id} className="p-3 rounded-lg border border-slate-800 bg-slate-950">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4 text-purple-400" />
+                          <span className="text-sm font-medium text-slate-200">{rel.name}</span>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            rel.status === "released"
+                              ? "border-emerald-500/30 text-emerald-400 text-xs"
+                              : rel.status === "in_progress"
+                              ? "border-blue-500/30 text-blue-400 text-xs"
+                              : rel.status === "archived"
+                              ? "border-slate-500/30 text-slate-400 text-xs"
+                              : "border-slate-700 text-slate-400 text-xs"
+                          }
+                        >
+                          {rel.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      {rel.description && (
+                        <p className="mt-1 text-xs text-slate-500">{rel.description}</p>
+                      )}
+                      <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
+                        {rel.targetDate && (
+                          <span>Target: {format(new Date(rel.targetDate), "MMM d, yyyy")}</span>
+                        )}
+                        <span>Created: {format(new Date(rel.createdAt), "MMM d, yyyy")}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No releases found.</p>
+              )}
+              {releaseTotal > 25 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-xs text-slate-500">
+                    Page {releasePage} of {Math.ceil(releaseTotal / 25)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReleasePage(releasePage - 1)}
+                      disabled={releasePage <= 1}
+                      className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setReleasePage(releasePage + 1)}
+                      disabled={releasePage >= Math.ceil(releaseTotal / 25)}
                       className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
                     >
                       <ChevronRight className="h-3 w-3" />

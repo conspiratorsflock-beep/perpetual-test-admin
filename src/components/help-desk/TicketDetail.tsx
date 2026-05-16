@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Clock,
   User,
-  Tag,
+
   MessageSquare,
   Send,
   CheckCircle,
@@ -244,16 +244,7 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
               <p className="text-slate-300 whitespace-pre-wrap">{ticket.description}</p>
             </div>
 
-            {ticket.tags?.length > 0 && (
-              <div className="flex items-center gap-2 mt-4">
-                <Tag className="h-4 w-4 text-slate-400" />
-                {ticket.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="bg-slate-700 text-slate-300">
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            )}
+
           </div>
 
           {/* Comments */}
@@ -396,12 +387,6 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
             {ticket.assignedTo ? (
               <div className="flex items-center gap-3">
                 <User className="h-5 w-5 text-slate-400" />
-                <div>
-                  <div className="text-slate-200">Assigned</div>
-                  <div className="text-sm text-slate-400">
-                    <ClientDate date={ticket.assignedAt} format="date" />
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="flex items-center justify-between">
@@ -477,14 +462,6 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
                   <ClientDate date={ticket.createdAt} format="date" />
                 </span>
               </div>
-              {ticket.firstResponseAt && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">First Response</span>
-                  <span className="text-slate-300">
-                    <ClientDate date={ticket.firstResponseAt} format="date" />
-                  </span>
-                </div>
-              )}
               {ticket.resolvedAt && (
                 <div className="flex justify-between">
                   <span className="text-slate-400">Resolved</span>

@@ -3,24 +3,15 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 
-/**
- * Promotes a user to admin by email.
- * Requires the caller to already be an admin.
- * To bootstrap the very first admin, set isAdmin: true manually in the Clerk Dashboard
- * under Users → select user → Public Metadata.
- */
-export async function promoteUserToAdminByEmail(email: string): Promise<{
+const SETUP_SECRET = process.env.SETUP_ADMIN_SECRET;
+
+async function promoteUser(email: string): Promise<{
   success: boolean;
   message: string;
 }> {
-  if (!(await isCurrentUserAdmin())) {
-    return { success: false, message: "Unauthorized" };
-  }
-
   try {
     const client = await clerkClient();
 
-    // Find user by email
     const users = await client.users.getUserList({
       emailAddress: [email],
     });
@@ -34,7 +25,6 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
 
     const user = users.data[0];
 
-    // Check if already admin
     const isAlreadyAdmin =
       (user.publicMetadata as { isAdmin?: boolean })?.isAdmin === true;
 
@@ -45,7 +35,6 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
       };
     }
 
-    // Promote to admin
     await client.users.updateUserMetadata(user.id, {
       publicMetadata: { isAdmin: true },
     });
@@ -64,13 +53,41 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
 }
 
 /**
- * Emergency admin setup — bypasses admin check for bootstrapping.
- * Only works if no admins exist yet.
+ * Promotes a user to admin by email.
+ * Requires the caller to already be an admin.
  */
-export async function setupEmergencyAdmin(): Promise<{
+export async function promoteUserToAdminByEmail(email: string): Promise<{
   success: boolean;
   message: string;
 }> {
+  if (!(await isCurrentUserAdmin())) {
+    return { success: false, message: "Unauthorized" };
+  }
+  return promoteUser(email);
+}
+
+/**
+ * Emergency admin setup — bypasses admin check with a secret token.
+ * Set SETUP_ADMIN_SECRET in your environment to use this.
+ */
+export async function setupEmergencyAdmin(secret: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  if (!SETUP_SECRET) {
+    return {
+      success: false,
+      message: "SETUP_ADMIN_SECRET is not configured on the server",
+    };
+  }
+
+  if (secret !== SETUP_SECRET) {
+    return {
+      success: false,
+      message: "Invalid setup secret",
+    };
+  }
+
   const email = "butteredpeanuts@gmail.com";
-  return promoteUserToAdminByEmail(email);
+  return promoteUser(email);
 }

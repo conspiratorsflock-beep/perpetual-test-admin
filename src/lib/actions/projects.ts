@@ -73,18 +73,27 @@ export async function searchProjects({
         .select("*", { count: "exact", head: true })
         .eq("project_id", row.id);
 
+      const { count: releaseCount } = await supabaseAdmin
+        .from("releases")
+        .select("*", { count: "exact", head: true })
+        .eq("project_id", row.id)
+        .is("deleted_at", null);
+
       return {
         id: row.id,
         name: row.name,
         description: row.description,
         projectCode: row.project_code,
         jiraProjectKey: row.jira_project_key,
+        jiraSiteUrl: row.jira_site_url,
+        bitbucketRepoUrl: row.bitbucket_repo_url,
         requirementsEnabled: row.requirements_enabled ?? false,
         orgId: row.org_id,
         orgName,
         memberCount: memberCount ?? 0,
         testCaseCount: testCaseCount ?? 0,
         testRunCount: testRunCount ?? 0,
+        releaseCount: releaseCount ?? 0,
         deletedAt: row.deleted_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
@@ -114,10 +123,11 @@ export async function getProjectById(projectId: string): Promise<AdminProject | 
 
   const orgName = (data.organizations as unknown as { name: string } | null)?.name ?? "Unknown";
 
-  const [{ count: memberCount }, { count: testCaseCount }, { count: testRunCount }] = await Promise.all([
+  const [{ count: memberCount }, { count: testCaseCount }, { count: testRunCount }, { count: releaseCount }] = await Promise.all([
     supabaseAdmin.from("project_members").select("*", { count: "exact", head: true }).eq("project_id", data.id),
     supabaseAdmin.from("test_cases").select("*", { count: "exact", head: true }).eq("project_id", data.id).is("deleted_at", null),
     supabaseAdmin.from("test_runs").select("*", { count: "exact", head: true }).eq("project_id", data.id),
+    supabaseAdmin.from("releases").select("*", { count: "exact", head: true }).eq("project_id", data.id).is("deleted_at", null),
   ]);
 
   return {
@@ -126,12 +136,15 @@ export async function getProjectById(projectId: string): Promise<AdminProject | 
     description: data.description,
     projectCode: data.project_code,
     jiraProjectKey: data.jira_project_key,
+    jiraSiteUrl: data.jira_site_url,
+    bitbucketRepoUrl: data.bitbucket_repo_url,
     requirementsEnabled: data.requirements_enabled ?? false,
     orgId: data.org_id,
     orgName,
     memberCount: memberCount ?? 0,
     testCaseCount: testCaseCount ?? 0,
     testRunCount: testRunCount ?? 0,
+    releaseCount: releaseCount ?? 0,
     deletedAt: data.deleted_at,
     createdAt: data.created_at,
     updatedAt: data.updated_at,

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,12 +9,22 @@ import { Label } from "@/components/ui/label";
 import { promoteUserToAdminByEmail, setupEmergencyAdmin } from "@/lib/actions/setup-admin";
 
 export default function SetupAdminPage() {
+  const searchParams = useSearchParams();
+  const secretToken = searchParams.get("token");
+
   const [email, setEmail] = useState("butteredpeanuts@gmail.com");
+  const [secret, setSecret] = useState(secretToken || "");
   const [result, setResult] = useState<{
     success: boolean;
     message: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (secretToken) {
+      handleEmergencySetup(secretToken);
+    }
+  }, [secretToken]);
 
   const handleSetup = async () => {
     setIsLoading(true);
@@ -30,10 +41,10 @@ export default function SetupAdminPage() {
     }
   };
 
-  const handleEmergencySetup = async () => {
+  const handleEmergencySetup = async (secret: string) => {
     setIsLoading(true);
     try {
-      const result = await setupEmergencyAdmin();
+      const result = await setupEmergencyAdmin(secret);
       setResult(result);
     } catch (error) {
       setResult({
@@ -78,9 +89,23 @@ export default function SetupAdminPage() {
             {isLoading ? "Setting up..." : "Promote to Admin"}
           </Button>
 
+          <div className="space-y-2">
+            <Label htmlFor="secret" className="text-slate-300">
+              Setup Secret
+            </Label>
+            <Input
+              id="secret"
+              type="password"
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              placeholder="Enter SETUP_ADMIN_SECRET"
+              className="bg-slate-950 border-slate-800 text-slate-100"
+            />
+          </div>
+
           <Button
-            onClick={handleEmergencySetup}
-            disabled={isLoading}
+            onClick={() => handleEmergencySetup(secret)}
+            disabled={isLoading || !secret}
             variant="outline"
             className="w-full border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
           >

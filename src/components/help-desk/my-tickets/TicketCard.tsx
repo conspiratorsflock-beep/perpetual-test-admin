@@ -107,14 +107,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
           >
             {ticket.status.replace("_", " ")}
           </Badge>
-          {ticket.autoAssigned && (
-            <Badge
-              variant="outline"
-              className="text-xs text-purple-400 border-purple-500/30"
-            >
-              Auto
-            </Badge>
-          )}
+
         </div>
 
         {/* Recent Comments */}

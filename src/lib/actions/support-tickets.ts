@@ -85,12 +85,12 @@ export async function getSupportTicketById(id: string): Promise<SupportTicket | 
   return data ? mapTicketFromDB(data) : null;
 }
 
-export async function getSupportTicketByReference(referenceCode: string): Promise<SupportTicket | null> {
+export async function getSupportTicketByReference(ticketNumber: number): Promise<SupportTicket | null> {
   await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("support_tickets")
     .select("*")
-    .eq("reference_code", referenceCode)
+    .eq("ticket_number", ticketNumber)
     .is("deleted_at", null)
     .single();
 
@@ -146,7 +146,6 @@ export async function assignTicket(
     .from("support_tickets")
     .update({
       assigned_to: agentId,
-      assigned_at: new Date().toISOString(),
       status: "in_progress",
       updated_at: new Date().toISOString(),
     })
@@ -222,7 +221,7 @@ export async function updateTicketPriority(
     .from("support_tickets")
     .update({
       priority,
-      sla_deadline: ticket ? calculateSLADeadline(priority, ticket.created_at) : null,
+      sla_deadline: ticket ? await calculateSLADeadline(priority, ticket.created_at) : null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
@@ -426,7 +425,7 @@ export async function getSupportAnalytics(params: {
   // For now, return basic counts
   const { data: tickets, error } = await supabaseAdmin
     .from("support_tickets")
-    .select("status, priority, category, first_response_at, resolved_at, created_at")
+    .select("status, priority, category, resolved_at, created_at")
     .gte("created_at", params.startDate)
     .lte("created_at", params.endDate);
 
@@ -463,7 +462,6 @@ function mapTicketFromDB(row: Record<string, unknown>): SupportTicket {
   return {
     id: row.id as string,
     ticketNumber: row.ticket_number as number,
-    referenceCode: row.reference_code as string | null,
     userId: row.user_id as string,
     userEmail: row.user_email as string,
     userName: row.user_name as string | null,
@@ -474,15 +472,12 @@ function mapTicketFromDB(row: Record<string, unknown>): SupportTicket {
     status: row.status as TicketStatus,
     priority: row.priority as TicketPriority,
     assignedTo: row.assigned_to as string | null,
-    assignedAt: row.assigned_at as string | null,
     slaDeadline: row.sla_deadline as string | null,
-    firstResponseAt: row.first_response_at as string | null,
     resolvedAt: row.resolved_at as string | null,
     closedAt: row.closed_at as string | null,
     isActive: row.is_active as boolean,
     metadata: row.metadata as Record<string, unknown> || {},
     source: row.source as string,
-    tags: row.tags as string[] || [],
     browserInfo: row.browser_info as string | null,
     osInfo: row.os_info as string | null,
     appVersion: row.app_version as string | null,
@@ -505,7 +500,6 @@ function mapCommentFromDB(row: Record<string, unknown>): SupportTicketComment {
     attachments: row.attachments as Array<{ filename: string; url: string; mimeType: string; size: number }>,
     createdAt: row.created_at as string,
     editedAt: row.edited_at as string | null,
-    editedBy: row.edited_by as string | null,
   };
 }
 
@@ -521,20 +515,19 @@ async function logTicketEvent(
     event_type: eventType,
     new_value: newValue,
     performed_by: performedBy,
-    performed_by_email: performedByEmail,
+    performed_by_name: performedByEmail,
   });
 }
 
-function calculateSLADeadline(priority: string, createdAt: string): string {
-  // Simplified SLA calculation - can be enhanced with business hours
-  const hours: Record<string, number> = {
-    urgent: 1,
-    high: 4,
-    medium: 8,
-    low: 24,
-  };
-  
+async function calculateSLADeadline(priority: string, createdAt: string): Promise<string> {
+  const { data: slaConfig } = await supabaseAdmin
+    .from("support_sla_config")
+    .select("first_response_hours")
+    .eq("priority", priority)
+    .single();
+
+  const hours = slaConfig?.first_response_hours ?? 24;
   const date = new Date(createdAt);
-  date.setHours(date.getHours() + (hours[priority] || 24));
+  date.setHours(date.getHours() + hours);
   return date.toISOString();
 }

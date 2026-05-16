@@ -7,13 +7,16 @@ import {
   Container,
   ChevronLeft,
   ChevronRight,
-  GitBranch,
   CheckCircle2,
   XCircle,
   Loader2,
   HelpCircle,
   Timer,
   FolderKanban,
+  Tag,
+  ExternalLink,
+  PlayCircle,
+  CircleDashed,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,50 +36,59 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { searchBuilds, getBuildMetrics } from "@/lib/actions/build-queue";
-import type { BuildQueueItem, BuildQueueItemStatus } from "@/types/admin";
+import { searchBuilds, getBuildMetrics } from "@/lib/actions/builds";
+import type { Build, BuildStatus } from "@/types/admin";
 
 const PAGE_SIZE = 25;
 
-const statusIcons: Record<BuildQueueItemStatus, React.ReactNode> = {
-  pending: <HelpCircle className="h-4 w-4 text-slate-400" />,
+const statusIcons: Record<BuildStatus, React.ReactNode> = {
+  planned: <CircleDashed className="h-4 w-4 text-slate-400" />,
   running: <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />,
-  success: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
+  completed: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
   failed: <XCircle className="h-4 w-4 text-red-400" />,
   cancelled: <XCircle className="h-4 w-4 text-slate-400" />,
 };
 
-const statusColors: Record<BuildQueueItemStatus, string> = {
-  pending: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+const statusColors: Record<BuildStatus, string> = {
+  planned: "bg-slate-500/20 text-slate-400 border-slate-500/30",
   running: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  success: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  completed: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   failed: "bg-red-500/20 text-red-400 border-red-500/30",
   cancelled: "bg-slate-500/20 text-slate-400 border-slate-500/30",
 };
 
-function formatDuration(ms: number | null): string {
-  if (!ms) return "—";
-  if (ms < 1000) return `${ms}ms`;
+function formatDuration(start: string | null, end: string | null): string {
+  if (!start || !end) return "—";
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  const ms = e - s;
+  if (ms <= 0) return "—";
   if (ms < 60000) return `${Math.round(ms / 1000)}s`;
   const mins = Math.floor(ms / 60000);
   const secs = Math.round((ms % 60000) / 1000);
   return `${mins}m ${secs}s`;
 }
 
+function formatDateTime(date: string | null): string {
+  if (!date) return "—";
+  return format(new Date(date), "MMM d, HH:mm");
+}
+
 export default function BuildsPage() {
-  const [builds, setBuilds] = useState<BuildQueueItem[]>([]);
+  const [builds, setBuilds] = useState<Build[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [providerFilter, setProviderFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<BuildQueueItemStatus | "">("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<BuildStatus | "">("");
   const [metrics, setMetrics] = useState<{
     total: number;
-    pending: number;
+    planned: number;
     running: number;
-    success: number;
+    completed: number;
     failed: number;
     cancelled: number;
     avgDurationMs: number;
+    bySource: Record<string, number>;
     byProvider: Record<string, number>;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,8 +98,8 @@ export default function BuildsPage() {
     try {
       const [result, m] = await Promise.all([
         searchBuilds({
-          provider: providerFilter || undefined,
-          status: (statusFilter as BuildQueueItemStatus) || undefined,
+          source: sourceFilter || undefined,
+          status: (statusFilter as BuildStatus) || undefined,
           limit: PAGE_SIZE,
           offset: (page - 1) * PAGE_SIZE,
         }),
@@ -101,7 +113,7 @@ export default function BuildsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [providerFilter, statusFilter, page]);
+  }, [sourceFilter, statusFilter, page]);
 
   useEffect(() => {
     fetchData();
@@ -109,12 +121,14 @@ export default function BuildsPage() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
+  const allSources = metrics ? Object.keys(metrics.bySource) : [];
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Build Queue</h1>
+        <h1 className="text-xl font-semibold text-slate-100">Builds</h1>
         <p className="mt-1 text-sm text-slate-400">
-          Monitor CI/CD build events flowing into Lathe Studio.
+          Monitor CI/CD builds and manual test runs across all projects.
         </p>
       </div>
 
@@ -136,11 +150,11 @@ export default function BuildsPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-slate-500/20 flex items-center justify-center">
-                <HelpCircle className="h-5 w-5 text-slate-400" />
+                <CircleDashed className="h-5 w-5 text-slate-400" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-slate-100">{metrics?.pending || 0}</p>
-                <p className="text-xs text-slate-500">Pending</p>
+                <p className="text-2xl font-semibold text-slate-100">{metrics?.planned || 0}</p>
+                <p className="text-xs text-slate-500">Planned</p>
               </div>
             </div>
           </CardContent>
@@ -165,8 +179,8 @@ export default function BuildsPage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-400" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-slate-100">{metrics?.success || 0}</p>
-                <p className="text-xs text-slate-500">Success</p>
+                <p className="text-2xl font-semibold text-slate-100">{metrics?.completed || 0}</p>
+                <p className="text-xs text-slate-500">Completed</p>
               </div>
             </div>
           </CardContent>
@@ -179,7 +193,9 @@ export default function BuildsPage() {
               </div>
               <div>
                 <p className="text-2xl font-semibold text-slate-100">
-                  {formatDuration(metrics?.avgDurationMs || null)}
+                  {metrics?.avgDurationMs
+                    ? formatDuration("1970-01-01T00:00:00.000Z", new Date(metrics.avgDurationMs).toISOString())
+                    : "—"}
                 </p>
                 <p className="text-xs text-slate-500">Avg Duration</p>
               </div>
@@ -189,34 +205,34 @@ export default function BuildsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Select value={providerFilter} onValueChange={(v) => { setProviderFilter(v); setPage(1); }}>
+        <Select value={sourceFilter} onValueChange={(v) => { setSourceFilter(v); setPage(1); }}>
           <SelectTrigger className="w-[180px] bg-slate-900 border-slate-700 text-slate-300">
-            <SelectValue placeholder="All providers" />
+            <SelectValue placeholder="All sources" />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-slate-700">
-            <SelectItem value="" className="text-slate-300">All providers</SelectItem>
-            {metrics && Object.keys(metrics.byProvider).map((p) => (
-              <SelectItem key={p} value={p} className="text-slate-300">{p}</SelectItem>
+            <SelectItem value="" className="text-slate-300">All sources</SelectItem>
+            {allSources.map((s) => (
+              <SelectItem key={s} value={s} className="text-slate-300 capitalize">{s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as BuildQueueItemStatus); setPage(1); }}>
+        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as BuildStatus); setPage(1); }}>
           <SelectTrigger className="w-[180px] bg-slate-900 border-slate-700 text-slate-300">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent className="bg-slate-900 border-slate-700">
             <SelectItem value="" className="text-slate-300">All statuses</SelectItem>
-            <SelectItem value="pending" className="text-slate-300">Pending</SelectItem>
+            <SelectItem value="planned" className="text-slate-300">Planned</SelectItem>
             <SelectItem value="running" className="text-slate-300">Running</SelectItem>
-            <SelectItem value="success" className="text-slate-300">Success</SelectItem>
+            <SelectItem value="completed" className="text-slate-300">Completed</SelectItem>
             <SelectItem value="failed" className="text-slate-300">Failed</SelectItem>
             <SelectItem value="cancelled" className="text-slate-300">Cancelled</SelectItem>
           </SelectContent>
         </Select>
-        {(providerFilter || statusFilter) && (
+        {(sourceFilter || statusFilter) && (
           <Button
             variant="ghost"
-            onClick={() => { setProviderFilter(""); setStatusFilter(""); }}
+            onClick={() => { setSourceFilter(""); setStatusFilter(""); }}
             className="text-slate-400 hover:text-slate-100"
           >
             Clear filters
@@ -229,12 +245,12 @@ export default function BuildsPage() {
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
               <TableHead className="text-slate-400">Build</TableHead>
-              <TableHead className="text-slate-400">Provider</TableHead>
+              <TableHead className="text-slate-400">Source</TableHead>
               <TableHead className="text-slate-400">Project</TableHead>
-              <TableHead className="text-slate-400">Branch</TableHead>
+              <TableHead className="text-slate-400">Release</TableHead>
               <TableHead className="text-slate-400">Status</TableHead>
               <TableHead className="text-slate-400">Duration</TableHead>
-              <TableHead className="text-slate-400">Received</TableHead>
+              <TableHead className="text-slate-400">Started</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -243,20 +259,27 @@ export default function BuildsPage() {
                 <TableRow key={build.id} className="border-slate-800 hover:bg-slate-900/50">
                   <TableCell>
                     <span className="font-medium text-slate-200">{build.name}</span>
-                    {build.commitSha && (
-                      <p className="text-xs text-slate-500 font-mono truncate max-w-[120px]">
-                        {build.commitSha.slice(0, 7)}
+                    {build.cicdExternalId && (
+                      <p className="text-xs text-slate-500 font-mono truncate max-w-[160px]">
+                        {build.cicdExternalId}
                       </p>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="border-slate-700 text-slate-400 capitalize">
-                      {build.cicdProvider}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="border-slate-700 text-slate-400 capitalize text-xs">
+                        {build.source}
+                      </Badge>
+                      {build.cicdProvider && (
+                        <Badge variant="outline" className="border-slate-700 text-slate-400 text-xs">
+                          {build.cicdProvider}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {build.assignedProjectId ? (
-                      <Link href={`/projects/${build.assignedProjectId}`} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 text-sm">
+                    {build.projectId ? (
+                      <Link href={`/projects/${build.projectId}`} className="flex items-center gap-1 text-slate-300 hover:text-amber-400 text-sm">
                         <FolderKanban className="h-3 w-3" />
                         {build.projectName || "Unknown"}
                       </Link>
@@ -264,14 +287,14 @@ export default function BuildsPage() {
                       <span className="text-slate-500 text-sm">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-slate-400 text-sm">
-                    {build.branch ? (
-                      <span className="flex items-center gap-1">
-                        <GitBranch className="h-3 w-3" />
-                        {build.branch}
+                  <TableCell>
+                    {build.releaseId ? (
+                      <span className="flex items-center gap-1 text-slate-300 text-sm">
+                        <Tag className="h-3 w-3" />
+                        {build.releaseName || "Unknown"}
                       </span>
                     ) : (
-                      "—"
+                      <span className="text-slate-500 text-sm">—</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -283,12 +306,10 @@ export default function BuildsPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-slate-400 text-sm">
-                    {formatDuration(build.durationMs)}
+                    {formatDuration(build.startDate, build.endDate)}
                   </TableCell>
                   <TableCell className="text-slate-400 text-sm">
-                    {build.receivedAt
-                      ? format(new Date(build.receivedAt), "MMM d, HH:mm")
-                      : "—"}
+                    {formatDateTime(build.startDate)}
                   </TableCell>
                 </TableRow>
               ))

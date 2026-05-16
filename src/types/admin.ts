@@ -112,12 +112,15 @@ export interface AdminProject {
   description: string | null;
   projectCode: string | null;
   jiraProjectKey: string | null;
+  jiraSiteUrl: string | null;
+  bitbucketRepoUrl: string | null;
   requirementsEnabled: boolean;
   orgId: string;
   orgName: string;
   memberCount: number;
   testCaseCount: number;
   testRunCount: number;
+  releaseCount: number;
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -181,6 +184,8 @@ export type AuditTargetType =
   | "api_key"
   | "integration"
   | "build_queue"
+  | "build"
+  | "release"
   | "lead"
   | "org_setting";
 
@@ -352,7 +357,6 @@ export type TicketCategory = "billing" | "account" | "technical" | "feature_requ
 export interface SupportTicket {
   id: string;
   ticketNumber: number;
-  referenceCode: string | null;
   userId: string;
   userEmail: string;
   userName: string | null;
@@ -363,15 +367,12 @@ export interface SupportTicket {
   status: TicketStatus;
   priority: TicketPriority;
   assignedTo: string | null;
-  assignedAt: string | null;
   slaDeadline: string | null;
-  firstResponseAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
   isActive: boolean;
   metadata: Record<string, unknown>;
   source: string;
-  tags: string[];
   browserInfo: string | null;
   osInfo: string | null;
   appVersion: string | null;
@@ -392,7 +393,6 @@ export interface SupportTicketComment {
   attachments: Array<{ filename: string; url: string; mimeType: string; size: number }>;
   createdAt: string;
   editedAt: string | null;
-  editedBy: string | null;
 }
 
 export interface SupportTicketEvent {
@@ -402,7 +402,8 @@ export interface SupportTicketEvent {
   oldValue: string | null;
   newValue: string | null;
   performedBy: string;
-  performedByEmail: string | null;
+  performedByName: string | null;
+  metadata: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -427,6 +428,18 @@ export interface SupportTeamMember {
   notifyOnAssigned: boolean;
   isOnline?: boolean;
   avatarUrl?: string | null;
+}
+
+// ─── SLA Config ─────────────────────────────────────────────────────────────
+
+export interface SupportSlaConfig {
+  id: string;
+  priority: TicketPriority;
+  firstResponseHours: number;
+  resolutionHours: number;
+  businessHoursOnly: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Ticket Assignment & Seeding ────────────────────────────────────────────
@@ -496,10 +509,8 @@ export interface AgentAvailability {
 
 // ─── Extended Ticket with Assignment Info ───────────────────────────────────
 
-export interface SupportTicketWithAssignee extends Omit<SupportTicket, "assignedTo" | "assignedAt"> {
+export interface SupportTicketWithAssignee extends Omit<SupportTicket, "assignedTo"> {
   assignedTo?: SupportTeamMember;
-  assignedAt?: string;
-  autoAssigned: boolean;
   recentComments?: SupportTicketComment[];
   slaStatus: "healthy" | "at_risk" | "breached";
   slaMinutesRemaining: number;
@@ -540,25 +551,52 @@ export interface IntegrationHealth {
   updatedAt: string;
 }
 
-export type BuildQueueItemStatus = "pending" | "running" | "success" | "failed" | "cancelled";
+export type BuildStatus = "planned" | "running" | "completed" | "failed" | "cancelled";
+export type BuildSource = "manual" | "cicd" | "api";
 
-// ─── Build Queue ────────────────────────────────────────────────────────────
+// ─── Builds ─────────────────────────────────────────────────────────────────
 
-export interface BuildQueueItem {
+export interface Build {
   id: string;
-  name: string;
-  cicdProvider: string;
-  cicdExternalId: string;
-  assignedProjectId: string | null;
+  projectId: string | null;
   projectName: string | null;
-  status: BuildQueueItemStatus;
-  receivedAt: string;
-  startedAt: string | null;
-  completedAt: string | null;
-  durationMs: number | null;
-  branch: string | null;
-  commitSha: string | null;
-  authorEmail: string | null;
+  releaseId: string | null;
+  releaseName: string | null;
+  name: string;
+  description: string | null;
+  status: BuildStatus;
+  startDate: string | null;
+  endDate: string | null;
+  source: BuildSource;
+  sourceMetadata: Record<string, unknown> | null;
+  apiKeyId: string | null;
+  cicdProvider: string | null;
+  cicdExternalId: string | null;
+  cicdRunUrl: string | null;
+  cicdArtifacts: Record<string, unknown> | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  deletedAt: string | null;
+  jiraVersionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Releases ───────────────────────────────────────────────────────────────
+
+export type ReleaseStatus = "planned" | "in_progress" | "released" | "archived";
+
+export interface Release {
+  id: string;
+  projectId: string;
+  projectName: string | null;
+  name: string;
+  description: string | null;
+  status: ReleaseStatus;
+  targetDate: string | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

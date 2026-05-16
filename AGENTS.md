@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is an internal admin console for the Lathe Studio platform. It provides comprehensive tools for managing users, organizations, billing, feature flags, system health, and audit logging.
+This is an internal admin console for the Lathe Studio platform. It provides comprehensive tools for managing users, organizations, projects, billing, feature flags, system health, help desk, integrations, build queue, sandbox leads, and audit logging.
 
 **Key Characteristics:**
 - Dark-mode only admin interface (slate + amber accent theme)
@@ -10,6 +10,7 @@ This is an internal admin console for the Lathe Studio platform. It provides com
 - All admin actions are audited and logged
 - Impersonation capabilities for user support
 - Service-role access to Supabase (bypasses RLS)
+- **Trial + paid-only pricing model** — no tiered plans. Orgs have `trial_lock_state` (`active` | `soft_locked` | `hard_locked` | `paid`)
 
 ## Technology Stack
 
@@ -37,15 +38,27 @@ src/
 │   │   ├── sign-up/[[...sign-up]]/
 │   │   └── unauthorized/
 │   ├── api/               # API routes
-│   │   ├── impersonate/   # User impersonation tokens
+│   │   ├── impersonate/   # User impersonation tokens (POST)
 │   │   └── make-admin/    # Admin promotion utility
-│   ├── billing/           # Billing dashboard
+│   ├── audit-logs/        # Lathe audit log viewer (app-level events)
+│   ├── billing/           # Billing dashboard (MRR, trials, invoices, coupons)
+│   ├── builds/            # Build queue viewer (CI/CD events)
 │   ├── dashboard/         # Main dashboard
 │   ├── docs/[[...slug]]/  # Documentation pages
+│   ├── help-desk/         # Support ticket system
+│   │   ├── queue/         # Ticket queue
+│   │   ├── my-tickets/    # Agent's assigned tickets
+│   │   ├── team/          # Support team management
+│   │   └── analytics/     # Help desk analytics
+│   ├── integrations/      # Integration health dashboard
+│   ├── leads/             # Sandbox leads (signups/demo requests)
 │   ├── organizations/     # Org management
-│   ├── projects/          # Project overview
+│   │   └── [id]/          # Org detail with Overview, Members, Projects, Billing, Settings, Activity tabs
+│   ├── projects/          # Project management
+│   │   └── [id]/          # Project detail with Overview, Members, Test Cases, Test Runs, Settings tabs
+│   ├── api-keys/          # API key management (view/revoke)
 │   ├── support/           # Support tools
-│   │   ├── activity/      # Audit logs
+│   │   ├── activity/      # Admin audit logs
 │   │   ├── announcements/ # Admin announcements
 │   │   └── flags/         # Feature flags
 │   ├── system/            # System health
@@ -63,18 +76,37 @@ src/
 │   ├── layout/            # Shell, sidebar, header
 │   ├── billing/
 │   ├── docs/
+│   ├── help-desk/
 │   ├── organizations/
 │   ├── support/
 │   └── system/
 ├── lib/
 │   ├── actions/           # Server Actions
-│   │   ├── users.ts       # User CRUD + search
-│   │   ├── organizations.ts
+│   │   ├── users.ts       # User CRUD + search + impersonation
+│   │   ├── organizations.ts # Org search, trial management, metrics
+│   │   ├── projects.ts    # Project search, toggle requirements, soft delete/restore
+│   │   ├── api-keys.ts    # API key search, revoke
+│   │   ├── org-settings.ts # Org settings CRUD (resolves clerk_org_id internally)
+│   │   ├── integrations.ts # Integration search, disconnect, retry
+│   │   ├── sandbox-leads.ts # Lead search, convert, delete, metrics
+│   │   ├── build-queue.ts # Build search, assign, metrics
+│   │   ├── lathe-audit.ts # Lathe audit log search
+│   │   ├── test-cases.ts  # Project test case queries (read-only)
+│   │   ├── test-runs.ts   # Project test run queries (read-only)
+│   │   ├── billing.ts     # MRR, trial metrics, invoices, coupons
+│   │   ├── api-usage.ts   # Daily API call metrics
 │   │   ├── feature-flags.ts
+│   │   ├── announcements.ts
+│   │   ├── support-tickets.ts # Full ticket queue, assignment, analytics
+│   │   ├── support-tickets-my.ts
+│   │   ├── support-tickets-seeding.ts
+│   │   ├── system-health.ts
+│   │   ├── error-logs.ts
+│   │   ├── audit-export.ts
 │   │   ├── impersonation.ts
 │   │   └── setup-admin.ts
 │   ├── audit/
-│   │   └── logger.ts      # logAdminAction() helper
+│   │   └── logger.ts      # logAdminAction() + getAuditLogs()
 │   ├── clerk/
 │   │   └── admin-check.ts # isCurrentUserAdmin()
 │   ├── supabase/
@@ -192,6 +224,8 @@ Or manually in Clerk Dashboard → Users → Public Metadata → `{"isAdmin": tr
 
 ## Database Schema
 
+### Admin-Only Tables
+
 Run `supabase/migrations/20260310_admin_console.sql` to create:
 
 | Table | Purpose |
@@ -202,11 +236,59 @@ Run `supabase/migrations/20260310_admin_console.sql` to create:
 | `admin_announcements` | In-app announcements |
 | `system_health_checks` | Service health monitoring |
 | `admin_error_logs` | Aggregated error tracking |
+| `api_usage_daily` | Daily API metrics |
+| `system_settings` | Key-value config |
+
+### Unified Schema Migration
+
+Run `supabase/migrations/20260601_unify_shared_schemas.sql` to reconcile schema differences between admin console and lathe-studio for shared tables:
+- `admin_announcements`: adds `link_url`, `link_text`
+- `support_tickets`: adds `reference_code`, `first_response_at`, `closed_at`, `is_active`, `metadata`
+- `support_ticket_comments`: adds `is_edited`, `edited_by`
+- `support_sla_config`: adds `first_response_time`, `name`, business hours
+- `support_team_members`: adds `skills`, notification preferences
+
+### Operational Tables (Phase 4)
+
+Run `supabase/migrations/20260615_phase4_operational_tables.sql`:
+
+| Table | Purpose |
+|-------|---------|
+| `integration_connections` | Org/project integration status |
+| `sandbox_leads` | Self-service signups and demo requests |
+| `build_queue_items` | CI/CD build events |
+
+### Lathe Audit Logs (Phase 5)
+
+Run `supabase/migrations/20260620_lathe_audit_logs.sql`:
+
+| Table | Purpose |
+|-------|---------|
+| `lathe_audit_logs` | App-level audit trail from lathe-studio |
+
+### Shared Tables (from lathe-studio)
+
+The admin console reads from these lathe-studio tables using service-role access:
+
+| Table | Purpose |
+|-------|---------|
+| `organizations` | Orgs with `clerk_org_id`, trial state, Stripe IDs |
+| `projects` | Projects with `requirements_enabled`, `deleted_at` |
+| `users` | Lathe-studio user records with `clerk_user_id` |
+| `project_members` | Project-level roles |
+| `org_settings` | Per-org feature configuration |
+| `api_keys` | Org/project-scoped API keys |
+| `test_cases` | Test cases with steps, priority, status, version |
+| `test_runs` | Test runs with environment, configuration, inheritance policy |
+| `support_tickets` | Help desk tickets |
+| `support_ticket_comments` | Ticket conversations |
+| `support_team_members` | Support team config |
 
 ### Key Database Functions
 
 - `is_feature_enabled(flag_key, user_id, org_id)` — Check feature flag status
 - `update_updated_at_column()` — Auto-update timestamp trigger
+- `assign_run_sequence()` — Auto-assign run sequence numbers
 
 ## Server Actions Pattern
 
@@ -233,17 +315,37 @@ export async function someAction(params: Params) {
 
 ## Audit Logging
 
-Every admin action is logged to `admin_audit_logs`:
+Two audit trails:
+
+### 1. Admin Actions (`admin_audit_logs`)
+Every admin action is logged via `logAdminAction()`:
 
 ```typescript
 import { logAdminAction } from "@/lib/audit/logger";
 
 await logAdminAction({
   action: "user.update",           // dot notation: entity.action
-  targetType: "user",              // user | organization | project | feature_flag | system | billing | announcement
+  targetType: "user",              // user | organization | project | feature_flag | system | billing | announcement | support_ticket | api_key | integration | build_queue | lead | org_setting
   targetId: userId,                // Optional: affected entity ID
   targetName: userEmail,           // Optional: human-readable name
   metadata: { changedFields },     // Optional: additional context
+});
+```
+
+### 2. Lathe App Events (`lathe_audit_logs`)
+App-level events from lathe-studio itself:
+
+```typescript
+import { supabaseAdmin } from "@/lib/supabase/admin";
+
+await supabaseAdmin.from("lathe_audit_logs").insert({
+  entity_type: "test_case",
+  entity_id: testCaseId,
+  action: "updated",
+  old_value: { status: "draft" },
+  new_value: { status: "active" },
+  performed_by: userId,
+  performed_by_email: userEmail,
 });
 ```
 
@@ -295,9 +397,8 @@ await logAdminAction({
 ### Adding a New Server Action
 
 1. Create in `src/lib/actions/{feature}.ts`
-2. Add tests in `src/lib/actions/__tests__/{feature}.test.ts`
-3. Call `logAdminAction()` for writes
-4. Use `src/types/admin.ts` for return types
+2. Call `logAdminAction()` for writes
+3. Use `src/types/admin.ts` for return types
 
 ### Adding a New Page
 

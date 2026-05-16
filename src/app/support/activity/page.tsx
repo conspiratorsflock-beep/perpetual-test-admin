@@ -36,6 +36,8 @@ const targetTypeLabels: Record<AuditTargetType, string> = {
   api_key: "API Key",
   integration: "Integration",
   build_queue: "Build Queue",
+  build: "Build",
+  release: "Release",
   lead: "Lead",
   org_setting: "Org Setting",
 };
