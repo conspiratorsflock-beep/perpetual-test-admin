@@ -3,154 +3,202 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
-import type { IntegrationHealth, IntegrationStatus } from "@/types/admin";
+import type { IntegrationHealth } from "@/types/admin";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
 }
 
+interface SearchIntegrationsParams {
+  provider?: string;
+  status?: string;
+  orgId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Search integrations across all provider tables.
+ */
 export async function searchIntegrations({
   provider,
   status,
   orgId,
   limit = 50,
   offset = 0,
-}: {
-  provider?: string;
-  status?: IntegrationStatus;
-  orgId?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<{ integrations: IntegrationHealth[]; total: number }> {
+}: SearchIntegrationsParams = {}): Promise<{ integrations: IntegrationHealth[]; total: number }> {
   await requireAdmin();
 
-  let query = supabaseAdmin
-    .from("integration_connections")
-    .select(
-      `id, provider, org_id, project_id, status, connected_at, last_sync_at, error_message, config, created_at, updated_at,
-      organizations:org_id (name),
-      projects:project_id (name)`,
-      { count: "exact" }
-    );
+  // Query all integration tables in parallel
+  const [
+    cicdData,
+    slackData,
+    teamsData,
+    jiraData,
+    azureData,
+  ] = await Promise.all([
+    supabaseAdmin.from("cicd_connections").select("*, projects(name, org_id, organizations(name))"),
+    supabaseAdmin.from("slack_connections").select("*, organizations(name)"),
+    supabaseAdmin.from("teams_connections").select("*, organizations(name)"),
+    supabaseAdmin.from("jira_connections").select("*"),
+    supabaseAdmin.from("azure_devops_connections").select("*, organizations(name)"),
+  ]);
 
-  if (provider) query = query.eq("provider", provider);
-  if (status) query = query.eq("status", status);
-  if (orgId) query = query.eq("org_id", orgId);
+  const integrations: IntegrationHealth[] = [];
 
-  const { data, error, count } = await query
-    .order("updated_at", { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (error) throw new Error(`Failed to fetch integrations: ${error.message}`);
-
-  const integrations = (data || []).map((row) => ({
-    id: row.id,
-    provider: row.provider,
-    orgId: row.org_id,
-    orgName: (row.organizations as { name?: string } | null)?.name || "Unknown",
-    projectId: row.project_id,
-    projectName: (row.projects as { name?: string } | null)?.name || null,
-    status: row.status as IntegrationStatus,
-    connectedAt: row.connected_at,
-    lastSyncAt: row.last_sync_at,
-    errorMessage: row.error_message,
-    config: (row.config as Record<string, unknown>) || {},
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
-
-  return { integrations, total: count || 0 };
-}
-
-export async function getIntegrationById(id: string): Promise<IntegrationHealth | null> {
-  await requireAdmin();
-
-  const { data, error } = await supabaseAdmin
-    .from("integration_connections")
-    .select(
-      `id, provider, org_id, project_id, status, connected_at, last_sync_at, error_message, config, created_at, updated_at,
-      organizations:org_id (name),
-      projects:project_id (name)`
-    )
-    .eq("id", id)
-    .single();
-
-  if (error || !data) return null;
-
-  return {
-    id: data.id,
-    provider: data.provider,
-    orgId: data.org_id,
-    orgName: (data.organizations as { name?: string } | null)?.name || "Unknown",
-    projectId: data.project_id,
-    projectName: (data.projects as { name?: string } | null)?.name || null,
-    status: data.status as IntegrationStatus,
-    connectedAt: data.connected_at,
-    lastSyncAt: data.last_sync_at,
-    errorMessage: data.error_message,
-    config: (data.config as Record<string, unknown>) || {},
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
-}
-
-export async function getIntegrationProviders(): Promise<
-  { provider: string; total: number; active: number; error: number }[]
-> {
-  await requireAdmin();
-
-  const { data, error } = await supabaseAdmin
-    .from("integration_connections")
-    .select("provider, status");
-
-  if (error) throw new Error(`Failed to fetch providers: ${error.message}`);
-
-  const stats = new Map<string, { total: number; active: number; error: number }>();
-  for (const row of data || []) {
-    const s = stats.get(row.provider) || { total: 0, active: 0, error: 0 };
-    s.total++;
-    if (row.status === "active") s.active++;
-    if (row.status === "error") s.error++;
-    stats.set(row.provider, s);
+  // Map CICD connections
+  for (const row of cicdData.data || []) {
+    const project = row.projects as unknown as { name?: string; org_id?: string; organizations?: { name?: string } } | null;
+    integrations.push({
+      id: row.id,
+      orgId: project?.org_id || "",
+      orgName: project?.organizations?.name || null,
+      projectId: row.project_id,
+      projectName: project?.name || null,
+      provider: String(row.provider || "unknown"),
+      type: "cicd",
+      status: row.status || "unknown",
+      externalId: row.external_id || null,
+      lastSyncAt: row.last_used_at || row.last_event_at || null,
+      errorMessage: row.error_message || null,
+      createdAt: row.created_at,
+    });
   }
 
-  return Array.from(stats.entries()).map(([provider, s]) => ({
-    provider,
-    ...s,
-  }));
+  // Map Slack connections
+  for (const row of slackData.data || []) {
+    const org = row.organizations as unknown as { name?: string } | null;
+    integrations.push({
+      id: row.id,
+      orgId: row.org_id,
+      orgName: org?.name || null,
+      projectId: null,
+      projectName: null,
+      provider: "slack",
+      type: "slack",
+      status: row.status || "unknown",
+      externalId: row.channel_name || null,
+      lastSyncAt: row.last_used_at || null,
+      errorMessage: row.error_message || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  // Map Teams connections
+  for (const row of teamsData.data || []) {
+    const org = row.organizations as unknown as { name?: string } | null;
+    integrations.push({
+      id: row.id,
+      orgId: row.org_id,
+      orgName: org?.name || null,
+      projectId: null,
+      projectName: null,
+      provider: "teams",
+      type: "teams",
+      status: row.status || "unknown",
+      externalId: row.channel_name || null,
+      lastSyncAt: row.last_used_at || null,
+      errorMessage: row.error_message || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  // Map Jira connections
+  for (const row of jiraData.data || []) {
+    integrations.push({
+      id: row.id,
+      orgId: row.org_id,
+      orgName: null,
+      projectId: null,
+      projectName: null,
+      provider: "jira",
+      type: "jira",
+      status: row.status || "unknown",
+      externalId: row.jira_site_name || null,
+      lastSyncAt: row.last_synced_at || null,
+      errorMessage: row.error_message || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  // Map Azure DevOps connections
+  for (const row of azureData.data || []) {
+    const org = row.organizations as unknown as { name?: string } | null;
+    integrations.push({
+      id: row.id,
+      orgId: row.org_id,
+      orgName: org?.name || null,
+      projectId: null,
+      projectName: null,
+      provider: "azure_devops",
+      type: "azure_devops",
+      status: row.status || "unknown",
+      externalId: row.ado_org_name || null,
+      lastSyncAt: row.last_synced_at || null,
+      errorMessage: row.error_message || null,
+      createdAt: row.created_at,
+    });
+  }
+
+  // Apply filters
+  let filtered = integrations;
+  if (provider) filtered = filtered.filter((i) => i.provider === provider);
+  if (status) filtered = filtered.filter((i) => i.status === status);
+  if (orgId) filtered = filtered.filter((i) => i.orgId === orgId);
+
+  // Sort by created_at desc
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const total = filtered.length;
+  const paginated = filtered.slice(offset, offset + limit);
+
+  return { integrations: paginated, total };
 }
 
-export async function disconnectIntegration(id: string): Promise<void> {
+export async function disconnectIntegration(id: string, type: IntegrationHealth["type"]): Promise<void> {
   await requireAdmin();
 
-  const { error } = await supabaseAdmin
-    .from("integration_connections")
-    .update({ status: "not_configured", connected_at: null, last_sync_at: null })
-    .eq("id", id);
+  const tableMap: Record<string, string> = {
+    cicd: "cicd_connections",
+    slack: "slack_connections",
+    teams: "teams_connections",
+    jira: "jira_connections",
+    azure_devops: "azure_devops_connections",
+  };
 
-  if (error) throw new Error(`Failed to disconnect integration: ${error.message}`);
+  const table = tableMap[type];
+  if (!table) throw new Error(`Unknown integration type: ${type}`);
+
+  const { error } = await supabaseAdmin.from(table).delete().eq("id", id);
+  if (error) throw new Error(`Failed to disconnect: ${error.message}`);
 
   await logAdminAction({
     action: "integration.disconnect",
     targetType: "integration",
     targetId: id,
+    metadata: { type },
   });
 }
 
-export async function retryIntegrationSync(id: string): Promise<void> {
+export async function getIntegrationMetrics(): Promise<{
+  total: number;
+  byType: Record<string, number>;
+  byStatus: Record<string, number>;
+  errors: number;
+}> {
   await requireAdmin();
 
-  // Admin-triggered retry: reset error state and update last_sync_at to now
-  const { error } = await supabaseAdmin
-    .from("integration_connections")
-    .update({ status: "active", error_message: null, last_sync_at: new Date().toISOString() })
-    .eq("id", id);
+  const { integrations } = await searchIntegrations({ limit: 10000 });
 
-  if (error) throw new Error(`Failed to retry integration: ${error.message}`);
+  const byType: Record<string, number> = {};
+  const byStatus: Record<string, number> = {};
+  let errors = 0;
 
-  await logAdminAction({
-    action: "integration.retry",
-    targetType: "integration",
-    targetId: id,
-  });
+  for (const i of integrations) {
+    byType[i.type] = (byType[i.type] || 0) + 1;
+    byStatus[i.status] = (byStatus[i.status] || 0) + 1;
+    if (i.status === "error" || i.errorMessage) errors++;
+  }
+
+  return { total: integrations.length, byType, byStatus, errors };
 }

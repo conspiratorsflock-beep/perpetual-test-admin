@@ -535,25 +535,24 @@ export interface TicketCounts {
   overdue: number;
 }
 
-export type IntegrationStatus = "active" | "expired" | "error" | "not_configured";
-export type IntegrationProvider = "jira" | "github" | "gitlab" | "slack" | "teams" | "custom";
+export type IntegrationStatus = "connected" | "error" | "disconnected" | "refreshing" | "pending";
+export type IntegrationProvider = "jira" | "slack" | "teams" | "azure_devops" | "github" | "gitlab" | "custom";
 
 // ─── Integration Health ─────────────────────────────────────────────────────
 
 export interface IntegrationHealth {
   id: string;
-  provider: string;
   orgId: string;
-  orgName: string;
+  orgName: string | null;
   projectId: string | null;
   projectName: string | null;
+  provider: string;
+  type: "cicd" | "slack" | "teams" | "jira" | "azure_devops";
   status: IntegrationStatus;
-  connectedAt: string | null;
   lastSyncAt: string | null;
   errorMessage: string | null;
-  config: Record<string, unknown>;
+  externalId: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export type BuildStatus = "planned" | "running" | "completed" | "failed" | "cancelled";
@@ -629,9 +628,10 @@ export interface TestCaseStep {
 
 export type TestCasePriority = "p0" | "p1" | "p2" | "p3";
 export type TestCaseStatus = "draft" | "review" | "active" | "deprecated";
-export type AutomationStatus = "not_automated" | "automated" | "partial";
-export type ExecutionMode = "manual" | "automated";
+export type AutomationStatus = "not_automated" | "candidate" | "in_progress" | "automated" | "deprecated";
+export type ExecutionMode = "manual" | "automated" | "hybrid";
 export type TestCaseType = "standard" | "gherkin";
+export type GherkinScenarioType = "scenario" | "scenario_outline" | "background";
 
 export interface TestCase {
   id: string;
@@ -697,8 +697,8 @@ export interface LatheAuditLog {
   action: string;
   resourceType: string;
   resourceId: string;
-  oldValue: string | null;
-  newValue: string | null;
+  oldValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }

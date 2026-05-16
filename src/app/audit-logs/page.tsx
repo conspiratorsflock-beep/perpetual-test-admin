@@ -40,13 +40,10 @@ import type { LatheAuditLog } from "@/types/admin";
 
 const PAGE_SIZE = 50;
 
-function tryParseJson(value: string | null): unknown {
-  if (!value) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
+function formatValue(value: unknown): unknown {
+  if (value === null || value === undefined) return null;
+  // Supabase returns JSONB as parsed objects already
+  return value;
 }
 
 export default function AuditLogsPage() {
@@ -265,7 +262,7 @@ export default function AuditLogsPage() {
                             <div>
                               <p className="text-xs font-medium text-slate-500 mb-1">Old Value</p>
                               <pre className="text-xs text-slate-400 bg-slate-900 p-2 rounded border border-slate-800 overflow-auto max-h-40">
-                                {JSON.stringify(tryParseJson(log.oldValue), null, 2)}
+                                {JSON.stringify(formatValue(log.oldValue), null, 2)}
                               </pre>
                             </div>
                           )}
@@ -273,7 +270,7 @@ export default function AuditLogsPage() {
                             <div>
                               <p className="text-xs font-medium text-slate-500 mb-1">New Value</p>
                               <pre className="text-xs text-slate-400 bg-slate-900 p-2 rounded border border-slate-800 overflow-auto max-h-40">
-                                {JSON.stringify(tryParseJson(log.newValue), null, 2)}
+                                {JSON.stringify(formatValue(log.newValue), null, 2)}
                               </pre>
                             </div>
                           )}
