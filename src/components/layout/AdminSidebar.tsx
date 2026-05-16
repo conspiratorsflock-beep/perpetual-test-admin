@@ -20,7 +20,7 @@ import {
   Settings,
   Sliders,
   ToggleLeft,
-  UserPlus,
+
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,11 +61,6 @@ const navigation: NavItem[] = [
     label: "Build Queue",
     href: "/builds",
     icon: Container,
-  },
-  {
-    label: "Leads",
-    href: "/leads",
-    icon: UserPlus,
   },
   {
     label: "Help Desk",

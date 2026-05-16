@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Settings as SettingsIcon, ToggleLeft, Shield, Bell, Target, Clock } from "lucide-react";
+import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Clock } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getOrganizationById, changeTrialState, extendTrial } from "@/lib/actions/organizations";
-import { getOrgSettings, updateOrgSettings } from "@/lib/actions/org-settings";
 import { getAuditLogsForTarget } from "@/lib/audit/logger";
-import type { OrganizationWithDetails, AuditLog, TrialLockState, OrgSettings } from "@/types/admin";
+import type { OrganizationWithDetails, AuditLog, TrialLockState } from "@/types/admin";
 
 const trialStateColors: Record<TrialLockState, string> = {
   active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
@@ -43,21 +42,18 @@ export default function OrganizationDetailPage() {
 
   const [org, setOrg] = useState<OrganizationWithDetails | null>(null);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [orgSettings, setOrgSettings] = useState<OrgSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [orgData, logs, settings] = await Promise.all([
+        const [orgData, logs] = await Promise.all([
           getOrganizationById(orgId),
           getAuditLogsForTarget("organization", orgId, 20),
-          getOrgSettings(orgId),
         ]);
         setOrg(orgData);
         setAuditLogs(logs);
-        setOrgSettings(settings);
       } catch (error) {
         console.error("Failed to load organization:", error);
       } finally {
@@ -159,9 +155,6 @@ export default function OrganizationDetailPage() {
           </TabsTrigger>
           <TabsTrigger value="billing" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Billing
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
-            Settings
           </TabsTrigger>
           <TabsTrigger value="activity" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Activity
@@ -344,104 +337,6 @@ export default function OrganizationDetailPage() {
                 </div>
               ) : (
                 <p className="text-sm text-slate-500">No subscription found. Organization is in trial.</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="settings" className="mt-4 space-y-4">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-400">Organization Settings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {orgSettings ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <ToggleLeft className="h-4 w-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-300">Feature Requirements</p>
-                        <p className="text-xs text-slate-500">Enable requirements module</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant={orgSettings.featureRequirementsEnabled ? "default" : "outline"}
-                      onClick={async () => {
-                        if (!orgSettings) return;
-                        try {
-                          await updateOrgSettings(orgSettings.orgId, { featureRequirementsEnabled: !orgSettings.featureRequirementsEnabled });
-                          setOrgSettings({ ...orgSettings, featureRequirementsEnabled: !orgSettings.featureRequirementsEnabled });
-                        } catch (e) {
-                          alert("Failed to update setting.");
-                        }
-                      }}
-                      className={orgSettings.featureRequirementsEnabled ? "bg-emerald-500 hover:bg-emerald-600 text-slate-950" : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"}
-                    >
-                      {orgSettings.featureRequirementsEnabled ? "Enabled" : "Disabled"}
-                    </Button>
-                  </div>
-                  <Separator className="bg-slate-800" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Shield className="h-4 w-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-300">Require 2FA</p>
-                        <p className="text-xs text-slate-500">Enforce two-factor authentication</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant={orgSettings.require2fa ? "default" : "outline"}
-                      onClick={async () => {
-                        if (!orgSettings) return;
-                        try {
-                          await updateOrgSettings(orgSettings.orgId, { require2fa: !orgSettings.require2fa });
-                          setOrgSettings({ ...orgSettings, require2fa: !orgSettings.require2fa });
-                        } catch (e) {
-                          alert("Failed to update setting.");
-                        }
-                      }}
-                      className={orgSettings.require2fa ? "bg-emerald-500 hover:bg-emerald-600 text-slate-950" : "border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"}
-                    >
-                      {orgSettings.require2fa ? "Required" : "Optional"}
-                    </Button>
-                  </div>
-                  <Separator className="bg-slate-800" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Bell className="h-4 w-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-300">Notification Channel</p>
-                        <p className="text-xs text-slate-500">{orgSettings.defaultNotificationChannel}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="border-slate-700 text-slate-400">{orgSettings.defaultNotificationChannel}</Badge>
-                  </div>
-                  <Separator className="bg-slate-800" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Target className="h-4 w-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-300">Coverage Target</p>
-                        <p className="text-xs text-slate-500">Default test coverage target</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-slate-300">{orgSettings.defaultCoverageTargetPct}%</span>
-                  </div>
-                  <Separator className="bg-slate-800" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Clock className="h-4 w-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-300">Session Timeout</p>
-                        <p className="text-xs text-slate-500">Idle session timeout in minutes (0 = never)</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-slate-300">{orgSettings.sessionTimeoutMinutes} min</span>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No settings configured for this organization.</p>
               )}
             </CardContent>
           </Card>

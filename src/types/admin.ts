@@ -133,10 +133,15 @@ export interface ApiKey {
   orgId: string;
   projectId: string | null;
   name: string;
-  prefix: string;
+  keyHash: string;
+  keyPrefix: string;
   scopes: string[];
+  rateLimitPerMinute: number;
   lastUsedAt: string | null;
   createdAt: string;
+  createdBy: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
 }
 
 // ─── Org Settings ──────────────────────────────────────────────────────────

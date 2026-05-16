@@ -53,10 +53,15 @@ export async function searchApiKeys({
     orgId: row.org_id,
     projectId: row.project_id,
     name: row.name,
-    prefix: row.prefix,
+    keyHash: row.key_hash,
+    keyPrefix: row.key_prefix,
     scopes: row.scopes || [],
+    rateLimitPerMinute: row.rate_limit_per_minute ?? 0,
     lastUsedAt: row.last_used_at,
     createdAt: row.created_at,
+    createdBy: row.created_by,
+    expiresAt: row.expires_at,
+    revokedAt: row.revoked_at,
   }));
 
   return { keys, total: count ?? 0 };

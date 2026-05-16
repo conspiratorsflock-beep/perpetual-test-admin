@@ -119,7 +119,7 @@ export default function ApiKeysPage() {
                       </TableCell>
                       <TableCell>
                         <code className="text-xs bg-slate-950 px-2 py-1 rounded text-slate-400 font-mono">
-                          {key.prefix}
+                          {key.keyPrefix}
                         </code>
                       </TableCell>
                       <TableCell>
