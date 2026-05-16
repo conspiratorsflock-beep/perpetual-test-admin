@@ -3,6 +3,7 @@
 import { Bell } from "lucide-react";
 import { MobileSidebar } from "./MobileSidebar";
 import { ClientUserButton } from "./ClientUserButton";
+import { GlobalSearch } from "./GlobalSearch";
 
 export function AdminHeader() {
   return (
@@ -13,6 +14,7 @@ export function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-3">
+        <GlobalSearch />
         <button
           className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-100"
           aria-label="Notifications"

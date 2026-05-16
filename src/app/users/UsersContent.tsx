@@ -68,6 +68,8 @@ export function UsersContent() {
 
   useEffect(() => {
     fetchUsers();
+    const interval = setInterval(fetchUsers, 30000);
+    return () => clearInterval(interval);
   }, [fetchUsers]);
 
   const handleSearch = (newQuery: string) => {
@@ -162,7 +164,12 @@ export function UsersContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">Users</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-slate-100">Users</h1>
+            {isLoading && users.length > 0 && (
+              <span className="text-xs text-slate-500 animate-pulse">Refreshing...</span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             Manage users, view details, and control admin access.
           </p>

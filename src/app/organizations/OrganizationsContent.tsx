@@ -67,6 +67,8 @@ export function OrganizationsContent() {
 
   useEffect(() => {
     fetchOrgs();
+    const interval = setInterval(fetchOrgs, 30000);
+    return () => clearInterval(interval);
   }, [fetchOrgs]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -90,7 +92,12 @@ export function OrganizationsContent() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">Organizations</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-slate-100">Organizations</h1>
+            {isLoading && orgs.length > 0 && (
+              <span className="text-xs text-slate-500 animate-pulse">Refreshing...</span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             Manage organizations, view memberships, and control trial states.
           </p>

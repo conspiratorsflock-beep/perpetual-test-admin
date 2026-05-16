@@ -117,6 +117,8 @@ export default function BuildsPage() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
   }, [fetchData]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -126,7 +128,12 @@ export default function BuildsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Builds</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-slate-100">Builds</h1>
+          {isLoading && builds.length > 0 && (
+            <span className="text-xs text-slate-500 animate-pulse">Refreshing...</span>
+          )}
+        </div>
         <p className="mt-1 text-sm text-slate-400">
           Monitor CI/CD builds and manual test runs across all projects.
         </p>

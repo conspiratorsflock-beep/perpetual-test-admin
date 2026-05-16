@@ -53,6 +53,8 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
+    const interval = setInterval(fetchProjects, 30000);
+    return () => clearInterval(interval);
   }, [fetchProjects]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -75,7 +77,12 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-100">Projects</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-slate-100">Projects</h1>
+            {isLoading && projects.length > 0 && (
+              <span className="text-xs text-slate-500 animate-pulse">Refreshing...</span>
+            )}
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             Cross-organization project overview and management.
           </p>
