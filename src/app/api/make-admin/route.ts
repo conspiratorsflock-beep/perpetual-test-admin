@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@/lib/dev-auth/server";
+import { clerkClient } from "@clerk/nextjs/server";
 
 /**
  * API route to promote a user to admin.

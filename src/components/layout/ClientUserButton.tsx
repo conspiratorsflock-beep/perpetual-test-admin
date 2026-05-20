@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton } from "@/lib/dev-auth/client";
 
 export function ClientUserButton() {
   const [mounted, setMounted] = useState(false);

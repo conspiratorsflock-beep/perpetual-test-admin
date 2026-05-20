@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProvider } from "@/lib/dev-auth/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AdminShell } from "@/components/layout/AdminShell";
 import "./globals.css";

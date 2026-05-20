@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/dev-auth/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { createHash, randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";

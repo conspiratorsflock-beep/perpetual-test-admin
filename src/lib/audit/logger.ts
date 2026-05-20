@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/dev-auth/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { AuditLog, AuditTargetType } from "@/types/admin";
 

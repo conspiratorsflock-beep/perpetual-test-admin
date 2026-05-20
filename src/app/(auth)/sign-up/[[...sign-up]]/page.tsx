@@ -1,6 +1,13 @@
 import { SignUp } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true";
 
 export default function SignUpPage() {
+  if (DEV_BYPASS) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="space-y-4 text-center">
       <div className="mb-6">

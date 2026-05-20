@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/dev-auth/server";
 import { NextRequest, NextResponse } from "next/server";
 import { validateImpersonationToken } from "@/lib/actions/impersonation";
 

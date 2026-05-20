@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser } from "@/lib/dev-auth/client";
 import { getActiveAnnouncements } from "@/lib/shared/get-announcements";
 import type { AdminAnnouncement } from "@/types/admin";
 

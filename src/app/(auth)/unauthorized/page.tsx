@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+
+const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true";
 
 export default function UnauthorizedPage() {
+  if (DEV_BYPASS) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex flex-col items-center justify-center">
       <ShieldX className="h-12 w-12 text-slate-600" />

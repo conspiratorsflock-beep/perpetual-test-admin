@@ -4,7 +4,7 @@ import { TicketCard } from "@/components/help-desk/my-tickets/TicketCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Inbox, AlertCircle, Clock, Zap } from "lucide-react";
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser } from "@/lib/dev-auth/server";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
