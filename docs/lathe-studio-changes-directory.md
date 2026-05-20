@@ -1,6 +1,6 @@
 # Lathe Studio → Admin Console Changes Directory
 
-> **Purpose:** Catalog all changes made to `lathe-studio` that necessitate corresponding changes in `perpetual-test-admin` (this repo).  
+> **Purpose:** Catalog all changes made to `lathe-studio` that necessitate corresponding changes in `lathe-studio-admin` (this repo).  
 > **Generated:** 2026-05-15  
 > **Lathe Studio commits reviewed:** 329 (since 2025-02-01)
 
@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-`lathe-studio` has evolved from a generic SaaS template into a **full-featured test-management platform** (B2B SaaS for Jira-centric QA teams). `perpetual-test-admin` was originally built as a generic SaaS admin console. The two have diverged significantly. 
+`lathe-studio` has evolved from a generic SaaS template into a **full-featured test-management platform** (B2B SaaS for Jira-centric QA teams). `lathe-studio-admin` was originally built as a generic SaaS admin console. The two have diverged significantly. 
 
 **Critical finding:** The admin console still assumes a **tiered pricing model** (`free` | `basic` | `pro` | `enterprise`) and a **Clerk-only user/org model**. Lathe Studio has moved to a **trial + paid-only model** with a rich domain model (test cases, runs, builds, releases, Jira integrations, CI/CD webhooks, etc.) and a **dual-role permission system** (Clerk org roles + project-level roles).
 
