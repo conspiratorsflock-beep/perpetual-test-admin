@@ -63,6 +63,7 @@ export interface AdminOrganization {
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
   mrr: number;
+  apiMonthlyQuota: number | null;
   createdAt: string;
 }
 
@@ -71,6 +72,7 @@ export interface OrganizationWithDetails extends AdminOrganization {
   projects: OrgProject[];
   subscription: OrgSubscription | null;
   usage: OrgUsage;
+  dbOrgId?: string | null;
 }
 
 export interface OrgMember {
@@ -137,6 +139,8 @@ export interface ApiKey {
   keyPrefix: string;
   scopes: string[];
   rateLimitPerMinute: number;
+  monthlyQuotaOverride: number | null;
+  monthlyUsage: number;
   lastUsedAt: string | null;
   createdAt: string;
   createdBy: string | null;
@@ -192,7 +196,11 @@ export type AuditTargetType =
   | "build"
   | "release"
   | "lead"
-  | "org_setting";
+  | "org_setting"
+  | "custom_role"
+  | "user_group"
+  | "project_group_access"
+  | "project_member";
 
 export interface AuditLog {
   id: string;
@@ -735,4 +743,84 @@ export interface IntegrationEventLog {
   errorMessage: string | null;
   destinationId: string | null;
   createdAt: string;
+}
+
+// ─── RBAC Permissions ───────────────────────────────────────────────────────
+
+export interface Permission {
+  id: string;
+  resource: string;
+  action: string;
+  level: "page" | "operation" | "data";
+  description: string | null;
+  isRestricted: boolean;
+}
+
+export interface CustomRole {
+  id: string;
+  orgId: string;
+  name: string;
+  description: string | null;
+  templateRole: string | null;
+  isSystem: boolean;
+  systemRoleKey: "viewer" | "tester" | "admin" | "owner" | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  permissions?: Permission[];
+  permissionIds?: string[];
+}
+
+export interface UserGroup {
+  id: string;
+  orgId: string;
+  name: string;
+  description: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  memberCount?: number;
+  projectCount?: number;
+}
+
+export interface GroupMembership {
+  groupId: string;
+  clerkUserId: string;
+  joinedAt: string;
+  userEmail?: string | null;
+  userName?: string | null;
+}
+
+export interface ProjectGroupAccess {
+  id: string;
+  projectId: string;
+  groupId: string;
+  roleId: string;
+  assignedBy: string | null;
+  assignedAt: string;
+  groupName?: string;
+  roleName?: string;
+}
+
+export interface ProjectMemberWithRole {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  customRoleId: string | null;
+  customRoleName: string | null;
+  assignedViaGroupId: string | null;
+  assignedViaGroupName: string | null;
+  joinedAt: string;
+}
+
+// ─── Org API Usage ──────────────────────────────────────────────────────────
+
+export interface OrgApiUsage {
+  orgId: string;
+  month: number;
+  year: number;
+  totalCalls: number;
+  totalTokens: number;
+  updatedAt: string;
 }
