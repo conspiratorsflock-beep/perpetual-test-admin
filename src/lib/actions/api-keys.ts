@@ -57,6 +57,8 @@ export async function searchApiKeys({
     keyPrefix: row.key_prefix,
     scopes: row.scopes || [],
     rateLimitPerMinute: row.rate_limit_per_minute ?? 0,
+    monthlyQuotaOverride: row.monthly_quota_override ?? null,
+    monthlyUsage: row.monthly_usage ?? 0,
     lastUsedAt: row.last_used_at,
     createdAt: row.created_at,
     createdBy: row.created_by,
@@ -65,6 +67,36 @@ export async function searchApiKeys({
   }));
 
   return { keys, total: count ?? 0 };
+}
+
+/**
+ * Update an API key's monthly quota override.
+ */
+export async function updateApiKeyQuota(keyId: string, monthlyQuotaOverride: number | null): Promise<void> {
+  await requireAdmin();
+
+  const { data: key } = await supabaseAdmin
+    .from("api_keys")
+    .select("name, org_id")
+    .eq("id", keyId)
+    .single();
+
+  const { error } = await supabaseAdmin
+    .from("api_keys")
+    .update({ monthly_quota_override: monthlyQuotaOverride })
+    .eq("id", keyId);
+
+  if (error) {
+    throw new Error(`Failed to update API key quota: ${error.message}`);
+  }
+
+  await logAdminAction({
+    action: "api_key.quota_update",
+    targetType: "api_key",
+    targetId: keyId,
+    targetName: key?.name,
+    metadata: { orgId: key?.org_id, monthlyQuotaOverride },
+  });
 }
 
 /**

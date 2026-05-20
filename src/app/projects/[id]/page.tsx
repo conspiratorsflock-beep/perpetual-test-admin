@@ -4,16 +4,18 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, FolderKanban, Building2, Users, TestTube, GitBranch, ToggleLeft, Trash2, RotateCcw, ListChecks, PlayCircle, ChevronLeft, ChevronRight, FileText, Tag, Rocket } from "lucide-react";
+import { ArrowLeft, FolderKanban, Building2, Users, TestTube, GitBranch, ToggleLeft, Trash2, RotateCcw, ListChecks, PlayCircle, ChevronLeft, ChevronRight, FileText, Tag, Rocket, UserCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getProjectById, getProjectMembers, toggleRequirementsEnabled, softDeleteProject, restoreProject } from "@/lib/actions/projects";
+import { getProjectById, toggleRequirementsEnabled, softDeleteProject, restoreProject } from "@/lib/actions/projects";
 import { getProjectTestCases } from "@/lib/actions/test-cases";
 import { getProjectTestRuns } from "@/lib/actions/test-runs";
 import { searchReleases } from "@/lib/actions/releases";
+import ProjectMembersTab from "@/components/projects/ProjectMembersTab";
+import ProjectGroupAccessTab from "@/components/projects/ProjectGroupAccessTab";
 import type { AdminProject, TestCase, TestRun, Release } from "@/types/admin";
 
 export default function ProjectDetailPage() {
@@ -21,7 +23,6 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
 
   const [project, setProject] = useState<AdminProject | null>(null);
-  const [members, setMembers] = useState<{ id: string; email: string; name: string | null; role: string; joinedAt: string }[]>([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [testCaseTotal, setTestCaseTotal] = useState(0);
   const [testCasePage, setTestCasePage] = useState(1);
@@ -37,12 +38,8 @@ export default function ProjectDetailPage() {
     async function loadData() {
       setIsLoading(true);
       try {
-        const [proj, mems] = await Promise.all([
-          getProjectById(projectId),
-          getProjectMembers(projectId),
-        ]);
+        const proj = await getProjectById(projectId);
         setProject(proj);
-        setMembers(mems);
       } catch (error) {
         console.error("Failed to load project:", error);
       } finally {
@@ -210,6 +207,10 @@ export default function ProjectDetailPage() {
           <TabsTrigger value="settings" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Settings
           </TabsTrigger>
+          <TabsTrigger value="group-access" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+            <UserCircle className="h-3 w-3 mr-1" />
+            Group Access
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -309,38 +310,11 @@ export default function ProjectDetailPage() {
         </TabsContent>
 
         <TabsContent value="members" className="mt-4">
-          <Card className="bg-slate-900 border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-slate-400">Members</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {members.length > 0 ? (
-                <div className="space-y-3">
-                  {members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-slate-800 bg-slate-950"
-                    >
-                      <div>
-                        <Link
-                          href={`/users/${member.id}`}
-                          className="text-sm font-medium text-slate-200 hover:text-amber-400"
-                        >
-                          {member.name || member.email}
-                        </Link>
-                        <p className="text-xs text-slate-500">{member.email}</p>
-                      </div>
-                      <Badge variant="outline" className="border-slate-700 text-slate-400">
-                        {member.role}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No members found.</p>
-              )}
-            </CardContent>
-          </Card>
+          {project && <ProjectMembersTab projectId={projectId} orgId={project.orgId} />}
+        </TabsContent>
+
+        <TabsContent value="group-access" className="mt-4">
+          {project && <ProjectGroupAccessTab projectId={projectId} orgId={project.orgId} />}
         </TabsContent>
 
         <TabsContent value="settings" className="mt-4 space-y-4">

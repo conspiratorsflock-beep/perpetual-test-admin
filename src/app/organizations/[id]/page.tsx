@@ -4,15 +4,17 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Clock, Info } from "lucide-react";
+import { ArrowLeft, Building2, Users, CreditCard, Activity, Calendar, Lock, Clock, Info, Settings } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getOrganizationById, changeTrialState, extendTrial } from "@/lib/actions/organizations";
+import { getOrganizationById, changeTrialState, extendTrial, updateOrgApiQuota } from "@/lib/actions/organizations";
 import { getAuditLogsForTarget } from "@/lib/audit/logger";
+import OrgRolesSettings from "@/components/organizations/OrgRolesSettings";
+import OrgGroupsSettings from "@/components/organizations/OrgGroupsSettings";
 import type { OrganizationWithDetails, AuditLog, TrialLockState } from "@/types/admin";
 
 const trialStateColors: Record<TrialLockState, string> = {
@@ -167,6 +169,10 @@ export default function OrganizationDetailPage() {
           <TabsTrigger value="billing" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Billing
           </TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+            <Settings className="h-3 w-3 mr-1" />
+            Settings
+          </TabsTrigger>
           <TabsTrigger value="activity" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
             Activity
           </TabsTrigger>
@@ -198,6 +204,39 @@ export default function OrganizationDetailPage() {
                   <div>
                     <p className="text-xs text-slate-500">Current MRR</p>
                     <p className="text-sm text-slate-300">${org.mrr.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Settings className="h-4 w-4 text-slate-500" />
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-500">API Monthly Quota</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-slate-300">
+                        {org.apiMonthlyQuota?.toLocaleString() ?? "Dynamic (org default)"}
+                      </p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs text-slate-500 hover:text-amber-400 px-2"
+                        onClick={() => {
+                          const newQuota = prompt(
+                            "Enter new API monthly quota (leave empty for dynamic):",
+                            org.apiMonthlyQuota?.toString() ?? ""
+                          );
+                          if (newQuota === null) return;
+                          const quota = newQuota.trim() === "" ? null : parseInt(newQuota, 10);
+                          if (quota !== null && (isNaN(quota) || quota < 0)) {
+                            alert("Invalid quota value.");
+                            return;
+                          }
+                          updateOrgApiQuota(orgId, quota)
+                            .then(() => setOrg({ ...org, apiMonthlyQuota: quota }))
+                            .catch((err) => alert(err instanceof Error ? err.message : "Failed to update quota."));
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -360,6 +399,25 @@ export default function OrganizationDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4">
+          <Tabs defaultValue="roles">
+            <TabsList className="bg-slate-900 border border-slate-800 mb-4">
+              <TabsTrigger value="roles" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+                Roles
+              </TabsTrigger>
+              <TabsTrigger value="groups" className="data-[state=active]:bg-slate-800 data-[state=active]:text-slate-100 text-slate-400">
+                Groups
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="roles">
+              <OrgRolesSettings orgId={orgId} />
+            </TabsContent>
+            <TabsContent value="groups">
+              <OrgGroupsSettings orgId={orgId} />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">

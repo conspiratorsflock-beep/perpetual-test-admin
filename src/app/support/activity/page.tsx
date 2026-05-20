@@ -40,6 +40,10 @@ const targetTypeLabels: Record<AuditTargetType, string> = {
   release: "Release",
   lead: "Lead",
   org_setting: "Org Setting",
+  custom_role: "Custom Role",
+  user_group: "User Group",
+  project_group_access: "Project Group Access",
+  project_member: "Project Member",
 };
 
 export default function ActivityPage() {

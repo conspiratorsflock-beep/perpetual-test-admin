@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Key, Building2, FolderKanban, Trash2, AlertTriangle } from "lucide-react";
+import { Key, Building2, FolderKanban, Trash2, AlertTriangle, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { searchApiKeys, revokeApiKey } from "@/lib/actions/api-keys";
+import { searchApiKeys, revokeApiKey, updateApiKeyQuota } from "@/lib/actions/api-keys";
 import type { ApiKey } from "@/types/admin";
 
 export default function ApiKeysPage() {
@@ -32,6 +32,9 @@ export default function ApiKeysPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null);
   const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+  const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
+  const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
+  const [quotaValue, setQuotaValue] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -63,6 +66,34 @@ export default function ApiKeysPage() {
       setActionError("Failed to revoke API key.");
     } finally {
       setRevokingKeyId(null);
+    }
+  };
+
+  const openQuotaDialog = (key: ApiKey) => {
+    setEditingKey(key);
+    setQuotaValue(key.monthlyQuotaOverride?.toString() ?? "");
+    setActionError(null);
+    setQuotaDialogOpen(true);
+  };
+
+  const handleSaveQuota = async () => {
+    if (!editingKey) return;
+    setActionError(null);
+    const quota = quotaValue.trim() === "" ? null : parseInt(quotaValue, 10);
+    if (quota !== null && (isNaN(quota) || quota < 0)) {
+      setActionError("Please enter a valid non-negative number.");
+      return;
+    }
+    try {
+      await updateApiKeyQuota(editingKey.id, quota);
+      setKeys((prev) =>
+        prev.map((k) => (k.id === editingKey.id ? { ...k, monthlyQuotaOverride: quota } : k))
+      );
+      setActionSuccess("Quota updated successfully.");
+      setQuotaDialogOpen(false);
+    } catch (error) {
+      console.error("Failed to update quota:", error);
+      setActionError(error instanceof Error ? error.message : "Failed to update quota.");
     }
   };
 
@@ -99,15 +130,17 @@ export default function ApiKeysPage() {
                   <TableHead className="text-slate-400">Prefix</TableHead>
                   <TableHead className="text-slate-400">Scope</TableHead>
                   <TableHead className="text-slate-400">Scopes</TableHead>
+                  <TableHead className="text-slate-400">Quota</TableHead>
+                  <TableHead className="text-slate-400">Usage</TableHead>
                   <TableHead className="text-slate-400">Last Used</TableHead>
                   <TableHead className="text-slate-400">Created</TableHead>
-                  <TableHead className="text-slate-400 w-[80px]"></TableHead>
+                  <TableHead className="text-slate-400 w-[100px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-slate-500">
+                    <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                       Loading...
                     </TableCell>
                   </TableRow>
@@ -147,6 +180,14 @@ export default function ApiKeysPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-slate-400 text-sm">
+                        {key.monthlyQuotaOverride?.toLocaleString() ?? (
+                          <span className="text-slate-600">Dynamic</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-slate-400 text-sm">
+                        {key.monthlyUsage.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-slate-400 text-sm">
                         {key.lastUsedAt
                           ? format(new Date(key.lastUsedAt), "MMM d, yyyy")
                           : "Never"}
@@ -155,12 +196,21 @@ export default function ApiKeysPage() {
                         {format(new Date(key.createdAt), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell>
-                        <Dialog open={revokeDialogOpen && revokingKeyId === key.id} onOpenChange={(open) => {
-                          if (!open) {
-                            setRevokeDialogOpen(false);
-                            setRevokingKeyId(null);
-                          }
-                        }}>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-500 hover:text-amber-400"
+                            onClick={() => openQuotaDialog(key)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Dialog open={revokeDialogOpen && revokingKeyId === key.id} onOpenChange={(open) => {
+                            if (!open) {
+                              setRevokeDialogOpen(false);
+                              setRevokingKeyId(null);
+                            }
+                          }}>
                           <DialogTrigger asChild>
                             <Button
                               variant="ghost"
@@ -203,12 +253,13 @@ export default function ApiKeysPage() {
                             </DialogFooter>
                           </DialogContent>
                         </Dialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-slate-500">
+                    <TableCell colSpan={9} className="h-24 text-center text-slate-500">
                       No API keys found.
                     </TableCell>
                   </TableRow>
@@ -218,6 +269,55 @@ export default function ApiKeysPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quota Edit Dialog */}
+      <Dialog open={quotaDialogOpen} onOpenChange={setQuotaDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
+          <DialogHeader>
+            <DialogTitle>Edit API Key Quota</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Set a monthly quota override for <strong>{editingKey?.name}</strong>.
+              Leave empty to use the organization default (dynamic).
+            </DialogDescription>
+          </DialogHeader>
+
+          {actionError && (
+            <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-sm text-red-400 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" />
+              {actionError}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label htmlFor="quota-input" className="text-sm text-slate-300">
+              Monthly Quota Override
+            </label>
+            <input
+              id="quota-input"
+              type="number"
+              min={0}
+              value={quotaValue}
+              onChange={(e) => setQuotaValue(e.target.value)}
+              placeholder="e.g. 10000"
+              className="w-full bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600"
+            />
+            <p className="text-xs text-slate-500">Leave blank to use dynamic org quota.</p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setQuotaDialogOpen(false)}
+              className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveQuota} className="bg-amber-500 hover:bg-amber-600 text-slate-950">
+              Save Quota
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

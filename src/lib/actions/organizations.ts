@@ -4,7 +4,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import type { AdminOrganization, OrganizationWithDetails, TrialLockState } from "@/types/admin";
+import type { AdminOrganization, OrganizationWithDetails, TrialLockState, OrgApiUsage } from "@/types/admin";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
@@ -61,6 +61,7 @@ export async function searchOrganizations({
       stripeSubscriptionId: dbOrg?.stripe_subscription_id ?? null,
       stripePriceId: dbOrg?.stripe_price_id ?? null,
       mrr: 0, // Calculated from Stripe separately
+      apiMonthlyQuota: null,
       createdAt: org.createdAt ? new Date(org.createdAt).toISOString() : new Date().toISOString(),
     };
   });
@@ -104,7 +105,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
     // Get lathe-studio org data
     const { data: dbOrg } = await supabaseAdmin
       .from("organizations")
-      .select("trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id")
+      .select("id, trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id, api_monthly_quota")
       .eq("clerk_org_id", orgId)
       .single();
 
@@ -137,6 +138,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
       stripeSubscriptionId: dbOrg?.stripe_subscription_id ?? null,
       stripePriceId: dbOrg?.stripe_price_id ?? null,
       mrr: 0,
+      apiMonthlyQuota: dbOrg?.api_monthly_quota ?? null,
       createdAt: org.createdAt ? new Date(org.createdAt).toISOString() : new Date().toISOString(),
       members,
       projects: projects?.map((p) => ({
@@ -160,6 +162,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
         storageUsedBytes: 0,
         lastActiveAt: null,
       },
+      dbOrgId: dbOrg?.id ?? null,
     };
   } catch (error) {
     console.error("Failed to get organization:", error);
@@ -253,6 +256,68 @@ export async function extendTrial(orgId: string, days: number): Promise<{ newTri
   });
 
   return { newTrialEndsAt };
+}
+
+/**
+ * Update an organization's API monthly quota.
+ */
+export async function updateOrgApiQuota(clerkOrgId: string, apiMonthlyQuota: number | null): Promise<void> {
+  await requireAdmin();
+
+  const orgUuid = await getOrgUuidFromClerkId(clerkOrgId);
+  if (!orgUuid) {
+    throw new Error("Organization not found in database");
+  }
+
+  const { data: org } = await supabaseAdmin
+    .from("organizations")
+    .select("name")
+    .eq("id", orgUuid)
+    .single();
+
+  const { error } = await supabaseAdmin
+    .from("organizations")
+    .update({ api_monthly_quota: apiMonthlyQuota })
+    .eq("id", orgUuid);
+
+  if (error) {
+    throw new Error(`Failed to update org API quota: ${error.message}`);
+  }
+
+  await logAdminAction({
+    action: "organization.api_quota_update",
+    targetType: "organization",
+    targetId: clerkOrgId,
+    targetName: org?.name,
+    metadata: { apiMonthlyQuota },
+  });
+}
+
+/**
+ * Get org API usage rollup.
+ */
+export async function getOrgApiUsage(orgId: string): Promise<OrgApiUsage[]> {
+  await requireAdmin();
+
+  const { data, error } = await supabaseAdmin
+    .from("org_api_usage")
+    .select("org_id, month, year, total_calls, total_tokens, updated_at")
+    .eq("org_id", orgId)
+    .order("year", { ascending: false })
+    .order("month", { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch org API usage: ${error.message}`);
+  }
+
+  return (data || []).map((row) => ({
+    orgId: row.org_id,
+    month: row.month,
+    year: row.year,
+    totalCalls: row.total_calls,
+    totalTokens: row.total_tokens,
+    updatedAt: row.updated_at,
+  }));
 }
 
 /**
