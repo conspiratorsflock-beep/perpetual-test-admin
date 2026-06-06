@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import type {
   TicketSeedingConfig,
@@ -57,7 +57,9 @@ export async function getAvailableAgents(
 
     let isOnDuty = true;
     if (respectSchedule) {
-      const { data: dutyCheck } = await supabaseAdmin.rpc("is_agent_on_duty", {
+      // DRIFT: `is_agent_on_duty` Postgres function isn't deployed to the shared DB.
+      // Kept via the untyped client until the agent-schedule schema is reconciled. See TODO.md.
+      const { data: dutyCheck } = await supabaseAdminUntyped.rpc("is_agent_on_duty", {
         agent_id: agent.id,
       });
       isOnDuty = dutyCheck || false;
@@ -66,7 +68,8 @@ export async function getAvailableAgents(
     availabilityList.push({
       agentId: agent.id,
       agentName: agent.name || agent.email,
-      isOnline: agent.is_online || false,
+      // NOTE: support_team_members has no `is_online` column; presence isn't tracked.
+      isOnline: false,
       isOnDuty,
       timezone: "America/New_York", // Default, can be fetched from schedule
       currentWorkload: count || 0,
@@ -123,7 +126,7 @@ export async function seedUnassignedTickets(
           status: "open",
           updated_at: new Date().toISOString(),
         })
-        .eq("id", ticket.id);
+        .eq("id", ticket.id as string);
 
       if (error) {
         result.errors.push(

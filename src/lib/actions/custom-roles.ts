@@ -40,9 +40,9 @@ export async function getPermissionsCatalog(): Promise<Permission[]> {
     id: p.id,
     resource: p.resource,
     action: p.action,
-    level: p.level,
+    level: p.level as Permission["level"],
     description: p.description,
-    isRestricted: p.is_restricted,
+    isRestricted: p.is_restricted ?? false,
   }));
 }
 
@@ -71,10 +71,10 @@ export async function getCustomRoles(orgId: string): Promise<CustomRole[]> {
     description: r.description,
     templateRole: r.template_role,
     isSystem: r.is_system,
-    systemRoleKey: r.system_role_key,
+    systemRoleKey: r.system_role_key as CustomRole["systemRoleKey"],
     createdBy: r.created_by,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
+    createdAt: r.created_at ?? "",
+    updatedAt: r.updated_at ?? "",
   }));
 }
 
@@ -105,10 +105,10 @@ export async function getCustomRole(roleId: string): Promise<CustomRole> {
     description: data.description,
     templateRole: data.template_role,
     isSystem: data.is_system,
-    systemRoleKey: data.system_role_key,
+    systemRoleKey: data.system_role_key as CustomRole["systemRoleKey"],
     createdBy: data.created_by,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
     permissionIds,
   };
 }
@@ -176,10 +176,10 @@ export async function createCustomRole(
     description: roleData.description,
     templateRole: roleData.template_role,
     isSystem: roleData.is_system,
-    systemRoleKey: roleData.system_role_key,
+    systemRoleKey: roleData.system_role_key as CustomRole["systemRoleKey"],
     createdBy: roleData.created_by,
-    createdAt: roleData.created_at,
-    updatedAt: roleData.updated_at,
+    createdAt: roleData.created_at ?? "",
+    updatedAt: roleData.updated_at ?? "",
     permissionIds,
   };
 }

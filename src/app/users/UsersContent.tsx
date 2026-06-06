@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useTransition } from "react";
+import { useState, useCallback, useTransition } from "react";
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Users, Mail, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -66,11 +67,7 @@ export function UsersContent() {
     }
   }, [query, activeTab, page]);
 
-  useEffect(() => {
-    fetchUsers();
-    const interval = setInterval(fetchUsers, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUsers]);
+  useVisiblePolling(fetchUsers, 30000);
 
   const handleSearch = (newQuery: string) => {
     setQuery(newQuery);

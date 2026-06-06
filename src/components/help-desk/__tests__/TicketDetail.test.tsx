@@ -18,6 +18,7 @@ vi.mock("@clerk/nextjs", () => ({
 // Mock server actions
 vi.mock("@/lib/actions/support-tickets", () => ({
   getSupportTicketComments: vi.fn(),
+  getSupportTicketLinks: vi.fn(),
   addTicketComment: vi.fn(),
   updateTicketStatus: vi.fn(),
   assignTicket: vi.fn(),
@@ -95,6 +96,7 @@ describe("TicketDetail", () => {
     vi.mocked(supportTicketsActions.getSupportTicketComments).mockResolvedValue(
       mockComments
     );
+    vi.mocked(supportTicketsActions.getSupportTicketLinks).mockResolvedValue([]);
     vi.mocked(supportTicketsActions.addTicketComment).mockResolvedValue({
       ...mockComments[0],
       id: "comment_3",

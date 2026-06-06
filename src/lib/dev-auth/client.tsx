@@ -74,7 +74,7 @@ export function useUser() {
   return {
     isLoaded: true,
     isSignedIn: true,
-    user: mockUser as unknown as import("@clerk/nextjs").UserResource,
+    user: mockUser as unknown as ReturnType<typeof import("@clerk/nextjs").useUser>["user"],
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import Link from "next/link";
 import { format } from "date-fns";
 import {
@@ -115,11 +116,7 @@ export default function BuildsPage() {
     }
   }, [sourceFilter, statusFilter, page]);
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  useVisiblePolling(fetchData, 30000);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 

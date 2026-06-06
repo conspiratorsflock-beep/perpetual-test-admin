@@ -74,7 +74,7 @@ export async function globalSearch(query: string): Promise<GlobalSearchResult> {
         (data || []).map((row) => ({
           id: row.id,
           name: row.name,
-          slug: row.slug,
+          slug: row.slug ?? "",
           type: "organization" as const,
         }))
       ),
@@ -107,7 +107,7 @@ export async function globalSearch(query: string): Promise<GlobalSearchResult> {
           id: row.id,
           ticketNumber: row.ticket_number,
           subject: row.subject,
-          userEmail: row.user_email,
+          userEmail: row.user_email ?? "",
           type: "ticket" as const,
         }))
       ),

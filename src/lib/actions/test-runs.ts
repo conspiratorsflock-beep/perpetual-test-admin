@@ -50,8 +50,8 @@ export async function getProjectTestRuns(
     createdBy: row.created_by,
     startedAt: row.started_at,
     completedAt: row.completed_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at ?? "",
+    updatedAt: row.updated_at ?? "",
     runSequenceNumber: row.run_sequence_number,
     configurationCount: row.configuration_count ?? 0,
   }));
@@ -85,8 +85,8 @@ export async function getTestRunById(id: string): Promise<TestRun | null> {
     createdBy: data.created_by,
     startedAt: data.started_at,
     completedAt: data.completed_at,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
     runSequenceNumber: data.run_sequence_number,
     configurationCount: data.configuration_count ?? 0,
   };

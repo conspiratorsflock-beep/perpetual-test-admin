@@ -29,7 +29,7 @@ export async function getUserGroups(orgId: string): Promise<UserGroup[]> {
 
   const { data, error } = await supabaseAdmin
     .from("user_groups")
-    .select("id, org_id, name, description, created_by, created_at, updated_at")
+    .select("id, org_id, name, description, created_by, created_at, updated_at, group_memberships(count), project_group_access(count)")
     .eq("org_id", resolvedOrgId)
     .order("name", { ascending: true });
 
@@ -37,37 +37,17 @@ export async function getUserGroups(orgId: string): Promise<UserGroup[]> {
     throw new Error(`Failed to fetch user groups: ${error.message}`);
   }
 
-  const groups = data || [];
-
-  // Fetch counts in parallel
-  const groupsWithCounts = await Promise.all(
-    groups.map(async (g) => {
-      const [{ count: memberCount }, { count: projectCount }] = await Promise.all([
-        supabaseAdmin
-          .from("group_memberships")
-          .select("*", { count: "exact", head: true })
-          .eq("group_id", g.id),
-        supabaseAdmin
-          .from("project_group_access")
-          .select("*", { count: "exact", head: true })
-          .eq("group_id", g.id),
-      ]);
-
-      return {
-        id: g.id,
-        orgId: g.org_id,
-        name: g.name,
-        description: g.description,
-        createdBy: g.created_by,
-        createdAt: g.created_at,
-        updatedAt: g.updated_at,
-        memberCount: memberCount ?? 0,
-        projectCount: projectCount ?? 0,
-      };
-    })
-  );
-
-  return groupsWithCounts;
+  return (data || []).map((g) => ({
+    id: g.id,
+    orgId: g.org_id,
+    name: g.name,
+    description: g.description,
+    createdBy: g.created_by,
+    createdAt: g.created_at ?? "",
+    updatedAt: g.updated_at ?? "",
+    memberCount: (g.group_memberships as unknown as [{ count: number }] | null)?.[0]?.count ?? 0,
+    projectCount: (g.project_group_access as unknown as [{ count: number }] | null)?.[0]?.count ?? 0,
+  }));
 }
 
 /**
@@ -92,8 +72,8 @@ export async function getUserGroup(groupId: string): Promise<UserGroup> {
     name: data.name,
     description: data.description,
     createdBy: data.created_by,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 
@@ -132,8 +112,8 @@ export async function createUserGroup(
     name: data.name,
     description: data.description,
     createdBy: data.created_by,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 
@@ -242,7 +222,7 @@ export async function getGroupMembers(groupId: string): Promise<GroupMembership[
     return {
       groupId: m.group_id,
       clerkUserId: m.clerk_user_id,
-      joinedAt: m.joined_at,
+      joinedAt: m.joined_at ?? "",
       userEmail: userInfo?.email ?? null,
       userName: userInfo?.display_name ?? null,
     };
@@ -333,7 +313,7 @@ export async function getProjectGroups(projectId: string): Promise<ProjectGroupA
     groupId: row.group_id,
     roleId: row.role_id,
     assignedBy: row.assigned_by,
-    assignedAt: row.assigned_at,
+    assignedAt: row.assigned_at ?? "",
     groupName: (row.user_groups as unknown as { name: string } | null)?.name ?? "Unknown",
     roleName: (row.custom_roles as unknown as { name: string } | null)?.name ?? "Unknown",
   }));

@@ -55,8 +55,8 @@ export async function searchReleases({
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     deletedAt: row.deleted_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at ?? "",
+    updatedAt: row.updated_at ?? "",
   }));
 
   return { releases, total: count || 0 };
@@ -90,8 +90,8 @@ export async function getReleaseById(id: string): Promise<Release | null> {
     createdBy: data.created_by,
     updatedBy: data.updated_by,
     deletedAt: data.deleted_at,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 

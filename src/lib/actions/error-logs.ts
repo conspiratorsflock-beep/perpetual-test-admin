@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminErrorLog } from "@/types/admin";
+import type { Json } from "@/types/database.types";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
@@ -40,7 +41,7 @@ export async function logError({
       user_id: userId || null,
       org_id: orgId || null,
       path: path || null,
-      metadata: metadata || {},
+      metadata: (metadata || {}) as Json,
     });
   } catch (error) {
     // Don't throw - error logging should never break the main flow
@@ -115,8 +116,8 @@ export async function getErrorLogs({
     userId: row.user_id,
     orgId: row.org_id,
     path: row.path,
-    metadata: row.metadata || {},
-    createdAt: row.created_at,
+    metadata: (row.metadata as Record<string, unknown>) || {},
+    createdAt: row.created_at ?? "",
   }));
 
   return { logs, count: count || 0 };

@@ -1,7 +1,7 @@
 # Admin Console — Implementation Tracker
 
 Tracks incomplete features, orphaned code, and pending integrations across the codebase.
-Last updated: 2026-05-15.
+Last updated: 2026-06-05.
 
 ---
 
@@ -176,3 +176,44 @@ These are components the lathe-studio main app needs to implement.
 - `src/app/setup-admin/page.tsx` — references non-existent `setupEmergencyAdmin` export from `setup-admin.ts`
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
 - Admin console queries `build_queue_items` but lathe-studio uses `builds` (real table) — fixed in Phase 6
+
+---
+
+## ⚠️ Schema drift surfaced by the typed Supabase client (2026-06-05)
+
+The Supabase client (`supabaseAdmin`) is now typed via `src/types/database.types.ts`
+(generated `database.generated.ts` + a hand-written augmentation for 8 admin-only tables).
+Typing surfaced real drift between the admin code's *intended* schema and the **shared DEV
+DB** (`zonsnvcwtfotqzrvozqs`). Root cause: **this repo's admin migrations were never applied
+to that DB**, so admin tables/columns/RPCs are missing or conflict with the main app's shapes.
+
+### Admin tables missing from the DEV DB (runtime gap — features will fail until migrations are applied)
+These 8 tables are referenced by admin code but **do not exist** in the shared DEV DB. They are
+type-augmented in `database.types.ts` so the code compiles, but queries will fail at runtime:
+`system_settings`, `feature_flags`, `system_health_checks`, `admin_audit_logs`,
+`admin_error_logs`, `impersonation_tokens`, `api_usage_daily`, `support_ticket_seeding_log`.
+→ Affected features: system settings, feature flags, health checks, admin audit/error logs,
+  user impersonation, API-usage rollups, ticket seeding. **Decision: documented, not fixed** —
+  apply the admin migrations to the DB (or point at a DB that has them) to make these work.
+
+### Surfaces isolated behind the untyped escape-hatch (`supabaseAdminUntyped`)
+Schema conflicts where the intended shape and the DB shape genuinely differ. Each call site is
+tagged `// DRIFT:`. Remove the escape-hatch as the schema is reconciled.
+- `src/lib/actions/announcements.ts` — DB `admin_announcements` has the main app's banner shape
+  (`message`/`style`/`tier`), not the admin CMS shape (`title`/`content`/`type`/`is_active`/…).
+- `src/lib/actions/api-usage.ts` — DB `api_usage_daily` is `count`/`endpoint`/`method`, not the
+  `total_calls`/`unique_orgs`/`*_breakdown` shape the code wants; `increment_api_calls` RPC absent.
+- `incrementCannedResponseUse` (support-tickets.ts) — generic `increment` RPC + `use_count` column absent.
+- `is_agent_on_duty` RPC (support-tickets-seeding.ts) — absent; `support_team_members.is_online` absent.
+
+### Clean fixes applied (code now matches the real DB schema)
+- `project_members.role` dropped repo-wide → role derived from linked `custom_roles(name)`.
+- `org_api_usage` → real columns (`year_month`, no `total_tokens`); month/year derived from `year_month`.
+- `is_feature_enabled` / `get_latest_health_status` RPCs reworked to direct table queries.
+- Pervasive null-ness: nullable DB columns coalesced in mappers (createdAt/updatedAt, etc.).
+
+### Notes
+- 2 RPCs (`get_latest_health_status`, generic `increment`) are referenced in code but defined in
+  **no migration at all** — genuine gaps, reworked/isolated above.
+- Test suite has ~60 pre-existing failures from Clerk-provider mocking in jsdom (unrelated to types).
+- `npm run lint` is broken independently: Next.js 16 removed `next lint`.

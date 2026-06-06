@@ -28,11 +28,11 @@ export async function getFeatureFlags(): Promise<FeatureFlag[]> {
     key: row.key,
     name: row.name,
     description: row.description,
-    enabledGlobally: row.enabled_globally,
+    enabledGlobally: row.enabled_globally ?? false,
     enabledForOrgs: row.enabled_for_orgs || [],
     enabledForUsers: row.enabled_for_users || [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at ?? "",
+    updatedAt: row.updated_at ?? "",
   }));
 }
 
@@ -54,11 +54,11 @@ export async function getFeatureFlagById(id: string): Promise<FeatureFlag | null
     key: data.key,
     name: data.name,
     description: data.description,
-    enabledGlobally: data.enabled_globally,
+    enabledGlobally: data.enabled_globally ?? false,
     enabledForOrgs: data.enabled_for_orgs || [],
     enabledForUsers: data.enabled_for_users || [],
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 
@@ -100,11 +100,11 @@ export async function createFeatureFlag(data: {
     key: row.key,
     name: row.name,
     description: row.description,
-    enabledGlobally: row.enabled_globally,
+    enabledGlobally: row.enabled_globally ?? false,
     enabledForOrgs: row.enabled_for_orgs || [],
     enabledForUsers: row.enabled_for_users || [],
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at ?? "",
+    updatedAt: row.updated_at ?? "",
   };
 }
 
@@ -181,16 +181,21 @@ export async function checkFeatureEnabled(
   userId?: string,
   orgId?: string
 ): Promise<boolean> {
-  const { data, error } = await supabaseAdmin.rpc("is_feature_enabled", {
-    flag_key: flagKey,
-    user_id: userId || null,
-    org_id: orgId || null,
-  });
+  // NOTE: the `is_feature_enabled` Postgres function isn't deployed to the shared DB,
+  // so evaluate the flag directly against the feature_flags row.
+  const { data, error } = await supabaseAdmin
+    .from("feature_flags")
+    .select("enabled_globally, enabled_for_orgs, enabled_for_users")
+    .eq("key", flagKey)
+    .maybeSingle();
 
-  if (error) {
-    console.error("Failed to check feature flag:", error);
+  if (error || !data) {
+    if (error) console.error("Failed to check feature flag:", error);
     return false;
   }
 
-  return data || false;
+  if (data.enabled_globally) return true;
+  if (orgId && (data.enabled_for_orgs ?? []).includes(orgId)) return true;
+  if (userId && (data.enabled_for_users ?? []).includes(userId)) return true;
+  return false;
 }

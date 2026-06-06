@@ -118,14 +118,16 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
     if (dbUser?.org_id) {
       const { data: projMembers } = await supabaseAdmin
         .from("project_members")
-        .select("project_id, role, projects(name)")
+        // NOTE: role now comes from the linked custom_roles row (legacy `role` column dropped).
+        .select("project_id, custom_roles(name), projects(name)")
         .eq("clerk_user_id", userId);
 
       projectMemberships =
         projMembers?.map((pm) => ({
           projectId: pm.project_id,
           projectName: (pm.projects as unknown as { name: string })?.name ?? "Unknown",
-          role: pm.role as ProjectMembership["role"],
+          role: ((pm.custom_roles as unknown as { name: string } | null)?.name ??
+            "member") as ProjectMembership["role"],
         })) ?? [];
     }
 

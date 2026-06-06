@@ -1,6 +1,12 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+// DRIFT: `admin_announcements` exists in the shared DEV DB with the main app's
+// banner shape (message/style/tier), NOT this repo's intended CMS shape
+// (title/content/type/target_tiers/is_active/created_by_email). The admin
+// migration that defines those columns was never applied (it's a no-op CREATE TABLE
+// IF NOT EXISTS against the pre-existing table). This whole file therefore uses the
+// untyped client until the schema conflict is resolved. See TODO.md.
+import { supabaseAdminUntyped } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminAnnouncement, AnnouncementType } from "@/types/admin";
@@ -14,7 +20,7 @@ async function requireAdmin() {
  */
 export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
   await requireAdmin();
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabaseAdminUntyped
     .from("admin_announcements")
     .select("*")
     .order("created_at", { ascending: false });
@@ -48,7 +54,7 @@ export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
 export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
   const now = new Date().toISOString();
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await supabaseAdminUntyped
     .from("admin_announcements")
     .select("*")
     .eq("is_active", true)
@@ -104,7 +110,7 @@ export async function createAnnouncement(
   createdByEmail: string
 ): Promise<AdminAnnouncement> {
   await requireAdmin();
-  const { data: row, error } = await supabaseAdmin
+  const { data: row, error } = await supabaseAdminUntyped
     .from("admin_announcements")
     .insert({
       title: data.title,
@@ -171,7 +177,7 @@ export async function updateAnnouncement(
   }
 ): Promise<void> {
   await requireAdmin();
-  const { error } = await supabaseAdmin
+  const { error } = await supabaseAdminUntyped
     .from("admin_announcements")
     .update({
       title: data.title,
@@ -209,13 +215,13 @@ export async function toggleAnnouncementActive(id: string, isActive: boolean): P
  */
 export async function deleteAnnouncement(id: string): Promise<void> {
   await requireAdmin();
-  const { data: row } = await supabaseAdmin
+  const { data: row } = await supabaseAdminUntyped
     .from("admin_announcements")
     .select("title")
     .eq("id", id)
     .single();
 
-  const { error } = await supabaseAdmin.from("admin_announcements").delete().eq("id", id);
+  const { error } = await supabaseAdminUntyped.from("admin_announcements").delete().eq("id", id);
 
   if (error) {
     throw new Error(`Failed to delete announcement: ${error.message}`);

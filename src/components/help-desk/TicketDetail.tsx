@@ -6,7 +6,7 @@ import {
   ArrowLeft,
   Clock,
   User,
-
+  Link2,
   MessageSquare,
   Send,
   CheckCircle,
@@ -39,12 +39,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
   getSupportTicketComments,
+  getSupportTicketLinks,
   addTicketComment,
   updateTicketStatus,
   assignTicket,
   closeTicket,
 } from "@/lib/actions/support-tickets";
-import type { SupportTicket, SupportTicketComment, TicketStatus, TicketPriority } from "@/types/admin";
+import type { SupportTicket, SupportTicketComment, SupportTicketLink, TicketStatus, TicketPriority } from "@/types/admin";
 
 interface TicketDetailProps {
   ticket: SupportTicket;
@@ -81,6 +82,7 @@ const categoryLabels: Record<string, string> = {
 export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailProps) {
   const { user } = useUser();
   const [comments, setComments] = useState<SupportTicketComment[]>([]);
+  const [links, setLinks] = useState<SupportTicketLink[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isInternal, setIsInternal] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -88,6 +90,7 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
 
   useEffect(() => {
     loadComments();
+    loadLinks();
   }, [ticket.id]);
 
   const loadComments = async () => {
@@ -99,6 +102,15 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
       console.error("Failed to load comments:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadLinks = async () => {
+    try {
+      const data = await getSupportTicketLinks(ticket.id);
+      setLinks(data);
+    } catch (error) {
+      console.error("Failed to load links:", error);
     }
   };
 
@@ -352,6 +364,48 @@ export function TicketDetail({ ticket, onBack, onTicketUpdated }: TicketDetailPr
                 </Button>
               </div>
             </div>
+          </div>
+
+          {/* Linked Resources */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-slate-100 flex items-center gap-2">
+              <Link2 className="h-5 w-5" />
+              Linked Resources
+            </h3>
+
+            {links.length === 0 ? (
+              <div className="text-center py-8 text-slate-400">No linked resources</div>
+            ) : (
+              <div className="space-y-3">
+                {links.map((link) => (
+                  <div
+                    key={link.id}
+                    className="rounded-lg border border-slate-700 bg-slate-800/50 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-slate-200">
+                          {link.resourceName || `${link.resourceType}: ${link.resourceId}`}
+                        </div>
+                        <div className="text-sm text-slate-400 mt-1">
+                          {link.resourceType} • {link.resourceId}
+                        </div>
+                      </div>
+                      {link.resourceUrl && (
+                        <a
+                          href={link.resourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-amber-400 hover:text-amber-300"
+                        >
+                          Open →
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 

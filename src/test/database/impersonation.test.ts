@@ -46,8 +46,8 @@ describe.skip("Database: Impersonation Tokens (Integration)", () => {
 
     expect(error).toBeNull();
     expect(data).not.toBeNull();
-    expect(data.token_hash).toBe(tokenHash);
-    expect(data.used_at).toBeNull();
+    expect(data!.token_hash).toBe(tokenHash);
+    expect(data!.used_at).toBeNull();
   });
 
   it("should enforce unique token_hash constraint", async () => {
@@ -76,8 +76,8 @@ describe.skip("Database: Impersonation Tokens (Integration)", () => {
 
     expect(error).toBeNull();
     expect(data).not.toBeNull();
-    expect(data.admin_id).toBe(testAdminId);
-    expect(data.target_user_id).toBe(testTargetId);
+    expect(data!.admin_id).toBe(testAdminId);
+    expect(data!.target_user_id).toBe(testTargetId);
   });
 
   it("should mark token as used", async () => {
@@ -89,7 +89,7 @@ describe.skip("Database: Impersonation Tokens (Integration)", () => {
       .single();
 
     expect(error).toBeNull();
-    expect(data.used_at).not.toBeNull();
+    expect(data!.used_at).not.toBeNull();
   });
 
   it("should query tokens by admin", async () => {

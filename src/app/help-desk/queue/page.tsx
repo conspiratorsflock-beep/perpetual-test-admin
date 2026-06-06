@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Inbox, AlertCircle, Clock, Users } from "lucide-react";
@@ -28,13 +29,7 @@ export default function QueuePage() {
     refreshRef.current = refresh;
   }, [refresh]);
 
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshRef.current();
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  useVisiblePolling(() => refreshRef.current(), 30000);
 
   const handleTicketSelect = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);

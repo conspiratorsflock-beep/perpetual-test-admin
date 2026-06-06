@@ -282,6 +282,7 @@ The admin console reads from these lathe-studio tables using service-role access
 | `test_runs` | Test runs with environment, configuration, inheritance policy |
 | `support_tickets` | Help desk tickets |
 | `support_ticket_comments` | Ticket conversations |
+| `support_ticket_links` | Linked resources on tickets (read-only) |
 | `support_team_members` | Support team config |
 
 ### Key Database Functions

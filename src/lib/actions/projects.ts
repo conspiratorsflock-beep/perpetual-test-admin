@@ -31,7 +31,10 @@ export async function searchProjects({
 
   let dbQuery = supabaseAdmin
     .from("projects")
-    .select("*, organizations(name)", { count: "exact" })
+    .select(
+      "*, organizations(name), project_members(count), test_cases(count), test_runs(count)",
+      { count: "exact" }
+    )
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -53,53 +56,29 @@ export async function searchProjects({
     throw new Error(`Failed to fetch projects: ${error.message}`);
   }
 
-  const projects: AdminProject[] = await Promise.all(
-    (data || []).map(async (row) => {
-      const orgName = (row.organizations as unknown as { name: string } | null)?.name ?? "Unknown";
+  const projects: AdminProject[] = (data || []).map((row) => {
+    const orgName = (row.organizations as unknown as { name: string } | null)?.name ?? "Unknown";
 
-      const { count: memberCount } = await supabaseAdmin
-        .from("project_members")
-        .select("*", { count: "exact", head: true })
-        .eq("project_id", row.id);
-
-      const { count: testCaseCount } = await supabaseAdmin
-        .from("test_cases")
-        .select("*", { count: "exact", head: true })
-        .eq("project_id", row.id)
-        .is("deleted_at", null);
-
-      const { count: testRunCount } = await supabaseAdmin
-        .from("test_runs")
-        .select("*", { count: "exact", head: true })
-        .eq("project_id", row.id);
-
-      const { count: releaseCount } = await supabaseAdmin
-        .from("releases")
-        .select("*", { count: "exact", head: true })
-        .eq("project_id", row.id)
-        .is("deleted_at", null);
-
-      return {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        projectCode: row.project_code,
-        jiraProjectKey: row.jira_project_key,
-        jiraSiteUrl: row.jira_site_url,
-        bitbucketRepoUrl: row.bitbucket_repo_url,
-        requirementsEnabled: row.requirements_enabled ?? false,
-        orgId: row.org_id,
-        orgName,
-        memberCount: memberCount ?? 0,
-        testCaseCount: testCaseCount ?? 0,
-        testRunCount: testRunCount ?? 0,
-        releaseCount: releaseCount ?? 0,
-        deletedAt: row.deleted_at,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-      };
-    })
-  );
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      projectCode: row.project_code,
+      jiraProjectKey: row.jira_project_key,
+      jiraSiteUrl: row.jira_site_url,
+      bitbucketRepoUrl: row.bitbucket_repo_url,
+      requirementsEnabled: row.requirements_enabled ?? false,
+      orgId: row.org_id,
+      orgName,
+      memberCount: (row.project_members as unknown as [{ count: number }] | null)?.[0]?.count ?? 0,
+      testCaseCount: (row.test_cases as unknown as [{ count: number }] | null)?.[0]?.count ?? 0,
+      testRunCount: (row.test_runs as unknown as [{ count: number }] | null)?.[0]?.count ?? 0,
+      releaseCount: 0,
+      deletedAt: row.deleted_at,
+      createdAt: row.created_at ?? "",
+      updatedAt: row.updated_at ?? "",
+    };
+  });
 
   return { projects, total: count ?? 0 };
 }
@@ -146,8 +125,8 @@ export async function getProjectById(projectId: string): Promise<AdminProject | 
     testRunCount: testRunCount ?? 0,
     releaseCount: releaseCount ?? 0,
     deletedAt: data.deleted_at,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 
@@ -228,7 +207,8 @@ export async function getProjectMembers(projectId: string): Promise<
 
   const { data, error } = await supabaseAdmin
     .from("project_members")
-    .select("clerk_user_id, email, display_name, role, joined_at")
+    // NOTE: role now comes from the linked custom_roles row (legacy `role` column dropped).
+    .select("clerk_user_id, email, display_name, custom_roles(name), joined_at")
     .eq("project_id", projectId)
     .order("joined_at", { ascending: false });
 
@@ -240,7 +220,7 @@ export async function getProjectMembers(projectId: string): Promise<
     id: m.clerk_user_id,
     email: m.email,
     name: m.display_name,
-    role: m.role,
-    joinedAt: m.joined_at,
+    role: (m.custom_roles as unknown as { name: string } | null)?.name ?? "member",
+    joinedAt: m.joined_at ?? "",
   }));
 }

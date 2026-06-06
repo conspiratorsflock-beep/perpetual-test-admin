@@ -24,11 +24,14 @@ const mockSupabaseOrder = vi.fn();
 const mockSupabaseSingle = vi.fn();
 
 // Mock Supabase - use factory that returns the mock
-vi.mock("@/lib/supabase/admin", () => ({
-  supabaseAdmin: {
+vi.mock("@/lib/supabase/admin", () => {
+  const client = {
     from: (...args: unknown[]) => mockSupabaseFrom(...args),
-  },
-}));
+  };
+  // announcements.ts uses the untyped escape-hatch client (admin_announcements drift);
+  // both names point at the same mock.
+  return { supabaseAdmin: client, supabaseAdminUntyped: client };
+});
 
 describe("Announcements Actions", () => {
   beforeEach(() => {

@@ -302,4 +302,26 @@ Both projects have `admin_announcements` tables.
 
 ---
 
-*End of directory. Last updated: 2026-05-15.*
+## 10. 2026-06-05 Handoff — Schema Mirror (lathe-studio `feat/test-case-import-migration`)
+
+**Context:** The main app applied 21 migrations to the shared DEV Supabase project. The admin console was asked to mirror schema awareness without re-applying migrations (both apps share one DB).
+
+### Verified Posture (No Code Changes)
+- Admin client is already service-role only (`src/lib/supabase/admin.ts` using `SUPABASE_SERVICE_ROLE_KEY`).
+- No `withRLS`, `set_config`, anon-key, or `authenticated`-JWT usage anywhere in repo.
+- No phantom `slack_connections.access_token` / `channel_id` references; slack code selects `*` and uses `webhook_url`.
+
+### Schema Additions Mirrored (Read-Only)
+| Change | Lathe Studio Migration | Admin Console Action |
+|--------|----------------------|----------------------|
+| `support_ticket_links` table | `20260605160000_add_support_ticket_links.sql` | Added `SupportTicketLink` type, `getSupportTicketLinks()` action, and "Linked Resources" section in ticket detail |
+| `created_by uuid` on `tags` | Part of 2026-06-05 migration batch | Available in raw rows; not yet surfaced in UI (deferred) |
+| `created_by uuid` on `projects` | Part of 2026-06-05 migration batch | Available in raw rows; not yet surfaced in UI (deferred) |
+| `created_by uuid` on `slack_connections` | Part of 2026-06-05 migration batch | Available in raw rows; not yet surfaced in UI (deferred) |
+
+### Architecture Reminder
+- **DO NOT** copy the 21 lathe-studio migrations into `supabase/migrations/`. The shared DB already has them.
+- **DO NOT** apply lathe-studio migrations from the admin repo. Admin-only migrations (`admin_audit_logs`, `feature_flags`, etc.) continue to live here and apply cleanly after lathe-studio's.
+- The Data API is now service-role-only; anon/authenticated keys return nothing. Admin must always use `SUPABASE_SERVICE_ROLE_KEY` (already the case).
+
+*End of directory. Last updated: 2026-06-05.*

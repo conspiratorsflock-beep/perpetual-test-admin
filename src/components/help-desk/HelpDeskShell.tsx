@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,18 +30,7 @@ export function HelpDeskShell() {
     refreshRef.current = refresh;
   }, [refresh]);
 
-  // Auto-refresh every 30 seconds when on tickets tab
-  useEffect(() => {
-    if (activeTab !== "tickets") {
-      return;
-    }
-    
-    const interval = setInterval(() => {
-      refreshRef.current();
-    }, 30000); // 30 seconds
-
-    return () => clearInterval(interval);
-  }, [activeTab]);
+  useVisiblePolling(() => refreshRef.current(), 30000, activeTab === "tickets");
 
   const handleTicketSelect = (ticket: SupportTicket) => {
     setSelectedTicket(ticket);

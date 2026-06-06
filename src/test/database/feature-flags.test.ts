@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
 
 /**
  * Database integration tests for feature flags
@@ -33,8 +33,8 @@ describe.skip("Database: Feature Flags (Integration)", () => {
 
     expect(error).toBeNull();
     expect(data).not.toBeNull();
-    expect(data.key).toBe(testFlagKey);
-    expect(data.enabled_globally).toBe(false);
+    expect(data!.key).toBe(testFlagKey);
+    expect(data!.enabled_globally).toBe(false);
   });
 
   it("should enforce unique key constraint", async () => {
@@ -60,8 +60,8 @@ describe.skip("Database: Feature Flags (Integration)", () => {
       .single();
 
     expect(error).toBeNull();
-    expect(data.enabled_globally).toBe(true);
-    expect(data.name).toBe("Updated Name");
+    expect(data!.enabled_globally).toBe(true);
+    expect(data!.name).toBe("Updated Name");
   });
 
   it("should add org to enabled list", async () => {
@@ -75,8 +75,8 @@ describe.skip("Database: Feature Flags (Integration)", () => {
       .single();
 
     expect(error).toBeNull();
-    expect(data.enabled_for_orgs).toContain("org_1");
-    expect(data.enabled_for_orgs).toContain("org_2");
+    expect(data!.enabled_for_orgs).toContain("org_1");
+    expect(data!.enabled_for_orgs).toContain("org_2");
   });
 
   it("should check feature enabled via RPC", async () => {
@@ -86,7 +86,7 @@ describe.skip("Database: Feature Flags (Integration)", () => {
       .update({ enabled_globally: true })
       .eq("key", testFlagKey);
 
-    const { data, error } = await supabaseAdmin.rpc("is_feature_enabled", {
+    const { data, error } = await supabaseAdminUntyped.rpc("is_feature_enabled", {
       flag_key: testFlagKey,
       user_id: null,
       org_id: null,
@@ -104,7 +104,7 @@ describe.skip("Database: Feature Flags (Integration)", () => {
       enabled_globally: false,
     });
 
-    const { data, error } = await supabaseAdmin.rpc("is_feature_enabled", {
+    const { data, error } = await supabaseAdminUntyped.rpc("is_feature_enabled", {
       flag_key: uniqueKey,
       user_id: "user_123",
       org_id: "org_123",
@@ -128,7 +128,7 @@ describe.skip("Database: Feature Flags (Integration)", () => {
       })
       .eq("key", testFlagKey);
 
-    const { data, error } = await supabaseAdmin.rpc("is_feature_enabled", {
+    const { data, error } = await supabaseAdminUntyped.rpc("is_feature_enabled", {
       flag_key: testFlagKey,
       user_id: userId,
       org_id: null,

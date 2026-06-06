@@ -44,8 +44,8 @@ describe.skip("Database: Audit Logs (Integration)", () => {
 
     expect(error).toBeNull();
     expect(data).not.toBeNull();
-    expect(data.action).toBe("user.update");
-    expect(data.target_type).toBe("user");
+    expect(data!.action).toBe("user.update");
+    expect(data!.target_type).toBe("user");
   });
 
   it("should query audit logs by target", async () => {

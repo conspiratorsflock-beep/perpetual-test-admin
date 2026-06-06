@@ -141,7 +141,7 @@ export async function getImpersonationHistory(limit = 50): Promise<
     id: row.id,
     adminEmail: row.admin_email,
     targetEmail: row.target_user_email,
-    createdAt: row.created_at,
+    createdAt: row.created_at ?? "",
     expiresAt: row.expires_at,
     usedAt: row.used_at,
   }));

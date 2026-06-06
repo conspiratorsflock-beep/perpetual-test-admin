@@ -211,7 +211,7 @@ export async function getHealthCheckHistory(limit = 50): Promise<SystemHealthChe
     status: row.status as ServiceStatus,
     latencyMs: row.latency_ms,
     errorMessage: row.error_message,
-    checkedAt: row.checked_at,
+    checkedAt: row.checked_at ?? "",
   }));
 }
 
@@ -219,46 +219,32 @@ export async function getHealthCheckHistory(limit = 50): Promise<SystemHealthChe
  * Get latest health status for all services.
  */
 export async function getLatestHealthStatus(): Promise<SystemHealthCheck[]> {
-  const { data, error } = await supabaseAdmin.rpc("get_latest_health_status");
+  // NOTE: the `get_latest_health_status` Postgres function isn't deployed to the
+  // shared DB, so fetch ordered rows and keep the most recent per service in code.
+  const { data, error } = await supabaseAdmin
+    .from("system_health_checks")
+    .select("*")
+    .order("service_name", { ascending: true })
+    .order("checked_at", { ascending: false });
 
-  if (error) {
-    // Fallback: use a subquery to get the latest row per service.
-    // Fetching only 100 rows and deduplicating in-memory is unreliable once
-    // there are many records, so we do it properly at the DB level instead.
-    const { data: fallbackData, error: fallbackError } = await supabaseAdmin
-      .from("system_health_checks")
-      .select("*")
-      .order("service_name", { ascending: true })
-      .order("checked_at", { ascending: false });
-
-    if (fallbackError || !fallbackData) {
-      return [];
-    }
-
-    // Deduplicate keeping the first (most recent) row per service
-    const seen = new Set<string>();
-    const latest = fallbackData.filter((row) => {
-      if (seen.has(row.service_name)) return false;
-      seen.add(row.service_name);
-      return true;
-    });
-
-    return latest.map((row) => ({
-      id: row.id as string,
-      serviceName: row.service_name as string,
-      status: row.status as ServiceStatus,
-      latencyMs: row.latency_ms as number | null,
-      errorMessage: row.error_message as string | null,
-      checkedAt: row.checked_at as string,
-    }));
+  if (error || !data) {
+    return [];
   }
 
-  return (data || []).map((row: Record<string, unknown>) => ({
-    id: row.id as string,
-    serviceName: row.service_name as string,
+  // Deduplicate keeping the first (most recent) row per service
+  const seen = new Set<string>();
+  const latest = data.filter((row) => {
+    if (seen.has(row.service_name)) return false;
+    seen.add(row.service_name);
+    return true;
+  });
+
+  return latest.map((row) => ({
+    id: row.id,
+    serviceName: row.service_name,
     status: row.status as ServiceStatus,
-    latencyMs: row.latency_ms as number | null,
-    errorMessage: row.error_message as string | null,
-    checkedAt: row.checked_at as string,
+    latencyMs: row.latency_ms,
+    errorMessage: row.error_message,
+    checkedAt: row.checked_at ?? "",
   }));
 }

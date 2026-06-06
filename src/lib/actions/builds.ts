@@ -3,7 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
-import type { Build, BuildStatus } from "@/types/admin";
+import type { Build, BuildStatus, BuildSource } from "@/types/admin";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
@@ -49,7 +49,7 @@ export async function searchBuilds({
     .range(offset, offset + limit - 1);
 
   if (status) query = query.eq("status", status);
-  if (source) query = query.eq("source", source);
+  if (source) query = query.eq("source", source as "manual" | "bitbucket_webhook" | "api" | "cli");
   if (projectId) query = query.eq("project_id", projectId);
 
   const { data, error, count } = await query;
@@ -67,19 +67,19 @@ export async function searchBuilds({
     status: row.status as BuildStatus,
     startDate: row.start_date,
     endDate: row.end_date,
-    source: row.source,
-    sourceMetadata: row.source_metadata,
+    source: (row.source ?? "manual") as BuildSource,
+    sourceMetadata: row.source_metadata as Record<string, unknown> | null,
     apiKeyId: row.api_key_id,
     cicdProvider: row.cicd_provider,
     cicdExternalId: row.cicd_external_id,
     cicdRunUrl: row.cicd_run_url,
-    cicdArtifacts: row.cicd_artifacts,
+    cicdArtifacts: row.cicd_artifacts as Record<string, unknown> | null,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
     deletedAt: row.deleted_at,
     jiraVersionId: row.jira_version_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: row.created_at ?? "",
+    updatedAt: row.updated_at ?? "",
   }));
 
   return { builds, total: count || 0 };
@@ -114,19 +114,19 @@ export async function getBuildById(id: string): Promise<Build | null> {
     status: data.status as BuildStatus,
     startDate: data.start_date,
     endDate: data.end_date,
-    source: data.source,
-    sourceMetadata: data.source_metadata,
+    source: (data.source ?? "manual") as BuildSource,
+    sourceMetadata: data.source_metadata as Record<string, unknown> | null,
     apiKeyId: data.api_key_id,
     cicdProvider: data.cicd_provider,
     cicdExternalId: data.cicd_external_id,
     cicdRunUrl: data.cicd_run_url,
-    cicdArtifacts: data.cicd_artifacts,
+    cicdArtifacts: data.cicd_artifacts as Record<string, unknown> | null,
     createdBy: data.created_by,
     updatedBy: data.updated_by,
     deletedAt: data.deleted_at,
     jiraVersionId: data.jira_version_id,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    createdAt: data.created_at ?? "",
+    updatedAt: data.updated_at ?? "",
   };
 }
 

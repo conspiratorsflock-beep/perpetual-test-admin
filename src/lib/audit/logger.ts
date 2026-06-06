@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/dev-auth/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { AuditLog, AuditTargetType } from "@/types/admin";
+import type { Json } from "@/types/database.types";
 
 interface LogAdminActionParams {
   action: string;
@@ -48,7 +49,7 @@ export async function logAdminAction({
       target_type: targetType,
       target_id: targetId,
       target_name: targetName,
-      metadata,
+      metadata: (metadata ?? {}) as Json,
       ip_address: ipAddress,
       user_agent: userAgent,
     });
@@ -119,8 +120,8 @@ export async function getAuditLogs({
     targetType: row.target_type as AuditTargetType,
     targetId: row.target_id,
     targetName: row.target_name,
-    metadata: row.metadata || {},
-    createdAt: row.created_at,
+    metadata: (row.metadata as Record<string, unknown>) || {},
+    createdAt: row.created_at ?? "",
   }));
 
   return { logs, count: count || 0 };

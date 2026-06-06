@@ -420,6 +420,17 @@ export interface SupportTicketEvent {
   createdAt: string;
 }
 
+export interface SupportTicketLink {
+  id: string;
+  ticketId: string;
+  resourceType: string;
+  resourceId: string;
+  resourceName: string | null;
+  resourceUrl: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface CannedResponse {
   id: string;
   title: string;

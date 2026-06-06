@@ -56,9 +56,9 @@ export async function searchLatheAuditLogs({
     action: row.action,
     resourceType: row.resource_type,
     resourceId: row.resource_id,
-    oldValue: row.old_value,
-    newValue: row.new_value,
-    metadata: row.metadata,
+    oldValue: row.old_value as Record<string, unknown> | null,
+    newValue: row.new_value as Record<string, unknown> | null,
+    metadata: row.metadata as Record<string, unknown> | null,
     createdAt: row.created_at,
   }));
 
@@ -87,9 +87,9 @@ export async function getLatheAuditLogById(id: string): Promise<LatheAuditLog | 
     action: data.action,
     resourceType: data.resource_type,
     resourceId: data.resource_id,
-    oldValue: data.old_value,
-    newValue: data.new_value,
-    metadata: data.metadata,
+    oldValue: data.old_value as Record<string, unknown> | null,
+    newValue: data.new_value as Record<string, unknown> | null,
+    metadata: data.metadata as Record<string, unknown> | null,
     createdAt: data.created_at,
   };
 }

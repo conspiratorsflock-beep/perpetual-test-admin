@@ -1,9 +1,9 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
-import type { SupportTicket, SupportTicketComment, SupportTicketEvent, TicketCategory, TicketStatus, TicketPriority } from "@/types/admin";
+import type { SupportTicket, SupportTicketComment, SupportTicketEvent, SupportTicketLink, TicketCategory, TicketStatus, TicketPriority } from "@/types/admin";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
@@ -26,7 +26,10 @@ export async function getSupportTickets(params: {
   await requireAdmin();
   let query = supabaseAdmin
     .from("support_tickets")
-    .select("*", { count: "exact" })
+    .select(
+      "id, ticket_number, user_id, user_email, user_name, org_id, subject, description, category, status, priority, assigned_to, sla_deadline, resolved_at, closed_at, is_active, metadata, source, browser_info, os_info, app_version, created_at, updated_at",
+      { count: "exact" }
+    )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -129,7 +132,32 @@ export async function getSupportTicketEvents(ticketId: string): Promise<SupportT
     throw new Error(`Failed to fetch events: ${error.message}`);
   }
 
-  return data || [];
+  return (data || []).map((row) => ({
+    id: row.id,
+    ticketId: row.ticket_id,
+    eventType: row.event_type,
+    oldValue: row.old_value,
+    newValue: row.new_value,
+    performedBy: row.performed_by,
+    performedByName: row.performed_by_name,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    createdAt: row.created_at ?? "",
+  }));
+}
+
+export async function getSupportTicketLinks(ticketId: string): Promise<SupportTicketLink[]> {
+  await requireAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("support_ticket_links")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch links: ${error.message}`);
+  }
+
+  return (data || []).map(mapLinkFromDB);
 }
 
 // ============================================
@@ -221,7 +249,9 @@ export async function updateTicketPriority(
     .from("support_tickets")
     .update({
       priority,
-      sla_deadline: ticket ? await calculateSLADeadline(priority, ticket.created_at) : null,
+      sla_deadline: ticket?.created_at
+        ? await calculateSLADeadline(priority, ticket.created_at)
+        : null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
@@ -346,7 +376,10 @@ export async function getCannedResponses(category?: string): Promise<Array<{
 
 export async function incrementCannedResponseUse(id: string): Promise<void> {
   await requireAdmin();
-  await supabaseAdmin.rpc("increment", { table_name: "support_canned_responses", id });
+  // DRIFT: the generic `increment` Postgres function (and the `use_count` column it
+  // targets) aren't deployed to the shared DB. Kept via the untyped client until the
+  // canned-response usage tracking schema is reconciled. See TODO.md.
+  await supabaseAdminUntyped.rpc("increment", { table_name: "support_canned_responses", id });
 }
 
 // ============================================
@@ -379,8 +412,8 @@ export async function getSupportTeam(): Promise<Array<{
     email: member.email,
     name: member.name,
     role: member.role,
-    isAvailable: member.is_available,
-    maxOpenTickets: member.max_open_tickets,
+    isAvailable: member.is_available ?? false,
+    maxOpenTickets: member.max_open_tickets ?? 0,
     skills: member.skills || [],
   }));
 }
@@ -485,7 +518,7 @@ export async function getSupportAnalytics(params: {
 
     const firstResponseByTicket: Record<string, string> = {};
     for (const c of comments || []) {
-      if (agentIds.has(c.author_id) && !firstResponseByTicket[c.ticket_id]) {
+      if (agentIds.has(c.author_id) && !firstResponseByTicket[c.ticket_id] && c.created_at) {
         firstResponseByTicket[c.ticket_id] = c.created_at;
       }
     }
@@ -532,6 +565,7 @@ export async function getTicketVolumeData(params: {
   const dateMap: Record<string, { created: number; resolved: number }> = {};
 
   for (const t of tickets || []) {
+    if (!t.created_at) continue;
     const createdDate = new Date(t.created_at).toISOString().split("T")[0];
     dateMap[createdDate] = dateMap[createdDate] || { created: 0, resolved: 0 };
     dateMap[createdDate].created++;
@@ -663,6 +697,19 @@ function mapCommentFromDB(row: Record<string, unknown>): SupportTicketComment {
     attachments: row.attachments as Array<{ filename: string; url: string; mimeType: string; size: number }>,
     createdAt: row.created_at as string,
     editedAt: row.edited_at as string | null,
+  };
+}
+
+function mapLinkFromDB(row: Record<string, unknown>): SupportTicketLink {
+  return {
+    id: row.id as string,
+    ticketId: row.ticket_id as string,
+    resourceType: row.resource_type as string,
+    resourceId: row.resource_id as string,
+    resourceName: row.resource_name as string | null,
+    resourceUrl: row.resource_url as string | null,
+    createdBy: row.created_by as string,
+    createdAt: row.created_at as string,
   };
 }
 

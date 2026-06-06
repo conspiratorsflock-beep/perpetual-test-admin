@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
   SupportTicketWithAssignee,
   SupportTicketComment,
+  SupportTeamMember,
+  TicketCategory,
   TicketStatus,
   TicketPriority,
 } from "@/types/admin";
@@ -56,7 +58,7 @@ export async function getMyTickets(
 
     const sla = calculateSLAStatus(
       ticket.priority,
-      ticket.created_at,
+      ticket.created_at ?? "",
       ticket.sla_deadline
     );
 
@@ -64,15 +66,16 @@ export async function getMyTickets(
       id: ticket.id,
       ticketNumber: ticket.ticket_number,
       userId: ticket.user_id,
-      userEmail: ticket.user_email,
+      userEmail: ticket.user_email ?? "",
       userName: ticket.user_name,
       orgId: ticket.org_id,
       subject: ticket.subject,
       description: ticket.description,
-      category: ticket.category,
-      status: ticket.status,
-      priority: ticket.priority,
-      assignedTo: ticket.assigned_to,
+      category: ticket.category as TicketCategory,
+      status: ticket.status as TicketStatus,
+      priority: ticket.priority as TicketPriority,
+      // NOTE: only the assignee id is available here; not enriched into a SupportTeamMember.
+      assignedTo: (ticket.assigned_to ?? undefined) as unknown as SupportTeamMember | undefined,
       slaDeadline: ticket.sla_deadline,
       resolvedAt: ticket.resolved_at,
       source: ticket.source,
@@ -81,21 +84,22 @@ export async function getMyTickets(
       appVersion: ticket.app_version,
       closedAt: ticket.closed_at,
       isActive: ticket.is_active ?? true,
-      metadata: ticket.metadata || {},
-      createdAt: ticket.created_at,
-      updatedAt: ticket.updated_at,
+      metadata: (ticket.metadata as Record<string, unknown>) || {},
+      createdAt: ticket.created_at ?? "",
+      updatedAt: ticket.updated_at ?? "",
       recentComments: (comments || []).map((c) => ({
         id: c.id,
         ticketId: c.ticket_id,
         authorId: c.author_id,
-        authorEmail: c.author_email,
+        authorEmail: c.author_email ?? "",
         authorName: c.author_name,
-        isAgent: c.is_agent,
-        isInternal: c.is_internal,
+        // NOTE: support_ticket_comments has no is_agent column in the shared DB.
+        isAgent: (c as { is_agent?: boolean }).is_agent ?? false,
+        isInternal: c.is_internal ?? false,
         isEdited: c.is_edited ?? false,
         content: c.content,
-        attachments: c.attachments || [],
-        createdAt: c.created_at,
+        attachments: (c.attachments as SupportTicketComment["attachments"]) || [],
+        createdAt: c.created_at ?? "",
         editedAt: c.edited_at,
       })),
       slaStatus: sla.status,
@@ -174,7 +178,7 @@ export async function getAgentWorkload(agentId: string): Promise<{
   for (const ticket of tickets) {
     const sla = calculateSLAStatus(
       ticket.priority,
-      ticket.created_at,
+      ticket.created_at ?? "",
       ticket.sla_deadline
     );
     if (sla.status === "at_risk") atRisk++;

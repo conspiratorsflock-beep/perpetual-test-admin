@@ -1,6 +1,11 @@
 "use server";
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+// DRIFT: this file targets an `api_usage_daily` shape (total_calls, unique_orgs,
+// endpoint_breakdown, status_breakdown) and an `increment_api_calls` RPC that don't
+// exist in the shared DEV DB — the admin migrations that define them were never
+// applied, and a conflicting `api_usage_daily` definition (count/endpoint/method)
+// exists. Uses the untyped client until the schema is reconciled. See TODO.md.
+import { supabaseAdminUntyped } from "@/lib/supabase/admin";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 
 async function requireAdmin() {
@@ -24,7 +29,7 @@ export async function getApiCallsToday(): Promise<number> {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdminUntyped
       .from("api_usage_daily")
       .select("total_calls")
       .eq("date", today)
@@ -55,7 +60,7 @@ export async function getApiUsageHistory(days = 7): Promise<ApiUsageRecord[]> {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days + 1);
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdminUntyped
       .from("api_usage_daily")
       .select("date, total_calls, unique_users, unique_orgs, endpoint_breakdown, status_breakdown")
       .gte("date", startDate.toISOString().split("T")[0])
@@ -81,7 +86,7 @@ export async function getApiCallsThisMonth(): Promise<number> {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdminUntyped
       .from("api_usage_daily")
       .select("total_calls")
       .gte("date", startOfMonth.toISOString().split("T")[0])
@@ -110,7 +115,7 @@ export async function getApiCallsComparison(): Promise<{
     const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdminUntyped
       .from("api_usage_daily")
       .select("date, total_calls")
       .in("date", [today, yesterday]);
@@ -153,7 +158,7 @@ export async function recordApiCall({
   await requireAdmin();
   try {
     // Use the database function to increment
-    await supabaseAdmin.rpc("increment_api_calls", {
+    await supabaseAdminUntyped.rpc("increment_api_calls", {
       p_endpoint: endpoint,
       p_status_code: statusCode,
       p_user_id: userId,

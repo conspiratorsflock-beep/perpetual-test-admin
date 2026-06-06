@@ -19,8 +19,10 @@ export async function getProjectMembersWithRoles(
 
   const { data, error } = await supabaseAdmin
     .from("project_members")
+    // NOTE: `project_members.role` was dropped in the RBAC migration; the member's
+    // role now lives in the linked `custom_roles` row.
     .select(
-      "clerk_user_id, email, display_name, role, custom_role_id, assigned_via_group_id, joined_at, custom_roles(name), user_groups(name)"
+      "clerk_user_id, email, display_name, custom_role_id, assigned_via_group_id, joined_at, custom_roles(name), user_groups(name)"
     )
     .eq("project_id", projectId)
     .order("joined_at", { ascending: false });
@@ -29,17 +31,20 @@ export async function getProjectMembersWithRoles(
     throw new Error(`Failed to fetch project members: ${error.message}`);
   }
 
-  return (data || []).map((m) => ({
-    id: m.clerk_user_id,
-    email: m.email,
-    name: m.display_name,
-    role: m.role,
-    customRoleId: m.custom_role_id,
-    customRoleName: (m.custom_roles as unknown as { name: string } | null)?.name ?? null,
-    assignedViaGroupId: m.assigned_via_group_id,
-    assignedViaGroupName: (m.user_groups as unknown as { name: string } | null)?.name ?? null,
-    joinedAt: m.joined_at,
-  }));
+  return (data || []).map((m) => {
+    const customRoleName = (m.custom_roles as unknown as { name: string } | null)?.name ?? null;
+    return {
+      id: m.clerk_user_id,
+      email: m.email,
+      name: m.display_name,
+      role: customRoleName ?? "member",
+      customRoleId: m.custom_role_id,
+      customRoleName,
+      assignedViaGroupId: m.assigned_via_group_id,
+      assignedViaGroupName: (m.user_groups as unknown as { name: string } | null)?.name ?? null,
+      joinedAt: m.joined_at ?? "",
+    };
+  });
 }
 
 /**

@@ -109,19 +109,21 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
       .eq("clerk_org_id", orgId)
       .single();
 
+    // Resolve DB org UUID once and reuse
+    const orgUuid = dbOrg ? await getOrgUuidFromClerkId(orgId) : null;
+
     // Get projects from lathe-studio
     const { data: projects } = await supabaseAdmin
       .from("projects")
       .select("id, name, created_at")
-      .eq("org_id", dbOrg ? await getOrgUuidFromClerkId(orgId) : null)
+      .eq("org_id", orgUuid ?? "")
       .is("deleted_at", null);
 
     // Get usage stats
-    const orgUuid = dbOrg ? await getOrgUuidFromClerkId(orgId) : null;
     const { count: apiCalls } = await supabaseAdmin
       .from("api_usage_logs")
       .select("*", { count: "exact", head: true })
-      .eq("org_id", orgUuid)
+      .eq("org_id", orgUuid ?? "")
       .gte("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
     return {
@@ -144,7 +146,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
       projects: projects?.map((p) => ({
         id: p.id,
         name: p.name,
-        createdAt: p.created_at,
+        createdAt: p.created_at ?? "",
       })) ?? [],
       subscription: dbOrg?.stripe_subscription_id
         ? {
@@ -301,23 +303,27 @@ export async function getOrgApiUsage(orgId: string): Promise<OrgApiUsage[]> {
 
   const { data, error } = await supabaseAdmin
     .from("org_api_usage")
-    .select("org_id, month, year, total_calls, total_tokens, updated_at")
+    // NOTE: org_api_usage stores a combined `year_month` ("YYYY-MM"); per-period token
+    // counts are not tracked in this table (totalTokens reported as 0).
+    .select("org_id, year_month, total_calls, updated_at")
     .eq("org_id", orgId)
-    .order("year", { ascending: false })
-    .order("month", { ascending: false });
+    .order("year_month", { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch org API usage: ${error.message}`);
   }
 
-  return (data || []).map((row) => ({
-    orgId: row.org_id,
-    month: row.month,
-    year: row.year,
-    totalCalls: row.total_calls,
-    totalTokens: row.total_tokens,
-    updatedAt: row.updated_at,
-  }));
+  return (data || []).map((row) => {
+    const [year, month] = (row.year_month ?? "0-0").split("-").map((n) => parseInt(n, 10));
+    return {
+      orgId: row.org_id,
+      month: month || 0,
+      year: year || 0,
+      totalCalls: row.total_calls,
+      totalTokens: 0,
+      updatedAt: row.updated_at ?? "",
+    };
+  });
 }
 
 /**
