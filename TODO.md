@@ -181,25 +181,24 @@ These are components the lathe-studio main app needs to implement.
 
 ## ⚠️ Schema drift surfaced by the typed Supabase client (2026-06-05)
 
-The Supabase client (`supabaseAdmin`) is now typed via `src/types/database.types.ts`
-(generated `database.generated.ts` + a hand-written augmentation for 8 admin-only tables).
-Typing surfaced real drift between the admin code's *intended* schema and the **shared DEV
-DB** (`zonsnvcwtfotqzrvozqs`). Root cause: **this repo's admin migrations were never applied
-to that DB**, so admin tables/columns/RPCs are missing or conflict with the main app's shapes.
+The Supabase client (`supabaseAdmin`) is typed via `src/types/database.types.ts`, which now
+re-exports the generated `database.generated.ts` directly (the hand-written augmentation was
+removed once the missing tables were created — see below).
 
-### Admin tables missing from the DEV DB (runtime gap — features will fail until migrations are applied)
-These 7 tables are referenced by admin code but **do not exist** in the shared DEV DB. They are
-type-augmented in `database.types.ts` so the code compiles, but queries will fail at runtime:
-`system_settings`, `feature_flags`, `system_health_checks`, `admin_audit_logs`,
-`admin_error_logs`, `impersonation_tokens`, `support_ticket_seeding_log`.
-→ Affected features: system settings, feature flags, health checks, admin audit/error logs,
-  user impersonation, ticket seeding. **Decision: documented, not fixed** —
-  apply the admin migrations to the DB (or point at a DB that has them) to make these work.
+### ✅ RESOLVED (2026-06-05): the 7 missing admin tables were created
+Migration `20260605230000_add_admin_console_tables.sql` was applied to the shared DEV DB
+(`zonsnvcwtfotqzrvozqs`) via the Supabase MCP, creating the admin-console-owned tables that earlier
+migrations defined but never applied: `admin_audit_logs`, `admin_error_logs`, `system_settings`,
+`feature_flags`, `system_health_checks`, `impersonation_tokens`, `support_ticket_seeding_log`
+(all additive `CREATE TABLE IF NOT EXISTS`; service-role-only RLS; no main-app conflict). Types were
+regenerated and the augmentation deleted.
+→ **`logAdminAction()` now persists** (verified with an insert round-trip), and the system
+  settings / feature flags / health checks / error logs / impersonation / ticket-seeding features
+  now have their backing tables. `api_usage_daily` was intentionally **not** created — that feature
+  was reconciled onto the real `api_usage_logs` / `org_api_usage` tables instead.
 
-**⚠️ Critical gap:** `admin_audit_logs` is absent, so `logAdminAction()` (a CLAUDE.md "critical rule")
-**silently fails on every admin write** (errors are caught and console-logged, but nothing is persisted).
-Admin action auditing is non-functional until that table exists. This is the highest-impact gap to
-resolve via migration.
+  Note: the original `CREATE POLICY IF NOT EXISTS` in the source migrations is invalid Postgres
+  (likely why they never applied); the new migration uses `DROP POLICY IF EXISTS` + `CREATE POLICY`.
 
 ### Surfaces isolated behind the untyped escape-hatch (`supabaseAdminUntyped`)
 Schema conflicts where the intended shape and the DB shape genuinely differ. Each call site is

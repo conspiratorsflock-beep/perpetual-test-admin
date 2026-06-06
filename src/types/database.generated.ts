@@ -1,6 +1,6 @@
 // AUTO-GENERATED from Supabase project zonsnvcwtfotqzrvozqs (DEV).
 // Regenerate: npx supabase gen types typescript --linked > src/types/database.generated.ts
-// Do NOT hand-edit. Admin-only tables not in the DB are added in database.types.ts.
+// Do NOT hand-edit.
 
 export type Json =
   | string
@@ -60,6 +60,84 @@ export type Database = {
           style?: string
           tier?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      admin_audit_logs: {
+        Row: {
+          action: string
+          admin_email: string
+          admin_id: string
+          created_at: string | null
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          target_id: string | null
+          target_name: string | null
+          target_type: string
+          user_agent: string | null
+        }
+        Insert: {
+          action: string
+          admin_email: string
+          admin_id: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_id?: string | null
+          target_name?: string | null
+          target_type: string
+          user_agent?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string
+          admin_id?: string
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          target_id?: string | null
+          target_name?: string | null
+          target_type?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_error_logs: {
+        Row: {
+          created_at: string | null
+          error_type: string
+          id: string
+          message: string
+          metadata: Json | null
+          org_id: string | null
+          path: string | null
+          stack_trace: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_type: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          org_id?: string | null
+          path?: string | null
+          stack_trace?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_type?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          org_id?: string | null
+          path?: string | null
+          stack_trace?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1285,6 +1363,42 @@ export type Database = {
           },
         ]
       }
+      feature_flags: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          enabled_for_orgs: string[] | null
+          enabled_for_users: string[] | null
+          enabled_globally: boolean | null
+          id: string
+          key: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          enabled_for_orgs?: string[] | null
+          enabled_for_users?: string[] | null
+          enabled_globally?: boolean | null
+          id?: string
+          key: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          enabled_for_orgs?: string[] | null
+          enabled_for_users?: string[] | null
+          enabled_globally?: boolean | null
+          id?: string
+          key?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gherkin_examples: {
         Row: {
           created_at: string | null
@@ -1380,6 +1494,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      impersonation_tokens: {
+        Row: {
+          admin_email: string
+          admin_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          target_user_email: string
+          target_user_id: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          admin_email: string
+          admin_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          target_user_email: string
+          target_user_id: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          admin_email?: string
+          admin_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          target_user_email?: string
+          target_user_id?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: []
       }
       integration_event_log: {
         Row: {
@@ -3175,6 +3325,39 @@ export type Database = {
           },
         ]
       }
+      support_ticket_seeding_log: {
+        Row: {
+          categories: string[] | null
+          created_at: string | null
+          id: string
+          max_per_agent: number | null
+          respect_schedule: boolean | null
+          seeded_by: string | null
+          strategy: string
+          tickets_seeded: number
+        }
+        Insert: {
+          categories?: string[] | null
+          created_at?: string | null
+          id?: string
+          max_per_agent?: number | null
+          respect_schedule?: boolean | null
+          seeded_by?: string | null
+          strategy: string
+          tickets_seeded: number
+        }
+        Update: {
+          categories?: string[] | null
+          created_at?: string | null
+          id?: string
+          max_per_agent?: number | null
+          respect_schedule?: boolean | null
+          seeded_by?: string | null
+          strategy?: string
+          tickets_seeded?: number
+        }
+        Relationships: []
+      }
       support_tickets: {
         Row: {
           app_version: string | null
@@ -3475,6 +3658,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_health_checks: {
+        Row: {
+          checked_at: string | null
+          error_message: string | null
+          id: string
+          latency_ms: number | null
+          service_name: string
+          status: string
+        }
+        Insert: {
+          checked_at?: string | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          service_name: string
+          status: string
+        }
+        Update: {
+          checked_at?: string | null
+          error_message?: string | null
+          id?: string
+          latency_ms?: number | null
+          service_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
       }
       tags: {
         Row: {
