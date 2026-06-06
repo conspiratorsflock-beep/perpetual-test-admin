@@ -4,7 +4,7 @@ import {
   getActiveAnnouncements,
   createAnnouncement,
   updateAnnouncement,
-  toggleAnnouncementActive,
+  expireAnnouncementNow,
   deleteAnnouncement,
 } from "../announcements";
 
@@ -81,10 +81,10 @@ describe("Announcements Actions", () => {
       const result = await getAnnouncements();
 
       expect(result).toHaveLength(1);
-      expect(result[0].title).toBe("Test Announcement");
-      expect(result[0].type).toBe("info");
-      expect(result[0].targetTiers).toEqual([]);
-      expect(result[0].targetOrgs).toEqual([]);
+      expect(result[0].message).toBe("Test Announcement");
+      expect(result[0].style).toBe("info");
+      expect(result[0].tier).toBe("all");
+      expect(result[0].orgId).toBeNull();
     });
 
     it("should throw error when database fails", async () => {
@@ -122,14 +122,14 @@ describe("Announcements Actions", () => {
 
       const result = await getAnnouncements();
 
-      expect(result[0].targetTiers).toEqual(["pro", "enterprise"]);
-      expect(result[0].targetOrgs).toEqual(["org_1"]);
+      expect(result[0].tier).toBe("pro");
+      expect(result[0].orgId).toBe("org_1");
     });
   });
 
   describe("getActiveAnnouncements", () => {
     it("should return only active, non-expired announcements", async () => {
-      mockSupabaseEq.mockReturnValue({
+      mockSupabaseSelect.mockReturnValue({
         lte: vi.fn().mockReturnValue({
           or: vi.fn().mockReturnValue({
             order: mockSupabaseOrder,
@@ -141,16 +141,15 @@ describe("Announcements Actions", () => {
         data: [
           {
             id: "ann_1",
-            title: "Active",
-            content: "Content",
-            type: "warning",
-            target_tiers: [],
-            target_orgs: [],
+            message: "Active",
+            style: "warning",
+            tier: "all",
+            org_id: null,
+            link_url: null,
+            link_text: null,
             starts_at: "2024-01-01T00:00:00Z",
             ends_at: null,
-            is_active: true,
             created_by: "user_123",
-            created_by_email: "admin@example.com",
             created_at: "2024-01-01T00:00:00Z",
             updated_at: "2024-01-01T00:00:00Z",
           },
@@ -161,11 +160,11 @@ describe("Announcements Actions", () => {
       const result = await getActiveAnnouncements();
 
       expect(result).toHaveLength(1);
-      expect(result[0].isActive).toBe(true);
+      expect(result[0].message).toBe("Active");
     });
 
     it("should filter out ended announcements", async () => {
-      mockSupabaseEq.mockReturnValue({
+      mockSupabaseSelect.mockReturnValue({
         lte: vi.fn().mockReturnValue({
           or: vi.fn().mockReturnValue({
             order: mockSupabaseOrder,
@@ -177,16 +176,15 @@ describe("Announcements Actions", () => {
         data: [
           {
             id: "ann_1",
-            title: "Ended",
-            content: "Content",
-            type: "info",
-            target_tiers: [],
-            target_orgs: [],
+            message: "Ended",
+            style: "info",
+            tier: "all",
+            org_id: null,
+            link_url: null,
+            link_text: null,
             starts_at: "2024-01-01T00:00:00Z",
             ends_at: "2024-01-02T00:00:00Z", // Already ended
-            is_active: true,
             created_by: "user_123",
-            created_by_email: "admin@example.com",
             created_at: "2024-01-01T00:00:00Z",
             updated_at: "2024-01-01T00:00:00Z",
           },
@@ -227,21 +225,19 @@ describe("Announcements Actions", () => {
 
       const result = await createAnnouncement(
         {
-          title: "New Announcement",
-          content: "New content",
-          type: "info",
-          targetTiers: ["pro"],
-          targetOrgs: ["org_1"],
+          message: "New Announcement",
+          style: "info",
+          tier: "pro",
+          orgId: "org_1",
           startsAt: "2024-03-15T00:00:00Z",
           endsAt: "2024-03-20T00:00:00Z",
         },
-        "user_123",
-        "admin@example.com"
+        "user_123"
       );
 
       expect(result.id).toBe("ann_new");
-      expect(result.title).toBe("New Announcement");
-      expect(result.type).toBe("info");
+      expect(result.message).toBe("New Announcement");
+      expect(result.style).toBe("info");
     });
 
     it("should use current time as default start date", async () => {
@@ -256,19 +252,16 @@ describe("Announcements Actions", () => {
 
       await createAnnouncement(
         {
-          title: "Test",
-          content: "Content",
-          type: "info",
+          message: "Test",
+          style: "info",
         },
-        "user_123",
-        "admin@example.com"
+        "user_123"
       );
 
       expect(mockSupabaseInsert).toHaveBeenCalledWith(
         expect.objectContaining({
           starts_at: expect.any(String),
           created_by: "user_123",
-          created_by_email: "admin@example.com",
         })
       );
     });
@@ -298,15 +291,13 @@ describe("Announcements Actions", () => {
 
       const result = await createAnnouncement(
         {
-          title: "Critical Alert",
-          content: "Important!",
-          type: "critical",
+          message: "Critical Alert",
+          style: "critical",
         },
-        "user_123",
-        "admin@example.com"
+        "user_123"
       );
 
-      expect(result.type).toBe("critical");
+      expect(result.style).toBe("critical");
     });
 
     it("should create warning announcement", async () => {
@@ -334,15 +325,13 @@ describe("Announcements Actions", () => {
 
       const result = await createAnnouncement(
         {
-          title: "Warning",
-          content: "Be careful",
-          type: "warning",
+          message: "Warning",
+          style: "warning",
         },
-        "user_123",
-        "admin@example.com"
+        "user_123"
       );
 
-      expect(result.type).toBe("warning");
+      expect(result.style).toBe("warning");
     });
 
     it("should create maintenance announcement", async () => {
@@ -370,15 +359,13 @@ describe("Announcements Actions", () => {
 
       const result = await createAnnouncement(
         {
-          title: "Maintenance",
-          content: "System down",
-          type: "maintenance",
+          message: "Maintenance",
+          style: "maintenance",
         },
-        "user_123",
-        "admin@example.com"
+        "user_123"
       );
 
-      expect(result.type).toBe("maintenance");
+      expect(result.style).toBe("maintenance");
     });
   });
 
@@ -389,14 +376,12 @@ describe("Announcements Actions", () => {
       });
 
       await updateAnnouncement("ann_123", {
-        title: "Updated Title",
-        isActive: false,
+        message: "Updated message",
       });
 
       expect(mockSupabaseUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Updated Title",
-          is_active: false,
+          message: "Updated message",
         })
       );
     });
@@ -407,33 +392,21 @@ describe("Announcements Actions", () => {
       });
 
       await expect(
-        updateAnnouncement("ann_123", { title: "Test" })
+        updateAnnouncement("ann_123", { message: "Test" })
       ).rejects.toThrow("Failed to update announcement");
     });
   });
 
-  describe("toggleAnnouncementActive", () => {
-    it("should toggle active status", async () => {
+  describe("expireAnnouncementNow", () => {
+    it("should set ends_at to now", async () => {
       mockSupabaseUpdate.mockReturnValue({
         eq: vi.fn().mockResolvedValue({ error: null }),
       });
 
-      await toggleAnnouncementActive("ann_123", false);
+      await expireAnnouncementNow("ann_123");
 
       expect(mockSupabaseUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ is_active: false })
-      );
-    });
-
-    it("should activate announcement", async () => {
-      mockSupabaseUpdate.mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      });
-
-      await toggleAnnouncementActive("ann_123", true);
-
-      expect(mockSupabaseUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ is_active: true })
+        expect.objectContaining({ ends_at: expect.any(String) })
       );
     });
   });
@@ -443,7 +416,7 @@ describe("Announcements Actions", () => {
       mockSupabaseSelect.mockReturnValue({
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
-            data: { title: "To Delete" },
+            data: { message: "To Delete" },
             error: null,
           }),
         }),

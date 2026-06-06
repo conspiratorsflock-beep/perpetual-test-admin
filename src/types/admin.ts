@@ -242,18 +242,15 @@ export type AnnouncementType = "info" | "warning" | "critical" | "maintenance";
 
 export interface AdminAnnouncement {
   id: string;
-  title: string;
-  content: string;
-  type: AnnouncementType;
-  targetTiers: string[];
-  targetOrgs: string[];
+  message: string;
+  style: AnnouncementType;
+  tier: string;
+  orgId: string | null;
   linkUrl: string | null;
   linkText: string | null;
   startsAt: string;
   endsAt: string | null;
-  isActive: boolean;
   createdBy: string;
-  createdByEmail: string;
   createdAt: string;
   updatedAt: string;
 }

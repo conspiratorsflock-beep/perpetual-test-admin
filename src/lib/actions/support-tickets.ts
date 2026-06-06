@@ -1,6 +1,6 @@
 "use server";
 
-import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { SupportTicket, SupportTicketComment, SupportTicketEvent, SupportTicketLink, TicketCategory, TicketStatus, TicketPriority } from "@/types/admin";
@@ -359,7 +359,7 @@ export async function getCannedResponses(category?: string): Promise<Array<{
     .from("support_canned_responses")
     .select("*")
     .eq("is_active", true)
-    .order("use_count", { ascending: false });
+    .order("created_at", { ascending: false });
 
   if (category) {
     query = query.eq("category", category);
@@ -374,12 +374,9 @@ export async function getCannedResponses(category?: string): Promise<Array<{
   return data || [];
 }
 
-export async function incrementCannedResponseUse(id: string): Promise<void> {
-  await requireAdmin();
-  // DRIFT: the generic `increment` Postgres function (and the `use_count` column it
-  // targets) aren't deployed to the shared DB. Kept via the untyped client until the
-  // canned-response usage tracking schema is reconciled. See TODO.md.
-  await supabaseAdminUntyped.rpc("increment", { table_name: "support_canned_responses", id });
+export async function incrementCannedResponseUse(_id: string): Promise<void> {
+  // No-op: `use_count` column does not exist on `support_canned_responses`.
+  // Kept as a no-op to avoid breaking callers.
 }
 
 // ============================================

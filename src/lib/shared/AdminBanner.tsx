@@ -97,9 +97,9 @@ export function AdminBanner({
     onDismiss?.(displayAnnouncement.id);
   }, [displayAnnouncement.id, onDismiss]);
 
-  const TypeIcon = typeIcons[displayAnnouncement.type];
-  const styles = bannerStyles[displayAnnouncement.type];
-  const isDismissible = canDismissAnnouncement(displayAnnouncement.type);
+  const TypeIcon = typeIcons[displayAnnouncement.style];
+  const styles = bannerStyles[displayAnnouncement.style];
+  const isDismissible = canDismissAnnouncement(displayAnnouncement.style);
 
   return (
     <div
@@ -119,17 +119,19 @@ export function AdminBanner({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {displayAnnouncement.title && (
-            <h3 className={`text-sm ${styles.title}`}>
-              {displayAnnouncement.title}
-            </h3>
+          <div className={`text-sm ${styles.content}`}>
+            {displayAnnouncement.message}
+          </div>
+          {displayAnnouncement.linkUrl && (
+            <a
+              href={displayAnnouncement.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm underline mt-1 inline-block"
+            >
+              {displayAnnouncement.linkText || "Learn more"}
+            </a>
           )}
-          <div
-            className={`text-sm mt-1 ${styles.content}`}
-            dangerouslySetInnerHTML={{
-              __html: displayAnnouncement.content,
-            }}
-          />
         </div>
 
         {/* Dismiss button - only for non-critical announcements */}

@@ -2,7 +2,7 @@
 
 /**
  * Get Active Announcements - For the main Lathe Studio app
- * 
+ *
  * This server action fetches active announcements from the admin console database.
  * Copy this file to your main app and update the import path for supabaseAdmin.
  */
@@ -22,17 +22,33 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
+function mapRow(row: Record<string, unknown>): AdminAnnouncement {
+  return {
+    id: row.id as string,
+    message: row.message as string,
+    style: row.style as AnnouncementType,
+    tier: (row.tier as string) || "all",
+    orgId: (row.org_id as string) || null,
+    linkUrl: (row.link_url as string) || null,
+    linkText: (row.link_text as string) || null,
+    startsAt: row.starts_at as string,
+    endsAt: (row.ends_at as string) || null,
+    createdBy: (row.created_by as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 /**
  * Get all active announcements for display in the main app.
- * 
+ *
  * This fetches announcements that:
- * - Are marked as active
  * - Have started (starts_at <= now)
  * - Haven't ended yet (ends_at is null or in the future)
- * 
+ *
  * Client-side filtering should be done for:
- * - Tier targeting (target_tiers)
- * - Organization targeting (target_orgs)
+ * - Tier targeting (tier)
+ * - Organization targeting (org_id)
  * - Dismissed announcements (localStorage)
  */
 export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
@@ -40,8 +56,7 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
 
   const { data, error } = await supabaseAdmin
     .from("admin_announcements")
-    .select("*")
-    .eq("is_active", true)
+    .select("id, message, style, tier, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
     .lte("starts_at", now)
     .or(`ends_at.is.null,ends_at.gt.${now}`)
     .order("created_at", { ascending: false });
@@ -51,29 +66,7 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
     return [];
   }
 
-  // Filter out ended announcements in code as a safeguard
-  const validData = (data || []).filter((row) => {
-    if (!row.ends_at) return true;
-    return new Date(row.ends_at) > new Date(now);
-  });
-
-  return validData.map((row) => ({
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    type: row.type as AnnouncementType,
-    targetTiers: row.target_tiers || [],
-    targetOrgs: row.target_orgs || [],
-    linkUrl: row.link_url ?? null,
-    linkText: row.link_text ?? null,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    isActive: row.is_active,
-    createdBy: row.created_by,
-    createdByEmail: row.created_by_email,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return (data || []).map(mapRow);
 }
 
 /**
@@ -88,15 +81,15 @@ export async function getAnnouncementsForUser(
 
   return allAnnouncements.filter((announcement) => {
     // Check tier targeting
-    if (announcement.targetTiers.length > 0 && userTier) {
-      if (!announcement.targetTiers.includes(userTier)) {
+    if (announcement.tier && announcement.tier !== "all" && userTier) {
+      if (announcement.tier !== userTier) {
         return false;
       }
     }
 
     // Check org targeting
-    if (announcement.targetOrgs.length > 0 && orgId) {
-      if (!announcement.targetOrgs.includes(orgId)) {
+    if (announcement.orgId && orgId) {
+      if (announcement.orgId !== orgId) {
         return false;
       }
     }

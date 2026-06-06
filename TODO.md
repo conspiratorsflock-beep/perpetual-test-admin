@@ -188,23 +188,31 @@ DB** (`zonsnvcwtfotqzrvozqs`). Root cause: **this repo's admin migrations were n
 to that DB**, so admin tables/columns/RPCs are missing or conflict with the main app's shapes.
 
 ### Admin tables missing from the DEV DB (runtime gap — features will fail until migrations are applied)
-These 8 tables are referenced by admin code but **do not exist** in the shared DEV DB. They are
+These 7 tables are referenced by admin code but **do not exist** in the shared DEV DB. They are
 type-augmented in `database.types.ts` so the code compiles, but queries will fail at runtime:
 `system_settings`, `feature_flags`, `system_health_checks`, `admin_audit_logs`,
-`admin_error_logs`, `impersonation_tokens`, `api_usage_daily`, `support_ticket_seeding_log`.
+`admin_error_logs`, `impersonation_tokens`, `support_ticket_seeding_log`.
 → Affected features: system settings, feature flags, health checks, admin audit/error logs,
-  user impersonation, API-usage rollups, ticket seeding. **Decision: documented, not fixed** —
+  user impersonation, ticket seeding. **Decision: documented, not fixed** —
   apply the admin migrations to the DB (or point at a DB that has them) to make these work.
+
+**⚠️ Critical gap:** `admin_audit_logs` is absent, so `logAdminAction()` (a CLAUDE.md "critical rule")
+**silently fails on every admin write** (errors are caught and console-logged, but nothing is persisted).
+Admin action auditing is non-functional until that table exists. This is the highest-impact gap to
+resolve via migration.
 
 ### Surfaces isolated behind the untyped escape-hatch (`supabaseAdminUntyped`)
 Schema conflicts where the intended shape and the DB shape genuinely differ. Each call site is
 tagged `// DRIFT:`. Remove the escape-hatch as the schema is reconciled.
-- `src/lib/actions/announcements.ts` — DB `admin_announcements` has the main app's banner shape
-  (`message`/`style`/`tier`), not the admin CMS shape (`title`/`content`/`type`/`is_active`/…).
-- `src/lib/actions/api-usage.ts` — DB `api_usage_daily` is `count`/`endpoint`/`method`, not the
-  `total_calls`/`unique_orgs`/`*_breakdown` shape the code wants; `increment_api_calls` RPC absent.
-- `incrementCannedResponseUse` (support-tickets.ts) — generic `increment` RPC + `use_count` column absent.
+- ✅ `src/lib/actions/api-usage.ts` — **RECONCILED** (2026-06-05): now targets real `api_usage_logs`
+  and `org_api_usage` tables via typed `supabaseAdmin`. Phantom `api_usage_daily` / `increment_api_calls`
+  removed.
+- ✅ `src/lib/actions/announcements.ts` — **RECONCILED** (2026-06-05): aligned to real `admin_announcements`
+  banner shape (`message`/`style`/`tier`/`org_id`/`link_url`/`link_text`/`starts_at`/`ends_at`/`created_by`).
+- ✅ `incrementCannedResponseUse` (support-tickets.ts) — **RECONCILED** (2026-06-05): `use_count` column
+  absent; made a no-op and de-isolated from `supabaseAdminUntyped`.
 - `is_agent_on_duty` RPC (support-tickets-seeding.ts) — absent; `support_team_members.is_online` absent.
+  **Last remaining drift surface.**
 
 ### Clean fixes applied (code now matches the real DB schema)
 - `project_members.role` dropped repo-wide → role derived from linked `custom_roles(name)`.

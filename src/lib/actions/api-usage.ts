@@ -1,24 +1,22 @@
 "use server";
 
-// DRIFT: this file targets an `api_usage_daily` shape (total_calls, unique_orgs,
-// endpoint_breakdown, status_breakdown) and an `increment_api_calls` RPC that don't
-// exist in the shared DEV DB — the admin migrations that define them were never
-// applied, and a conflicting `api_usage_daily` definition (count/endpoint/method)
-// exists. Uses the untyped client until the schema is reconciled. See TODO.md.
-import { supabaseAdminUntyped } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 
 async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
 }
 
-interface ApiUsageRecord {
-  date: string;
-  total_calls: number;
-  unique_users: number;
-  unique_orgs: number;
-  endpoint_breakdown: Record<string, number>;
-  status_breakdown: Record<string, number>;
+function startOfDay(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function startOfMonth(date: Date): string {
+  const d = new Date(date.getFullYear(), date.getMonth(), 1);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
 }
 
 /**
@@ -27,52 +25,16 @@ interface ApiUsageRecord {
 export async function getApiCallsToday(): Promise<number> {
   await requireAdmin();
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const { count, error } = await supabaseAdmin
+      .from("api_usage_logs")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfDay(new Date()));
 
-    const { data, error } = await supabaseAdminUntyped
-      .from("api_usage_daily")
-      .select("total_calls")
-      .eq("date", today)
-      .single();
-
-    if (error) {
-      // If no record exists for today, return 0
-      if (error.code === "PGRST116") {
-        return 0;
-      }
-      throw error;
-    }
-
-    return data?.total_calls || 0;
+    if (error) throw error;
+    return count ?? 0;
   } catch (error) {
     console.error("Failed to get API calls today:", error);
     return 0;
-  }
-}
-
-/**
- * Get API usage for the last N days
- */
-export async function getApiUsageHistory(days = 7): Promise<ApiUsageRecord[]> {
-  await requireAdmin();
-  try {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days + 1);
-
-    const { data, error } = await supabaseAdminUntyped
-      .from("api_usage_daily")
-      .select("date, total_calls, unique_users, unique_orgs, endpoint_breakdown, status_breakdown")
-      .gte("date", startDate.toISOString().split("T")[0])
-      .lte("date", endDate.toISOString().split("T")[0])
-      .order("date", { ascending: true });
-
-    if (error) throw error;
-
-    return (data || []) as ApiUsageRecord[];
-  } catch (error) {
-    console.error("Failed to get API usage history:", error);
-    return [];
   }
 }
 
@@ -82,19 +44,13 @@ export async function getApiUsageHistory(days = 7): Promise<ApiUsageRecord[]> {
 export async function getApiCallsThisMonth(): Promise<number> {
   await requireAdmin();
   try {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    const { data, error } = await supabaseAdminUntyped
-      .from("api_usage_daily")
-      .select("total_calls")
-      .gte("date", startOfMonth.toISOString().split("T")[0])
-      .lte("date", endOfMonth.toISOString().split("T")[0]);
+    const { count, error } = await supabaseAdmin
+      .from("api_usage_logs")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfMonth(new Date()));
 
     if (error) throw error;
-
-    return (data || []).reduce((sum, record) => sum + (record.total_calls || 0), 0);
+    return count ?? 0;
   } catch (error) {
     console.error("Failed to get API calls this month:", error);
     return 0;
@@ -112,19 +68,24 @@ export async function getApiCallsComparison(): Promise<{
 }> {
   await requireAdmin();
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    const { data, error } = await supabaseAdminUntyped
-      .from("api_usage_daily")
-      .select("date, total_calls")
-      .in("date", [today, yesterday]);
+    const [{ count: todayCount }, { count: yesterdayCount }] = await Promise.all([
+      supabaseAdmin
+        .from("api_usage_logs")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", startOfDay(today)),
+      supabaseAdmin
+        .from("api_usage_logs")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", startOfDay(yesterday))
+        .lt("created_at", startOfDay(today)),
+    ]);
 
-    if (error) throw error;
-
-    const todayCalls = data?.find((d) => d.date === today)?.total_calls || 0;
-    const yesterdayCalls = data?.find((d) => d.date === yesterday)?.total_calls || 0;
-
+    const todayCalls = todayCount ?? 0;
+    const yesterdayCalls = yesterdayCount ?? 0;
     const change = yesterdayCalls > 0 ? ((todayCalls - yesterdayCalls) / yesterdayCalls) * 100 : 0;
 
     return {
@@ -146,23 +107,22 @@ export async function getApiCallsComparison(): Promise<{
  */
 export async function recordApiCall({
   endpoint,
+  method = "GET",
   statusCode,
-  userId,
   orgId,
 }: {
   endpoint: string;
+  method?: string;
   statusCode: number;
-  userId?: string;
   orgId?: string;
 }): Promise<void> {
   await requireAdmin();
   try {
-    // Use the database function to increment
-    await supabaseAdminUntyped.rpc("increment_api_calls", {
-      p_endpoint: endpoint,
-      p_status_code: statusCode,
-      p_user_id: userId,
-      p_org_id: orgId,
+    await supabaseAdmin.from("api_usage_logs").insert({
+      endpoint,
+      method,
+      status_code: statusCode,
+      org_id: orgId ?? null,
     });
   } catch (error) {
     console.error("Failed to record API call:", error);

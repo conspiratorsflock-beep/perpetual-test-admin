@@ -46,29 +46,21 @@ describe("Admin Banner", () => {
   describe("shouldShowAnnouncement", () => {
     const baseAnnouncement: AdminAnnouncement = {
       id: "ann_1",
-      title: "Test Announcement",
-      content: "Test content",
-      type: "info",
-      targetTiers: [],
-      targetOrgs: [],
+      message: "Test Announcement",
+      style: "info",
+      tier: "all",
+      orgId: null,
       linkUrl: null,
       linkText: null,
       startsAt: new Date(Date.now() - 1000).toISOString(), // Started 1 second ago
       endsAt: null,
-      isActive: true,
       createdBy: "user_1",
-      createdByEmail: "admin@test.com",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     it("should show active announcement with no restrictions", () => {
       expect(shouldShowAnnouncement(baseAnnouncement)).toBe(true);
-    });
-
-    it("should not show inactive announcement", () => {
-      const announcement = { ...baseAnnouncement, isActive: false };
-      expect(shouldShowAnnouncement(announcement)).toBe(false);
     });
 
     it("should not show announcement that hasn't started yet", () => {
@@ -90,61 +82,51 @@ describe("Admin Banner", () => {
     it("should show announcement with matching tier", () => {
       const announcement = {
         ...baseAnnouncement,
-        targetTiers: ["pro", "enterprise"],
+        tier: "pro",
       };
       expect(shouldShowAnnouncement(announcement, "pro")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, "enterprise")).toBe(true);
     });
 
     it("should not show announcement with non-matching tier", () => {
       const announcement = {
         ...baseAnnouncement,
-        targetTiers: ["pro", "enterprise"],
+        tier: "pro",
       };
       expect(shouldShowAnnouncement(announcement, "free")).toBe(false);
     });
 
-    it("should show announcement with empty tier targeting to all users", () => {
-      const announcement = {
-        ...baseAnnouncement,
-        targetTiers: [],
-      };
-      expect(shouldShowAnnouncement(announcement, "free")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, "pro")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, undefined)).toBe(true);
+    it("should show announcement with 'all' tier targeting to all users", () => {
+      expect(shouldShowAnnouncement(baseAnnouncement, "free")).toBe(true);
+      expect(shouldShowAnnouncement(baseAnnouncement, "pro")).toBe(true);
+      expect(shouldShowAnnouncement(baseAnnouncement, undefined)).toBe(true);
     });
 
     it("should show announcement with matching org", () => {
       const announcement = {
         ...baseAnnouncement,
-        targetOrgs: ["org_1", "org_2"],
+        orgId: "org_1",
       };
       expect(shouldShowAnnouncement(announcement, undefined, "org_1")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, undefined, "org_2")).toBe(true);
     });
 
     it("should not show announcement with non-matching org", () => {
       const announcement = {
         ...baseAnnouncement,
-        targetOrgs: ["org_1", "org_2"],
+        orgId: "org_1",
       };
       expect(shouldShowAnnouncement(announcement, undefined, "org_3")).toBe(false);
     });
 
-    it("should show announcement with empty org targeting to all orgs", () => {
-      const announcement = {
-        ...baseAnnouncement,
-        targetOrgs: [],
-      };
-      expect(shouldShowAnnouncement(announcement, undefined, "org_1")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, undefined, undefined)).toBe(true);
+    it("should show announcement with null org targeting to all orgs", () => {
+      expect(shouldShowAnnouncement(baseAnnouncement, undefined, "org_1")).toBe(true);
+      expect(shouldShowAnnouncement(baseAnnouncement, undefined, undefined)).toBe(true);
     });
 
     it("should handle both tier and org targeting together", () => {
       const announcement = {
         ...baseAnnouncement,
-        targetTiers: ["pro"],
-        targetOrgs: ["org_1"],
+        tier: "pro",
+        orgId: "org_1",
       };
       // Must match both
       expect(shouldShowAnnouncement(announcement, "pro", "org_1")).toBe(true);
@@ -252,18 +234,15 @@ describe("Admin Banner", () => {
   describe("filterAnnouncements", () => {
     const createAnnouncement = (overrides: Partial<AdminAnnouncement> = {}): AdminAnnouncement => ({
       id: "ann_1",
-      title: "Test",
-      content: "Test content",
-      type: "info",
-      targetTiers: [],
-      targetOrgs: [],
+      message: "Test",
+      style: "info",
+      tier: "all",
+      orgId: null,
       linkUrl: null,
       linkText: null,
       startsAt: new Date(Date.now() - 1000).toISOString(),
       endsAt: null,
-      isActive: true,
       createdBy: "user_1",
-      createdByEmail: "admin@test.com",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ...overrides,
@@ -283,25 +262,25 @@ describe("Admin Banner", () => {
 
     it("should NOT filter out critical announcements even if dismissed", () => {
       const announcements = [
-        createAnnouncement({ id: "ann_1", type: "info" }),
-        createAnnouncement({ id: "ann_2", type: "critical" }),
-        createAnnouncement({ id: "ann_3", type: "warning" }),
+        createAnnouncement({ id: "ann_1", style: "info" }),
+        createAnnouncement({ id: "ann_2", style: "critical" }),
+        createAnnouncement({ id: "ann_3", style: "warning" }),
       ];
-      
+
       const filtered = filterAnnouncements(announcements, ["ann_1", "ann_2", "ann_3"]);
       // Only critical should remain
       expect(filtered).toHaveLength(1);
       expect(filtered[0].id).toBe("ann_2");
-      expect(filtered[0].type).toBe("critical");
+      expect(filtered[0].style).toBe("critical");
     });
 
     it("should filter by tier targeting", () => {
       const announcements = [
-        createAnnouncement({ id: "ann_1", targetTiers: ["pro"] }),
-        createAnnouncement({ id: "ann_2", targetTiers: ["free"] }),
-        createAnnouncement({ id: "ann_3", targetTiers: [] }),
+        createAnnouncement({ id: "ann_1", tier: "pro" }),
+        createAnnouncement({ id: "ann_2", tier: "free" }),
+        createAnnouncement({ id: "ann_3", tier: "all" }),
       ];
-      
+
       const filtered = filterAnnouncements(announcements, [], "pro");
       expect(filtered).toHaveLength(2);
       expect(filtered.map((a) => a.id)).toEqual(["ann_1", "ann_3"]);
@@ -309,11 +288,11 @@ describe("Admin Banner", () => {
 
     it("should filter by org targeting", () => {
       const announcements = [
-        createAnnouncement({ id: "ann_1", targetOrgs: ["org_1"] }),
-        createAnnouncement({ id: "ann_2", targetOrgs: ["org_2"] }),
-        createAnnouncement({ id: "ann_3", targetOrgs: [] }),
+        createAnnouncement({ id: "ann_1", orgId: "org_1" }),
+        createAnnouncement({ id: "ann_2", orgId: "org_2" }),
+        createAnnouncement({ id: "ann_3", orgId: null }),
       ];
-      
+
       const filtered = filterAnnouncements(announcements, [], undefined, "org_1");
       expect(filtered).toHaveLength(2);
       expect(filtered.map((a) => a.id)).toEqual(["ann_1", "ann_3"]);
@@ -347,22 +326,11 @@ describe("Admin Banner", () => {
       expect(filtered[0].id).toBe("ann_2");
     });
 
-    it("should filter inactive announcements", () => {
-      const announcements = [
-        createAnnouncement({ id: "ann_1", isActive: false }),
-        createAnnouncement({ id: "ann_2", isActive: true }),
-      ];
-      
-      const filtered = filterAnnouncements(announcements, []);
-      expect(filtered).toHaveLength(1);
-      expect(filtered[0].id).toBe("ann_2");
-    });
-
     it("should handle combined filters", () => {
       const announcements = [
-        createAnnouncement({ id: "ann_1", type: "info", targetTiers: ["pro"] }),
-        createAnnouncement({ id: "ann_2", type: "critical", targetTiers: ["pro"] }),
-        createAnnouncement({ id: "ann_3", type: "warning", targetTiers: ["pro"] }),
+        createAnnouncement({ id: "ann_1", style: "info", tier: "pro" }),
+        createAnnouncement({ id: "ann_2", style: "critical", tier: "pro" }),
+        createAnnouncement({ id: "ann_3", style: "warning", tier: "pro" }),
       ];
       
       // User is "pro" and has dismissed ann_1 and ann_2

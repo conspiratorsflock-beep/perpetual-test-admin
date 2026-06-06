@@ -11,18 +11,15 @@ export type AnnouncementType = "info" | "warning" | "critical" | "maintenance";
 
 export interface AdminAnnouncement {
   id: string;
-  title: string;
-  content: string;
-  type: AnnouncementType;
-  targetTiers: string[];
-  targetOrgs: string[];
+  message: string;
+  style: AnnouncementType;
+  tier: string;
+  orgId: string | null;
   linkUrl: string | null;
   linkText: string | null;
   startsAt: string;
   endsAt: string | null;
-  isActive: boolean;
   createdBy: string;
-  createdByEmail: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,9 +90,6 @@ export function shouldShowAnnouncement(
   userTier?: string,
   orgId?: string
 ): boolean {
-  // Check if announcement is active
-  if (!announcement.isActive) return false;
-
   // Check date range
   const now = new Date();
   const startsAt = new Date(announcement.startsAt);
@@ -106,14 +100,14 @@ export function shouldShowAnnouncement(
     if (endsAt < now) return false;
   }
 
-  // Check tier targeting (empty = all tiers)
-  if (announcement.targetTiers.length > 0 && userTier) {
-    if (!announcement.targetTiers.includes(userTier)) return false;
+  // Check tier targeting ("all" or empty = all tiers)
+  if (announcement.tier && announcement.tier !== "all" && userTier) {
+    if (announcement.tier !== userTier) return false;
   }
 
-  // Check org targeting (empty = all orgs)
-  if (announcement.targetOrgs.length > 0 && orgId) {
-    if (!announcement.targetOrgs.includes(orgId)) return false;
+  // Check org targeting (null = all orgs)
+  if (announcement.orgId && orgId) {
+    if (announcement.orgId !== orgId) return false;
   }
 
   return true;
@@ -178,15 +172,15 @@ export function filterAnnouncements(
 ): AdminAnnouncement[] {
   return announcements
     .filter((a) => shouldShowAnnouncement(a, userTier, orgId))
-    .filter((a) => a.type === "critical" || !dismissedIds.includes(a.id));
+    .filter((a) => a.style === "critical" || !dismissedIds.includes(a.id));
 }
 
 /**
  * Check if an announcement can be dismissed.
  * Critical announcements cannot be dismissed.
  */
-export function canDismissAnnouncement(type: AnnouncementType): boolean {
-  return type !== "critical";
+export function canDismissAnnouncement(style: AnnouncementType): boolean {
+  return style !== "critical";
 }
 
 /**

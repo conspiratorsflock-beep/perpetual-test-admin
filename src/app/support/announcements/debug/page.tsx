@@ -36,12 +36,12 @@ export default function AnnouncementsDebugPage() {
   // Filter announcements as the user would see them
   const visibleToUser = announcements.filter((a) => {
     // Check tier
-    if (a.targetTiers.length > 0 && userTier) {
-      if (!a.targetTiers.includes(userTier)) return false;
+    if (a.tier && a.tier !== "all" && userTier) {
+      if (a.tier !== userTier) return false;
     }
     // Check org
-    if (a.targetOrgs.length > 0 && orgId) {
-      if (!a.targetOrgs.includes(orgId)) return false;
+    if (a.orgId && orgId) {
+      if (a.orgId !== orgId) return false;
     }
     return true;
   });
@@ -49,7 +49,7 @@ export default function AnnouncementsDebugPage() {
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-xl font-semibold text-slate-100">Announcements Debug</h1>
-      
+
       <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
         <h2 className="text-sm font-medium text-slate-400 mb-2">Current Time</h2>
         <p className="text-slate-200 font-mono text-sm">{now}</p>
@@ -87,17 +87,17 @@ export default function AnnouncementsDebugPage() {
             {announcements.map((a) => (
               <div key={a.id} className="border border-slate-800 rounded p-3 bg-slate-950">
                 <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${a.isActive ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                  <span className="text-slate-200 font-medium">{a.title}</span>
-                  <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{a.type}</span>
+                  <span className={`w-2 h-2 rounded-full ${new Date(a.startsAt) <= new Date() && (!a.endsAt || new Date(a.endsAt) > new Date()) ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                  <span className="text-slate-200 font-medium">{a.message.slice(0, 80)}{a.message.length > 80 ? "..." : ""}</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{a.style}</span>
                 </div>
                 <div className="mt-2 text-xs text-slate-500 space-y-1">
                   <p>ID: <span className="font-mono">{a.id}</span></p>
                   <p>Starts: <span className="font-mono">{a.startsAt}</span></p>
                   <p>Ends: <span className="font-mono">{a.endsAt || "never"}</span></p>
-                  <p>Target Tiers: {a.targetTiers.length > 0 ? a.targetTiers.join(", ") : "(all)"}</p>
-                  <p>Target Orgs: {a.targetOrgs.length > 0 ? a.targetOrgs.map(o => o.slice(0, 8) + "...").join(", ") : "(all)"}</p>
-                  
+                  <p>Tier: {a.tier || "all"}</p>
+                  <p>Org: {a.orgId || "(all)"}</p>
+
                   {/* Check why it might not be showing */}
                   <div className="mt-2 pt-2 border-t border-slate-800">
                     <p className="text-amber-400">Visibility Check:</p>
@@ -110,11 +110,11 @@ export default function AnnouncementsDebugPage() {
                           {new Date(a.endsAt) > new Date() ? "✓" : "✗"} Not ended yet
                         </li>
                       )}
-                      <li className={a.targetTiers.length === 0 || (userTier && a.targetTiers.includes(userTier)) ? "text-emerald-400" : "text-red-400"}>
-                        {a.targetTiers.length === 0 || (userTier && a.targetTiers.includes(userTier)) ? "✓" : "✗"} Tier match (user: {userTier || "none"}, targets: {a.targetTiers.join(", ") || "all"})
+                      <li className={!a.tier || a.tier === "all" || (userTier && a.tier === userTier) ? "text-emerald-400" : "text-red-400"}>
+                        {!a.tier || a.tier === "all" || (userTier && a.tier === userTier) ? "✓" : "✗"} Tier match (user: {userTier || "none"}, target: {a.tier || "all"})
                       </li>
-                      <li className={a.targetOrgs.length === 0 || (orgId && a.targetOrgs.includes(orgId)) ? "text-emerald-400" : "text-red-400"}>
-                        {a.targetOrgs.length === 0 || (orgId && a.targetOrgs.includes(orgId)) ? "✓" : "✗"} Org match (user: {orgId?.slice(0, 8) || "none"}..., targets: {a.targetOrgs.map(o => o.slice(0, 8) + "...").join(", ") || "all"})
+                      <li className={!a.orgId || (orgId && a.orgId === orgId) ? "text-emerald-400" : "text-red-400"}>
+                        {!a.orgId || (orgId && a.orgId === orgId) ? "✓" : "✗"} Org match (user: {orgId?.slice(0, 8) || "none"}..., target: {a.orgId?.slice(0, 8) || "all"}...)
                       </li>
                     </ul>
                   </div>
@@ -136,7 +136,7 @@ export default function AnnouncementsDebugPage() {
             {visibleToUser.map((a) => (
               <div key={a.id} className="flex items-center gap-2 text-sm">
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                <span className="text-slate-300">{a.title}</span>
+                <span className="text-slate-300">{a.message.slice(0, 60)}{a.message.length > 60 ? "..." : ""}</span>
               </div>
             ))}
           </div>

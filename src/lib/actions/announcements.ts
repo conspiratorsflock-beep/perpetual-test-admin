@@ -1,12 +1,6 @@
 "use server";
 
-// DRIFT: `admin_announcements` exists in the shared DEV DB with the main app's
-// banner shape (message/style/tier), NOT this repo's intended CMS shape
-// (title/content/type/target_tiers/is_active/created_by_email). The admin
-// migration that defines those columns was never applied (it's a no-op CREATE TABLE
-// IF NOT EXISTS against the pre-existing table). This whole file therefore uses the
-// untyped client until the schema conflict is resolved. See TODO.md.
-import { supabaseAdminUntyped } from "@/lib/supabase/admin";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import type { AdminAnnouncement, AnnouncementType } from "@/types/admin";
@@ -15,80 +9,62 @@ async function requireAdmin() {
   if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
 }
 
+function mapRow(row: Record<string, unknown>): AdminAnnouncement {
+  return {
+    id: row.id as string,
+    message: row.message as string,
+    style: row.style as AnnouncementType,
+    tier: (row.tier as string) || "all",
+    orgId: (row.org_id as string) || null,
+    linkUrl: (row.link_url as string) || null,
+    linkText: (row.link_text as string) || null,
+    startsAt: row.starts_at as string,
+    endsAt: (row.ends_at as string) || null,
+    createdBy: (row.created_by as string) || "",
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 /**
  * Get all announcements.
  */
 export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
   await requireAdmin();
-  const { data, error } = await supabaseAdminUntyped
+  const { data, error } = await supabaseAdmin
     .from("admin_announcements")
-    .select("*")
+    .select("id, message, style, tier, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   if (error) {
     throw new Error(`Failed to fetch announcements: ${error.message}`);
   }
 
-  return (data || []).map((row) => ({
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    type: row.type as AnnouncementType,
-    targetTiers: row.target_tiers || [],
-    targetOrgs: row.target_orgs || [],
-    linkUrl: row.link_url ?? null,
-    linkText: row.link_text ?? null,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    isActive: row.is_active,
-    createdBy: row.created_by,
-    createdByEmail: row.created_by_email,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  return (data || []).map(mapRow);
 }
 
 /**
  * Get active announcements (for display in main app).
+ * Active = starts_at <= now AND (ends_at IS NULL OR ends_at > now)
  */
 export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
   const now = new Date().toISOString();
 
-  const { data, error } = await supabaseAdminUntyped
+  const { data, error } = await supabaseAdmin
     .from("admin_announcements")
-    .select("*")
-    .eq("is_active", true)
+    .select("id, message, style, tier, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
     .lte("starts_at", now)
     .or(`ends_at.is.null,ends_at.gt.${now}`)
     .order("created_at", { ascending: false });
-    
-  // Filter out ended announcements in code as a safeguard
-  const validData = (data || []).filter((row) => {
-    if (!row.ends_at) return true;
-    return new Date(row.ends_at) > new Date(now);
-  });
 
   if (error) {
     throw new Error(`Failed to fetch active announcements: ${error.message}`);
   }
 
-  return validData.map((row) => ({
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    type: row.type as AnnouncementType,
-    targetTiers: row.target_tiers || [],
-    targetOrgs: row.target_orgs || [],
-    linkUrl: row.link_url ?? null,
-    linkText: row.link_text ?? null,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    isActive: row.is_active,
-    createdBy: row.created_by,
-    createdByEmail: row.created_by_email,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  }));
+  // Safeguard: also drop ended announcements in code (defense-in-depth alongside the DB filter).
+  const active = (data || []).filter((row) => !row.ends_at || new Date(row.ends_at) > new Date(now));
+
+  return active.map(mapRow);
 }
 
 /**
@@ -96,35 +72,30 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
  */
 export async function createAnnouncement(
   data: {
-    title: string;
-    content: string;
-    type: AnnouncementType;
-    targetTiers?: string[];
-    targetOrgs?: string[];
+    message: string;
+    style: AnnouncementType;
+    tier?: string;
+    orgId?: string | null;
     linkUrl?: string | null;
     linkText?: string | null;
     startsAt?: string;
     endsAt?: string | null;
   },
-  createdBy: string,
-  createdByEmail: string
+  createdBy: string
 ): Promise<AdminAnnouncement> {
   await requireAdmin();
-  const { data: row, error } = await supabaseAdminUntyped
+  const { data: row, error } = await supabaseAdmin
     .from("admin_announcements")
     .insert({
-      title: data.title,
-      content: data.content,
-      type: data.type,
-      target_tiers: data.targetTiers || [],
-      target_orgs: data.targetOrgs || [],
+      message: data.message,
+      style: data.style,
+      tier: data.tier || "all",
+      org_id: data.orgId || null,
       link_url: data.linkUrl ?? null,
       link_text: data.linkText ?? null,
       starts_at: data.startsAt || new Date().toISOString(),
       ends_at: data.endsAt || null,
-      is_active: true,
       created_by: createdBy,
-      created_by_email: createdByEmail,
     })
     .select()
     .single();
@@ -137,27 +108,11 @@ export async function createAnnouncement(
     action: "announcement.create",
     targetType: "announcement",
     targetId: row.id,
-    targetName: data.title,
-    metadata: { type: data.type },
+    targetName: data.message.slice(0, 100),
+    metadata: { style: data.style, tier: data.tier },
   });
 
-  return {
-    id: row.id,
-    title: row.title,
-    content: row.content,
-    type: row.type as AnnouncementType,
-    targetTiers: row.target_tiers || [],
-    targetOrgs: row.target_orgs || [],
-    linkUrl: row.link_url ?? null,
-    linkText: row.link_text ?? null,
-    startsAt: row.starts_at,
-    endsAt: row.ends_at,
-    isActive: row.is_active,
-    createdBy: row.created_by,
-    createdByEmail: row.created_by_email,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
+  return mapRow(row);
 }
 
 /**
@@ -166,28 +121,28 @@ export async function createAnnouncement(
 export async function updateAnnouncement(
   id: string,
   data: {
-    title?: string;
-    content?: string;
-    type?: AnnouncementType;
-    targetTiers?: string[];
-    targetOrgs?: string[];
+    message?: string;
+    style?: AnnouncementType;
+    tier?: string;
+    orgId?: string | null;
+    linkUrl?: string | null;
+    linkText?: string | null;
     startsAt?: string;
     endsAt?: string | null;
-    isActive?: boolean;
   }
 ): Promise<void> {
   await requireAdmin();
-  const { error } = await supabaseAdminUntyped
+  const { error } = await supabaseAdmin
     .from("admin_announcements")
     .update({
-      title: data.title,
-      content: data.content,
-      type: data.type,
-      target_tiers: data.targetTiers,
-      target_orgs: data.targetOrgs,
+      message: data.message,
+      style: data.style,
+      tier: data.tier,
+      org_id: data.orgId,
+      link_url: data.linkUrl,
+      link_text: data.linkText,
       starts_at: data.startsAt,
       ends_at: data.endsAt,
-      is_active: data.isActive,
     })
     .eq("id", id);
 
@@ -204,10 +159,24 @@ export async function updateAnnouncement(
 }
 
 /**
- * Toggle announcement active status.
+ * Expire an announcement immediately (set ends_at to now).
  */
-export async function toggleAnnouncementActive(id: string, isActive: boolean): Promise<void> {
-  await updateAnnouncement(id, { isActive });
+export async function expireAnnouncementNow(id: string): Promise<void> {
+  await requireAdmin();
+  const { error } = await supabaseAdmin
+    .from("admin_announcements")
+    .update({ ends_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Failed to expire announcement: ${error.message}`);
+  }
+
+  await logAdminAction({
+    action: "announcement.expire",
+    targetType: "announcement",
+    targetId: id,
+  });
 }
 
 /**
@@ -215,13 +184,13 @@ export async function toggleAnnouncementActive(id: string, isActive: boolean): P
  */
 export async function deleteAnnouncement(id: string): Promise<void> {
   await requireAdmin();
-  const { data: row } = await supabaseAdminUntyped
+  const { data: row } = await supabaseAdmin
     .from("admin_announcements")
-    .select("title")
+    .select("message")
     .eq("id", id)
     .single();
 
-  const { error } = await supabaseAdminUntyped.from("admin_announcements").delete().eq("id", id);
+  const { error } = await supabaseAdmin.from("admin_announcements").delete().eq("id", id);
 
   if (error) {
     throw new Error(`Failed to delete announcement: ${error.message}`);
@@ -231,6 +200,6 @@ export async function deleteAnnouncement(id: string): Promise<void> {
     action: "announcement.delete",
     targetType: "announcement",
     targetId: id,
-    targetName: row?.title,
+    targetName: row?.message?.slice(0, 100),
   });
 }
