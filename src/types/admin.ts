@@ -834,3 +834,78 @@ export interface OrgApiUsage {
   totalTokens: number;
   updatedAt: string;
 }
+
+// ─── Test Email Dashboard ───────────────────────────────────────────────────
+
+export interface TestEmailDomain {
+  id: string;
+  domain: string;
+  isActive: boolean;
+  notes: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  deactivatedAt: string | null;
+  deactivatedBy: string | null;
+}
+
+/** Mailbox metadata — no message content. */
+export interface TestEmailMailbox {
+  id: string;
+  localPart: string;
+  address: string;
+  userId: string;
+  organizationId: string | null;
+  label: string | null;
+  createdAt: string;
+  expiresAt: string;
+  extended: boolean;
+}
+
+/** Safe message summary — no subject/sender/body. */
+export interface TestEmailMessageSafe {
+  id: string;
+  mailboxId: string;
+  receivedAt: string;
+  read: boolean;
+}
+
+export interface TestEmailEvent {
+  id: string;
+  eventType: string;
+  mailboxId: string | null;
+  localPart: string | null;
+  providerMessageId: string | null;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface TestEmailOverview {
+  activeMailboxes: number;
+  created24h: number;
+  created7d: number;
+  messages24h: number;
+  messages7d: number;
+  avgMessagesPerMailbox: number;
+  usersAtCap: number;
+}
+
+export interface TestEmailAbuseRow {
+  userId: string;
+  activeMailboxes: number;
+  created24h: number;
+}
+
+export interface TestEmailHealth {
+  latestCleanup: {
+    mailboxesPurged: number;
+    eventsPruned: number;
+    ranAt: string;
+  } | null;
+  expiredBacklog: number;
+}
+
+export interface TestEmailInboundHealth {
+  eventType: string;
+  count24h: number;
+  count7d: number;
+}

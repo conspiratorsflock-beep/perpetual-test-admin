@@ -20,7 +20,7 @@ import {
   Settings,
   Sliders,
   ToggleLeft,
-
+  Mail,
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,11 @@ const navigation: NavItem[] = [
     label: "Build Queue",
     href: "/builds",
     icon: Container,
+  },
+  {
+    label: "Test Email",
+    href: "/test-email",
+    icon: Mail,
   },
   {
     label: "Help Desk",

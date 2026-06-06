@@ -129,7 +129,7 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
   - Second row: Beta Health KPIs (Active Trials, Paid Orgs, Trials Expiring ≤7d, Open Tickets)
   - Quick Actions preserved; Recent Admin Activity shows placeholder with note about `admin_audit_logs`
 - [x] Extended `StatCard` type with optional `sparklineData`
-- [ ] Add "Recent Admin Activity" feed from `admin_audit_logs` — UNBLOCKED: table created (migration 20260605230000) and `logAdminAction()` writes verified to persist; `getAuditLogs()` read action already exists. Just needs the dashboard card wired up (feed will be sparse until actions accumulate).
+- [x] Add "Recent Admin Activity" feed from `admin_audit_logs` — DONE: wired in dashboard page with real entries, relative timestamps, empty state, and link to `/support/activity`
 - [ ] Add widget linking to `/leads` showing conversion rate
 
 ---
@@ -138,7 +138,8 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 **Priority: MEDIUM** — You may need to pull a CSV of all beta users for investor updates, or get alerted when a trial locks.
 
 **Tasks:**
-- [ ] Add CSV export to `/users`, `/organizations`, `/leads`
+- [x] Add CSV export to `/users`, `/organizations` — DONE: `exportUsersToCSV()` and `exportOrganizationsToCSV()` with capped chunked fetches (100/page, max 500), proper RFC 4180 escaping via `toCsv()` helper
+- [ ] Add CSV export to `/leads` (needs leads table to exist)
 - [ ] Add "Beta Report" server action: export all orgs (trial state, Stripe status), all users, all tickets, all leads
 - [ ] Add `SLACK_WEBHOOK_URL` env var and `notifySlack()` helper
 - [ ] Send Slack alert on: support ticket unassigned >1hr, trial hard-lock triggered, build failure, integration sync error
@@ -149,7 +150,35 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 
 ---
 
-## Phase 12 — Polish & Activity Timelines
+## Phase 12 — Test Email Dashboard ✅ DONE
+**Priority: HIGH** — Internal dashboard to monitor the app's Test Email feature.
+
+**Completed:**
+- [x] `src/lib/actions/test-email-domains.ts` — domain management: `list`, `add` (with reactivate-on-readd), `deactivate` (soft), `reactivate`. All admin-gated, audit-logged.
+- [x] `src/lib/actions/test-email.ts` — read dashboard + write controls:
+  - `isTestEmailProvisioned()` probe for failure-safe handling
+  - `getTestEmailOverview()` — active mailboxes, created 24h/7d, messages 24h/7d, avg messages/mailbox, users at cap
+  - `getTestEmailAbuseSignals()` — top users by active count, 24h creation volume, near-cap users (tallied in JS from bounded dataset)
+  - `searchTestEmailMailboxes()` — search by address/local_part/user_id
+  - `getMailboxMessageVolume()` — total/unread/last received (no content columns selected)
+  - `getTestEmailInboundHealth()` — event type counts 24h/7d
+  - `getTestEmailHealth()` — latest cleanup run + expired backlog
+  - `forceExpireMailbox()`, `deleteMailbox()` — admin-gated, confirm dialogs, audit-logged
+- [x] `src/app/test-email/page.tsx` — full dashboard with all panels + domain management UI
+- [x] `src/app/test-email/error.tsx` — route error boundary
+- [x] Nav entry in `AdminSidebar.tsx`
+- [x] Types in `src/types/admin.ts`: `TestEmailDomain`, `TestEmailMailbox`, `TestEmailMessageSafe`, `TestEmailEvent`, `TestEmailOverview`, `TestEmailAbuseRow`, `TestEmailHealth`, `TestEmailInboundHealth`
+- [x] **No content access**: `test_email_messages` queries select only `id, mailbox_id, received_at, read`. Content columns (`subject`, `from_address`, `from_name`, `body_text`, `body_html`) are never selected.
+
+**Deferred (no backing schema):**
+- Block user from generating test emails — no block-list table exists
+- Adjust per-user caps — the 25-cap is app config, not admin-writable
+
+**Note:** The upstream `test_email_*` tables were already present in the DB (generated types confirmed), so no augmentation was needed. The dashboard renders real data immediately.
+
+---
+
+## Phase 13 — Polish & Activity Timelines
 **Priority: LOW** — Nice-to-haves that make the console feel professional and complete.
 
 **Tasks:**
