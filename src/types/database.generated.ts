@@ -4397,6 +4397,178 @@ export type Database = {
           },
         ]
       }
+      test_email_domains: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          domain: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          domain: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          domain?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      test_email_events: {
+        Row: {
+          created_at: string
+          detail: Json
+          event_type: string
+          id: string
+          local_part: string | null
+          mailbox_id: string | null
+          provider_message_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          event_type: string
+          id?: string
+          local_part?: string | null
+          mailbox_id?: string | null
+          provider_message_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          id?: string
+          local_part?: string | null
+          mailbox_id?: string | null
+          provider_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_email_events_mailbox_id_fkey"
+            columns: ["mailbox_id"]
+            isOneToOne: false
+            referencedRelation: "test_email_mailboxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_email_mailboxes: {
+        Row: {
+          address: string
+          created_at: string
+          expires_at: string
+          extended: boolean
+          id: string
+          label: string | null
+          local_part: string
+          organization_id: string | null
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          expires_at: string
+          extended?: boolean
+          id?: string
+          label?: string | null
+          local_part: string
+          organization_id?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          expires_at?: string
+          extended?: boolean
+          id?: string
+          label?: string | null
+          local_part?: string
+          organization_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_email_mailboxes_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_email_mailboxes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      test_email_messages: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          from_address: string | null
+          from_name: string | null
+          id: string
+          mailbox_id: string
+          provider_message_id: string | null
+          read: boolean
+          received_at: string
+          subject: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          mailbox_id: string
+          provider_message_id?: string | null
+          read?: boolean
+          received_at?: string
+          subject?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          mailbox_id?: string
+          provider_message_id?: string | null
+          read?: boolean
+          received_at?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_email_messages_mailbox_id_fkey"
+            columns: ["mailbox_id"]
+            isOneToOne: false
+            referencedRelation: "test_email_mailboxes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_run_baselines: {
         Row: {
           created_at: string | null
