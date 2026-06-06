@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Ticket,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -23,6 +24,7 @@ import {
   Area,
   Tooltip,
 } from "recharts";
+import { formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalUserCount } from "@/lib/actions/users";
 import { getTotalOrgCount, getTrialsExpiringSoon } from "@/lib/actions/organizations";
@@ -30,7 +32,8 @@ import { getApiCallsToday, getApiCallsComparison } from "@/lib/actions/api-usage
 import { getBillingMetrics } from "@/lib/actions/billing";
 import { getDashboardTrends } from "@/lib/actions/dashboard";
 import { getOpenTicketCount } from "@/lib/actions/support-tickets";
-import type { StatCard } from "@/types/admin";
+import { getAuditLogs } from "@/lib/audit/logger";
+import type { StatCard, AuditLog } from "@/types/admin";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<StatCard[]>([
@@ -47,6 +50,7 @@ export default function DashboardPage() {
     { label: "Trials Expiring ≤7d", value: "—", icon: AlertCircle, alert: true },
     { label: "Open Tickets", value: "—", icon: Ticket, alert: true },
   ]);
+  const [activityLogs, setActivityLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +64,7 @@ export default function DashboardPage() {
           trends,
           trialsExpiring,
           openTickets,
+          auditResult,
         ] = await Promise.all([
           getTotalUserCount(),
           getTotalOrgCount(),
@@ -68,6 +73,7 @@ export default function DashboardPage() {
           getDashboardTrends(14),
           getTrialsExpiringSoon(),
           getOpenTicketCount(),
+          getAuditLogs({ limit: 8 }).catch(() => ({ logs: [] as AuditLog[], count: 0 })),
         ]);
 
         setStats([
@@ -125,6 +131,7 @@ export default function DashboardPage() {
             alert: openTickets > 0,
           },
         ]);
+        setActivityLogs(auditResult.logs);
       } catch (error) {
         console.error("Failed to load stats:", error);
       } finally {
@@ -321,18 +328,48 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Activity */}
-      {/* admin_audit_logs now exists (migration 20260605230000) and getAuditLogs() in
-          src/lib/audit/logger.ts can read it — this feed can be wired up (it will be sparse
-          until admin actions accumulate). Left as a link to the Support section for now. */}
       <Card className="bg-slate-900 border-slate-800">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-medium text-slate-400">Recent Admin Activity</CardTitle>
+          <Link
+            href="/support/activity"
+            className="text-xs text-amber-400 hover:text-amber-300 flex items-center gap-1"
+          >
+            View all <ArrowUpRight className="h-3 w-3" />
+          </Link>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-12 text-slate-500">
-            <Activity className="h-8 w-8 mr-3" />
-            <p>View activity logs in the Support section</p>
-          </div>
+          {activityLogs.length > 0 ? (
+            <div className="space-y-3">
+              {activityLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start justify-between gap-4 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="text-slate-200">
+                      <span className="font-medium">{log.action}</span>
+                      {log.targetName && (
+                        <span className="text-slate-400"> — {log.targetName}</span>
+                      )}
+                      {!log.targetName && log.targetType && (
+                        <span className="text-slate-400"> — {log.targetType}</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500">{log.adminEmail}</p>
+                  </div>
+                  <span className="text-xs text-slate-500 shrink-0 whitespace-nowrap">
+                    {formatDistanceToNow(new Date(log.createdAt), { addSuffix: true })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-10 text-slate-500">
+              <Activity className="h-5 w-5 mr-2" />
+              <p className="text-sm">No recent admin activity</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

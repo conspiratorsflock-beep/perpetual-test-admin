@@ -2,6 +2,7 @@
 
 import { getAuditLogs } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { toCsv } from "@/lib/utils/csv";
 import type { AuditTargetType } from "@/types/admin";
 
 async function requireAdmin() {
@@ -34,7 +35,6 @@ export async function exportAuditLogsToCSV({
     action,
   });
 
-  // CSV header
   const headers = [
     "ID",
     "Timestamp",
@@ -46,19 +46,18 @@ export async function exportAuditLogsToCSV({
     "Metadata",
   ];
 
-  // CSV rows
   const rows = logs.map((log) => [
     log.id,
     log.createdAt,
-    `"${log.adminEmail}"`,
+    log.adminEmail,
     log.action,
     log.targetType,
     log.targetId || "",
-    log.targetName ? `"${log.targetName.replace(/"/g, '""')}"` : "",
-    `"${JSON.stringify(log.metadata).replace(/"/g, '""')}"`,
+    log.targetName || "",
+    JSON.stringify(log.metadata),
   ]);
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return toCsv(headers, rows);
 }
 
 /**
@@ -92,15 +91,15 @@ export async function exportAuditLogsToJSON({
 
 /**
  * Download export file (helper to trigger browser download).
- * 
+ *
  * NOTE: This is a client-side helper. Copy this function to your client component
  * or use the downloadExport utility from @/lib/utils/export-download
- * 
+ *
  * Example usage in a client component:
  * ```tsx
  * "use client";
  * import { exportAuditLogsToCSV } from "@/lib/actions/audit-export";
- * 
+ *
  * async function handleDownload() {
  *   const csv = await exportAuditLogsToCSV();
  *   const blob = new Blob([csv], { type: "text/csv" });

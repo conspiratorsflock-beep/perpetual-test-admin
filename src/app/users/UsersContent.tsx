@@ -3,7 +3,7 @@
 import { useState, useCallback, useTransition } from "react";
 import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Users, Mail, UserPlus } from "lucide-react";
+import { Plus, Users, Mail, UserPlus, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,7 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { UserTable } from "@/components/users/UserTable";
 import { UserSearch } from "@/components/users/UserSearch";
-import { searchUsers, toggleUserAdmin, deleteUser, createUser, inviteUser } from "@/lib/actions/users";
+import { searchUsers, toggleUserAdmin, deleteUser, createUser, inviteUser, exportUsersToCSV } from "@/lib/actions/users";
+import { downloadCSV } from "@/lib/utils/export-download";
 import type { AdminUser } from "@/types/admin";
 
 const PAGE_SIZE = 25;
@@ -48,6 +49,20 @@ export function UsersContent() {
   const [newUserLastName, setNewUserLastName] = useState("");
   const [makeAdmin, setMakeAdmin] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const csv = await exportUsersToCSV();
+      const date = new Date().toISOString().split("T")[0];
+      downloadCSV(csv, `users-${date}.csv`);
+    } catch (error) {
+      console.error("Failed to export users:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -172,6 +187,20 @@ export function UsersContent() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Export CSV
+          </Button>
+
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
               <Button

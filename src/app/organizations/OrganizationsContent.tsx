@@ -5,7 +5,7 @@ import { useVisiblePolling } from "@/lib/hooks/use-visible-polling";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
-import { Building2, ChevronLeft, ChevronRight, Search, Calendar, CheckCircle2 } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, Search, Calendar, CheckCircle2, Download, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { searchOrganizations } from "@/lib/actions/organizations";
+import { searchOrganizations, exportOrganizationsToCSV } from "@/lib/actions/organizations";
+import { downloadCSV } from "@/lib/utils/export-download";
 import type { AdminOrganization, TrialLockState } from "@/types/admin";
 
 const PAGE_SIZE = 25;
@@ -48,6 +49,20 @@ export function OrganizationsContent() {
   const [query, setQuery] = useState(initialQuery);
   const [isLoading, setIsLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const csv = await exportOrganizationsToCSV();
+      const date = new Date().toISOString().split("T")[0];
+      downloadCSV(csv, `organizations-${date}.csv`);
+    } catch (error) {
+      console.error("Failed to export organizations:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchOrgs = useCallback(async () => {
     setIsLoading(true);
@@ -99,6 +114,19 @@ export function OrganizationsContent() {
             Manage organizations, view memberships, and control trial states.
           </p>
         </div>
+        <Button
+          variant="outline"
+          className="border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
+          onClick={handleExport}
+          disabled={isExporting}
+        >
+          {isExporting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          Export CSV
+        </Button>
       </div>
 
       {/* Stats */}

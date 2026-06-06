@@ -4,6 +4,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { toCsv } from "@/lib/utils/csv";
 import type { AdminOrganization, OrganizationWithDetails, TrialLockState, OrgApiUsage } from "@/types/admin";
 
 async function requireAdmin() {
@@ -403,6 +404,83 @@ export async function getTrialsExpiringSoon(): Promise<number> {
   }
 
   return count ?? 0;
+}
+
+/**
+ * Export organizations to CSV.
+ * Capped at 500 orgs to respect Clerk rate limits.
+ */
+export async function exportOrganizationsToCSV(): Promise<string> {
+  await requireAdmin();
+  const client = await clerkClient();
+
+  const allOrgs: AdminOrganization[] = [];
+  const chunkSize = 100;
+  const maxOrgs = 500;
+
+  for (let offset = 0; offset < maxOrgs; offset += chunkSize) {
+    const response = await client.organizations.getOrganizationList({
+      limit: chunkSize,
+      offset,
+    });
+    if (response.data.length === 0) break;
+
+    const clerkOrgIds = response.data.map((o) => o.id);
+    const { data: dbOrgs } = await supabaseAdmin
+      .from("organizations")
+      .select(
+        "clerk_org_id, trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id"
+      )
+      .in("clerk_org_id", clerkOrgIds);
+
+    const dbOrgMap = new Map(dbOrgs?.map((o) => [o.clerk_org_id, o]) ?? []);
+
+    for (const org of response.data) {
+      const dbOrg = dbOrgMap.get(org.id);
+      allOrgs.push({
+        id: org.id,
+        clerkOrgId: org.id,
+        name: org.name,
+        slug: org.slug || org.name.toLowerCase().replace(/\s+/g, "-"),
+        memberCount: org.membersCount || 0,
+        trialLockState: (dbOrg?.trial_lock_state as TrialLockState) || "active",
+        trialStartedAt: dbOrg?.trial_started_at ?? null,
+        trialEndsAt: dbOrg?.trial_ends_at ?? null,
+        trialExtensionUsed: dbOrg?.trial_extension_used ?? false,
+        stripeCustomerId: dbOrg?.stripe_customer_id ?? null,
+        stripeSubscriptionId: dbOrg?.stripe_subscription_id ?? null,
+        stripePriceId: dbOrg?.stripe_price_id ?? null,
+        mrr: 0,
+        apiMonthlyQuota: null,
+        createdAt: org.createdAt
+          ? new Date(org.createdAt).toISOString()
+          : new Date().toISOString(),
+      });
+    }
+
+    if (response.data.length < chunkSize) break;
+  }
+
+  const headers = [
+    "Name",
+    "Slug",
+    "Trial State",
+    "Trial Ends At",
+    "Members",
+    "Stripe Subscription ID",
+    "Created At",
+  ];
+  const rows = allOrgs.map((o) => [
+    o.name,
+    o.slug,
+    o.trialLockState,
+    o.trialEndsAt ?? "",
+    o.memberCount,
+    o.stripeSubscriptionId ?? "",
+    o.createdAt,
+  ]);
+
+  return toCsv(headers, rows);
 }
 
 /**

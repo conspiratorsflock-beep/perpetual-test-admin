@@ -23,6 +23,7 @@ export interface AdminUser {
   lastSignInAt: string | null;
   organizationId: string | null;
   organizationName: string | null;
+  isBillingOwner?: boolean;
 }
 
 export interface UserWithDetails extends AdminUser {

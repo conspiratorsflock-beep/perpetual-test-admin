@@ -2,7 +2,9 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
+import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { toCsv } from "@/lib/utils/csv";
 import type { AdminUser, UserWithDetails, ProjectMembership } from "@/types/admin";
 
 interface SearchUsersParams {
@@ -335,4 +337,68 @@ export async function inviteUser({
     console.error("Failed to invite user:", error);
     throw new Error(error instanceof Error ? error.message : "Failed to invite user");
   }
+}
+
+/**
+ * Export users to CSV.
+ * Capped at 500 users to respect Clerk rate limits.
+ */
+export async function exportUsersToCSV(): Promise<string> {
+  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
+
+  const client = await clerkClient();
+
+  // Clerk getUserList max limit is 500; fetch in chunks of 100 up to 500.
+  const allUsers: AdminUser[] = [];
+  const chunkSize = 100;
+  const maxUsers = 500;
+
+  for (let offset = 0; offset < maxUsers; offset += chunkSize) {
+    const response = await client.users.getUserList({
+      limit: chunkSize,
+      offset,
+      orderBy: "-created_at",
+    });
+    if (response.data.length === 0) break;
+
+    const clerkIds = response.data.map((u) => u.id);
+    const { data: dbUsers } = await supabaseAdmin
+      .from("users")
+      .select("clerk_user_id, is_billing_owner")
+      .in("clerk_user_id", clerkIds);
+
+    const dbUserMap = new Map(dbUsers?.map((u) => [u.clerk_user_id, u]) ?? []);
+
+    for (const user of response.data) {
+      const dbUser = dbUserMap.get(user.id);
+      allUsers.push({
+        id: user.id,
+        clerkId: user.id,
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName,
+        lastName: user.lastName,
+        imageUrl: user.imageUrl,
+        isAdmin: (user.publicMetadata as { isAdmin?: boolean })?.isAdmin === true,
+        createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+        lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt).toISOString() : null,
+        organizationId: null,
+        organizationName: null,
+        isBillingOwner: dbUser?.is_billing_owner ?? false,
+      });
+    }
+
+    if (response.data.length < chunkSize) break;
+  }
+
+  const headers = ["Email", "First Name", "Last Name", "Admin", "Billing Owner", "Created At"];
+  const rows = allUsers.map((u) => [
+    u.email,
+    u.firstName ?? "",
+    u.lastName ?? "",
+    u.isAdmin ? "Yes" : "No",
+    u.isBillingOwner ? "Yes" : "No",
+    u.createdAt,
+  ]);
+
+  return toCsv(headers, rows);
 }
