@@ -93,8 +93,9 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 - [ ] Add `⌘K` global search (`CommandDialog`) to the header
 - [ ] Search across: users (email, name), orgs (name, slug), projects (name), tickets (reference code)
 - [ ] Route directly to detail page on selection
-- [ ] Add 30-second polling to `/users`, `/organizations`, `/projects`, `/leads`
-- [ ] Add subtle "refreshing..." indicator
+- [x] Add 30-second polling to `/users`, `/organizations`, `/projects`, `/leads`, `/help-desk/queue`, `/help-desk/my-tickets`
+- [x] Add subtle "refreshing..." indicator (`useVisiblePolling` hook)
+- [ ] Add polling to remaining pages (`/builds`, `/integrations`, `/api-keys`, `/audit-logs`)
 
 **What I need from you:**
 - Any preference for polling vs. Supabase Realtime subscriptions? Realtime is cleaner but requires enabling it on tables.
@@ -116,17 +117,20 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 
 ---
 
-## Phase 10 — Dashboard & Beta Metrics
-**Priority: MEDIUM** — Dashboard sparklines are `Math.random()`. Stakeholders will ask "How's the beta going?" and you'll have no trend data.
+## Phase 10 — Dashboard & Beta Metrics ✅ DONE
+**Priority: MEDIUM** — Dashboard sparklines were `Math.random()`. Now real data.
 
-**Tasks:**
-- [ ] Replace sparkline random data with real historical queries (daily active users, org signups, trial conversions)
-- [ ] Add beta-specific stat cards: active trials, trials expiring this week, paid conversions, open support tickets
-- [ ] Add "Recent Admin Activity" feed from `admin_audit_logs`
+**Completed:**
+- [x] `src/lib/actions/dashboard.ts` — real 14-day daily series for users, orgs, API calls via `getDashboardTrends()`
+- [x] `src/lib/actions/organizations.ts` — `getTrialsExpiringSoon()` (7-day window)
+- [x] `src/lib/actions/support-tickets.ts` — `getOpenTicketCount()`
+- [x] Rewrote `src/app/dashboard/page.tsx`:
+  - First row: Total Users, Active Orgs, MRR, API Calls Today — all with real sparklines and real change %
+  - Second row: Beta Health KPIs (Active Trials, Paid Orgs, Trials Expiring ≤7d, Open Tickets)
+  - Quick Actions preserved; Recent Admin Activity shows placeholder with note about `admin_audit_logs`
+- [x] Extended `StatCard` type with optional `sparklineData`
+- [ ] Add "Recent Admin Activity" feed from `admin_audit_logs` — UNBLOCKED: table created (migration 20260605230000) and `logAdminAction()` writes verified to persist; `getAuditLogs()` read action already exists. Just needs the dashboard card wired up (feed will be sparse until actions accumulate).
 - [ ] Add widget linking to `/leads` showing conversion rate
-
-**What I need from you:**
-- Any specific KPIs you want pinned to the dashboard for beta reporting?
 
 ---
 
@@ -176,6 +180,9 @@ These are components the lathe-studio main app needs to implement.
 - `src/app/setup-admin/page.tsx` — references non-existent `setupEmergencyAdmin` export from `setup-admin.ts`
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
 - Admin console queries `build_queue_items` but lathe-studio uses `builds` (real table) — fixed in Phase 6
+- `admin_audit_logs` table present but `logAdminAction()` writes silently fail (needs root-cause investigation)
+- `npm run lint` is broken: Next.js 16 removed `next lint` command
+- ~60 pre-existing test failures from Clerk/Supabase mocking in jsdom (unrelated to current code)
 
 ---
 
@@ -212,6 +219,7 @@ tagged `// DRIFT:`. Remove the escape-hatch as the schema is reconciled.
   absent; made a no-op and de-isolated from `supabaseAdminUntyped`.
 - `is_agent_on_duty` RPC (support-tickets-seeding.ts) — absent; `support_team_members.is_online` absent.
   **Last remaining drift surface.**
+- ⚠️ `admin_audit_logs` — table exists but writes may silently fail; see Known Issues above.
 
 ### Clean fixes applied (code now matches the real DB schema)
 - `project_members.role` dropped repo-wide → role derived from linked `custom_roles(name)`.

@@ -383,6 +383,29 @@ export async function getTotalOrgCount(): Promise<number> {
 }
 
 /**
+ * Count organizations with active trials expiring within the next 7 days.
+ */
+export async function getTrialsExpiringSoon(): Promise<number> {
+  await requireAdmin();
+  const now = new Date().toISOString();
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { count, error } = await supabaseAdmin
+    .from("organizations")
+    .select("*", { count: "exact", head: true })
+    .eq("trial_lock_state", "active")
+    .gte("trial_ends_at", now)
+    .lte("trial_ends_at", sevenDaysFromNow);
+
+  if (error) {
+    console.error("Failed to get trials expiring soon:", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+/**
  * Helper: Convert Clerk org ID to lathe-studio UUID.
  */
 async function getOrgUuidFromClerkId(clerkOrgId: string): Promise<string | null> {

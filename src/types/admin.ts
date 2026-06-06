@@ -234,6 +234,7 @@ export interface StatCard {
   value: string;
   change: string;
   trend: "up" | "down" | "neutral";
+  sparklineData?: Array<{ v: number }>;
 }
 
 // ─── Announcements ──────────────────────────────────────────────────────────

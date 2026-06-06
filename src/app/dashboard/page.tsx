@@ -12,6 +12,10 @@ import {
   Zap,
   ArrowRight,
   Loader2,
+  Timer,
+  CheckCircle2,
+  AlertCircle,
+  Ticket,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -21,17 +25,12 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTotalUserCount } from "@/lib/actions/users";
-import { getTotalOrgCount } from "@/lib/actions/organizations";
+import { getTotalOrgCount, getTrialsExpiringSoon } from "@/lib/actions/organizations";
 import { getApiCallsToday, getApiCallsComparison } from "@/lib/actions/api-usage";
 import { getBillingMetrics } from "@/lib/actions/billing";
+import { getDashboardTrends } from "@/lib/actions/dashboard";
+import { getOpenTicketCount } from "@/lib/actions/support-tickets";
 import type { StatCard } from "@/types/admin";
-
-// Sparkline data placeholder - would come from historical data
-const generateSparkData = (value: number) => {
-  return Array.from({ length: 10 }, (_, i) => ({
-    v: Math.max(0, value * (0.7 + Math.random() * 0.6)),
-  }));
-};
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<StatCard[]>([
@@ -40,42 +39,90 @@ export default function DashboardPage() {
     { label: "MRR", value: "—", change: "—", trend: "neutral" },
     { label: "API Calls Today", value: "—", change: "—", trend: "neutral" },
   ]);
+  const [betaStats, setBetaStats] = useState<
+    Array<{ label: string; value: string; icon: React.ElementType; alert?: boolean }>
+  >([
+    { label: "Active Trials", value: "—", icon: Timer },
+    { label: "Paid Orgs", value: "—", icon: CheckCircle2 },
+    { label: "Trials Expiring ≤7d", value: "—", icon: AlertCircle, alert: true },
+    { label: "Open Tickets", value: "—", icon: Ticket, alert: true },
+  ]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [userCount, orgCount, billingMetrics, apiComparison] = await Promise.all([
+        const [
+          userCount,
+          orgCount,
+          billingMetrics,
+          apiComparison,
+          trends,
+          trialsExpiring,
+          openTickets,
+        ] = await Promise.all([
           getTotalUserCount(),
           getTotalOrgCount(),
           getBillingMetrics().catch(() => null),
           getApiCallsComparison(),
+          getDashboardTrends(14),
+          getTrialsExpiringSoon(),
+          getOpenTicketCount(),
         ]);
 
         setStats([
           {
             label: "Total Users",
             value: userCount.toLocaleString(),
-            change: "—",
-            trend: "neutral",
+            change: `${trends.userChange.value >= 0 ? "+" : ""}${trends.userChange.value}% vs last week`,
+            trend: trends.userChange.trend,
+            sparklineData: trends.newUsers.map((v) => ({ v })),
           },
           {
             label: "Active Orgs",
             value: orgCount.toLocaleString(),
-            change: "—",
-            trend: "neutral",
+            change: `${trends.orgChange.value >= 0 ? "+" : ""}${trends.orgChange.value}% vs last week`,
+            trend: trends.orgChange.trend,
+            sparklineData: trends.newOrgs.map((v) => ({ v })),
           },
           {
             label: "MRR",
             value: billingMetrics ? `$${billingMetrics.mrr.toLocaleString()}` : "—",
             change: billingMetrics ? `${billingMetrics.trialToPaidConversionRate}% conversion` : "—",
             trend: "neutral",
+            sparklineData: undefined,
           },
           {
             label: "API Calls Today",
             value: apiComparison.today.toLocaleString(),
             change: `${apiComparison.change >= 0 ? "+" : ""}${apiComparison.change}% vs yesterday`,
             trend: apiComparison.trend,
+            sparklineData: trends.apiCalls.map((v) => ({ v })),
+          },
+        ]);
+
+        setBetaStats([
+          {
+            label: "Active Trials",
+            value: billingMetrics?.activeTrials.toLocaleString() ?? "—",
+            icon: Timer,
+          },
+          {
+            label: "Paid Orgs",
+            value: billingMetrics?.paidOrgs.toLocaleString() ?? "—",
+            icon: CheckCircle2,
+          },
+          {
+            label: "Trials Expiring ≤7d",
+            value: trialsExpiring.toLocaleString(),
+            icon: AlertCircle,
+            alert: trialsExpiring > 0,
+          },
+          {
+            label: "Open Tickets",
+            value: openTickets.toLocaleString(),
+            icon: Ticket,
+            alert: openTickets > 0,
           },
         ]);
       } catch (error) {
@@ -87,8 +134,6 @@ export default function DashboardPage() {
     loadStats();
   }, []);
 
-  const statIcons = [Users, Building2, CreditCard, Zap];
-
   function StatCardComponent({
     stat,
     index,
@@ -96,19 +141,13 @@ export default function DashboardPage() {
     stat: StatCard;
     index: number;
   }) {
-    const Icon = statIcons[index];
     const TrendIcon = stat.trend === "up" ? TrendingUp : stat.trend === "down" ? TrendingDown : null;
-
-    // Generate sparkline data based on the stat value
-    const numericValue = parseInt(stat.value.replace(/[^0-9]/g, "")) || 0;
-    const sparkData = generateSparkData(numericValue / 10);
 
     return (
       <Card className="bg-slate-900 border-slate-800">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium text-slate-400">{stat.label}</p>
-            <Icon className="h-4 w-4 text-slate-600" />
           </div>
           <p className="mt-2 text-2xl font-semibold text-slate-100">{stat.value}</p>
           <div className="mt-1 flex items-center gap-1">
@@ -131,30 +170,31 @@ export default function DashboardPage() {
           </div>
 
           {/* Sparkline */}
-          <div className="mt-3 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={sparkData}>
-                <defs>
-                  <linearGradient id={`grad-${index}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <Tooltip
-                  contentStyle={{ display: "none" }}
-                  cursor={false}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="v"
-                  stroke="#f59e0b"
-                  strokeWidth={1.5}
-                  fill={`url(#grad-${index})`}
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {stat.sparklineData && stat.sparklineData.length > 0 ? (
+            <div className="mt-3 h-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={stat.sparklineData}>
+                  <defs>
+                    <linearGradient id={`grad-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Tooltip contentStyle={{ display: "none" }} cursor={false} />
+                  <Area
+                    type="monotone"
+                    dataKey="v"
+                    stroke="#f59e0b"
+                    strokeWidth={1.5}
+                    fill={`url(#grad-${index})`}
+                    dot={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="mt-3 h-10" />
+          )}
         </CardContent>
       </Card>
     );
@@ -182,6 +222,42 @@ export default function DashboardPage() {
         {stats.map((stat, i) => (
           <StatCardComponent key={stat.label} stat={stat} index={i} />
         ))}
+      </div>
+
+      {/* Beta KPIs */}
+      <div>
+        <h2 className="text-sm font-medium text-slate-400 mb-3">Beta Health</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {betaStats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card
+                key={stat.label}
+                className={`bg-slate-900 border-slate-800 ${
+                  stat.alert ? "border-amber-500/30" : ""
+                }`}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-slate-400">{stat.label}</p>
+                    <Icon
+                      className={`h-4 w-4 ${
+                        stat.alert ? "text-amber-400" : "text-slate-600"
+                      }`}
+                    />
+                  </div>
+                  <p
+                    className={`mt-2 text-2xl font-semibold ${
+                      stat.alert ? "text-amber-400" : "text-slate-100"
+                    }`}
+                  >
+                    {stat.value}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       {/* Quick Actions */}
@@ -245,6 +321,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent Activity */}
+      {/* admin_audit_logs now exists (migration 20260605230000) and getAuditLogs() in
+          src/lib/audit/logger.ts can read it — this feed can be wired up (it will be sparse
+          until admin actions accumulate). Left as a link to the Support section for now. */}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader>
           <CardTitle className="text-sm font-medium text-slate-400">Recent Admin Activity</CardTitle>

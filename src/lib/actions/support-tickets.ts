@@ -71,6 +71,25 @@ export async function getSupportTickets(params: {
   };
 }
 
+/**
+ * Get count of open tickets (open, in_progress, pending).
+ */
+export async function getOpenTicketCount(): Promise<number> {
+  await requireAdmin();
+  const { count, error } = await supabaseAdmin
+    .from("support_tickets")
+    .select("*", { count: "exact", head: true })
+    .is("deleted_at", null)
+    .in("status", ["open", "in_progress", "pending"]);
+
+  if (error) {
+    console.error("Failed to get open ticket count:", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 export async function getSupportTicketById(id: string): Promise<SupportTicket | null> {
   await requireAdmin();
   const { data, error } = await supabaseAdmin
