@@ -14,6 +14,8 @@ import {
   incrementCannedResponseUse,
   getSupportTeam,
   addTeamMember,
+  getOpenTicketCount,
+  getSupportTicketByReference,
 } from "../support-tickets";
 import { logAdminAction } from "@/lib/audit/logger";
 
@@ -632,6 +634,460 @@ describe("Support Ticket Actions", () => {
       await expect(
         updateTicketPriority("ticket_1", "high", "agent_1", "agent@example.com")
       ).rejects.toThrow("Failed to update priority");
+    });
+  });
+
+  describe("addTicketComment", () => {
+    it("should insert comment and flip pending ticket to in_progress for agent non-internal reply", async () => {
+      const mockCommentInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: mockCommentRow, error: null })),
+        })),
+      }));
+      const mockTicketUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_ticket_comments") return { insert: mockCommentInsert };
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: { status: "pending" }, error: null })),
+              })),
+            })),
+            update: mockTicketUpdate,
+          };
+        }
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        return {};
+      });
+
+      const result = await addTicketComment(
+        "ticket_1",
+        "Reply",
+        "agent_1",
+        "agent@example.com",
+        "Agent",
+        false,
+        true
+      );
+
+      expect(mockCommentInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticket_id: "ticket_1",
+          author_id: "agent_1",
+          content: "Reply",
+          is_agent: true,
+          is_internal: false,
+        })
+      );
+      expect(mockTicketUpdate).toHaveBeenCalledWith({
+        status: "in_progress",
+        updated_at: expect.any(String),
+      });
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_ticket.comment_add",
+        targetType: "support_ticket",
+        targetId: "ticket_1",
+        metadata: { isInternal: false, isAgent: true },
+      });
+      expect(result.content).toBe("I'll help");
+    });
+
+    it("should NOT flip status for internal note", async () => {
+      const mockCommentInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: mockCommentRow, error: null })),
+        })),
+      }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_ticket_comments") return { insert: mockCommentInsert };
+        if (table === "support_ticket_events") return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+        return {};
+      });
+
+      await addTicketComment(
+        "ticket_1",
+        "Internal note",
+        "agent_1",
+        "agent@example.com",
+        "Agent",
+        true,
+        true
+      );
+
+      // support_tickets select/update should never be called
+      const ticketsCalls = mockSupabaseFrom.mock.calls.filter(([table]) => table === "support_tickets");
+      expect(ticketsCalls).toHaveLength(0);
+    });
+
+    it("should NOT flip status for non-agent comment", async () => {
+      const mockCommentInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: mockCommentRow, error: null })),
+        })),
+      }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_ticket_comments") return { insert: mockCommentInsert };
+        if (table === "support_ticket_events") return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+        return {};
+      });
+
+      await addTicketComment(
+        "ticket_1",
+        "User reply",
+        "user_1",
+        "user@example.com",
+        "User",
+        false,
+        false
+      );
+
+      const ticketsCalls = mockSupabaseFrom.mock.calls.filter(([table]) => table === "support_tickets");
+      expect(ticketsCalls).toHaveLength(0);
+    });
+
+    it("should NOT flip status when ticket is not pending", async () => {
+      const mockCommentInsert = vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve({ data: mockCommentRow, error: null })),
+        })),
+      }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_ticket_comments") return { insert: mockCommentInsert };
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: { status: "open" }, error: null })),
+              })),
+            })),
+          };
+        }
+        if (table === "support_ticket_events") return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+        return {};
+      });
+
+      await addTicketComment(
+        "ticket_1",
+        "Reply",
+        "agent_1",
+        "agent@example.com",
+        "Agent",
+        false,
+        true
+      );
+
+      const ticketsCalls = mockSupabaseFrom.mock.calls.filter(([table]) => table === "support_tickets");
+      // Only the select call, no update
+      expect(ticketsCalls).toHaveLength(1);
+    });
+
+    it("should throw on insert error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_ticket_comments") {
+          return {
+            insert: vi.fn(() => ({
+              select: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        addTicketComment("ticket_1", "Reply", "agent_1", "agent@example.com", "Agent")
+      ).rejects.toThrow("Failed to add comment");
+    });
+
+    it("should reject non-admin users", async () => {
+      mockAuthUserId = null;
+
+      await expect(
+        addTicketComment("ticket_1", "Reply", "agent_1", "agent@example.com", "Agent")
+      ).rejects.toThrow("Unauthorized");
+    });
+  });
+
+  describe("closeTicket", () => {
+    it("should update status closed with resolved_at and log audit", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") return { update: mockUpdate };
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        return {};
+      });
+
+      await closeTicket("ticket_1", "agent_1", "agent@example.com", "Issue fixed");
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        status: "closed",
+        resolved_at: expect.any(String),
+        updated_at: expect.any(String),
+      });
+      expect(mockEventInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticket_id: "ticket_1",
+          event_type: "closed",
+          new_value: "Issue fixed",
+        })
+      );
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_ticket.close",
+        targetType: "support_ticket",
+        targetId: "ticket_1",
+        metadata: { resolution: "Issue fixed" },
+      });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(closeTicket("ticket_1", "agent_1", "agent@example.com")).rejects.toThrow(
+        "Failed to close ticket"
+      );
+    });
+  });
+
+  describe("getOpenTicketCount", () => {
+    it("should return the count", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              is: vi.fn(() => ({
+                in: vi.fn(() => Promise.resolve({ count: 7, error: null })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const count = await getOpenTicketCount();
+      expect(count).toBe(7);
+    });
+
+    it("should return 0 on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              is: vi.fn(() => ({
+                in: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB Error" } })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const count = await getOpenTicketCount();
+      expect(count).toBe(0);
+    });
+  });
+
+  describe("getSupportTicketByReference", () => {
+    it("should return mapped ticket", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: mockTicketRow, error: null })),
+                })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const result = await getSupportTicketByReference(1001);
+      expect(result?.id).toBe("ticket_1");
+      expect(result?.ticketNumber).toBe(1001);
+    });
+
+    it("should return null for PGRST116", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: null, error: { code: "PGRST116" } })),
+                })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const result = await getSupportTicketByReference(9999);
+      expect(result).toBeNull();
+    });
+  });
+
+  describe("getCannedResponses", () => {
+    it("should return canned responses and apply category filter", async () => {
+      const canned = [
+        { id: "c1", title: "T1", content: "C1", category: "billing", is_active: true, created_at: "2024-01-01T00:00:00Z" },
+      ];
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_canned_responses") {
+          const result = { data: canned, error: null };
+          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
+            eq: vi.fn(() => chain),
+            order: vi.fn(() => chain),
+            then: vi.fn((resolve) => resolve(result)),
+          };
+          return { select: vi.fn(() => chain) };
+        }
+        return {};
+      });
+
+      const result = await getCannedResponses("billing");
+      expect(result).toEqual(canned);
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_canned_responses") {
+          const result = { data: null, error: { message: "DB Error" } };
+          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
+            eq: vi.fn(() => chain),
+            order: vi.fn(() => chain),
+            then: vi.fn((resolve) => resolve(result)),
+          };
+          return { select: vi.fn(() => chain) };
+        }
+        return {};
+      });
+
+      await expect(getCannedResponses()).rejects.toThrow("Failed to fetch canned responses");
+    });
+  });
+
+  describe("incrementCannedResponseUse", () => {
+    it("should be a no-op", async () => {
+      await expect(incrementCannedResponseUse("c1")).resolves.toBeUndefined();
+    });
+  });
+
+  describe("getSupportTeam", () => {
+    it("should map members with defaults", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_team_members") {
+          return {
+            select: vi.fn(() => ({
+              order: vi.fn(() =>
+                Promise.resolve({
+                  data: [
+                    { id: "tm1", user_id: "u1", email: "a@b.com", name: "Alice", role: "admin", is_available: true, max_open_tickets: 5, skills: ["billing"], created_at: "2024-01-01T00:00:00Z" },
+                    { id: "tm2", user_id: "u2", email: "b@b.com", name: null, role: "agent", is_available: null, max_open_tickets: null, skills: null, created_at: "2024-01-01T00:00:00Z" },
+                  ],
+                  error: null,
+                })
+              ),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const result = await getSupportTeam();
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({ id: "tm1", userId: "u1", isAvailable: true, maxOpenTickets: 5, skills: ["billing"] });
+      expect(result[1]).toMatchObject({ userId: "u2", isAvailable: false, maxOpenTickets: 0, skills: [] });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_team_members") {
+          return {
+            select: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(getSupportTeam()).rejects.toThrow("Failed to fetch team");
+    });
+  });
+
+  describe("addTeamMember", () => {
+    it("should insert member and log audit with targetType user", async () => {
+      const mockInsert = vi.fn(() => Promise.resolve({ error: null }));
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_team_members") return { insert: mockInsert };
+        return {};
+      });
+
+      await addTeamMember("user_9", "new@example.com", "Newbie", "agent");
+
+      expect(mockInsert).toHaveBeenCalledWith({
+        user_id: "user_9",
+        email: "new@example.com",
+        name: "Newbie",
+        role: "agent",
+      });
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_team.member_add",
+        targetType: "user",
+        targetId: "user_9",
+        targetName: "new@example.com",
+        metadata: { role: "agent" },
+      });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_team_members") {
+          return {
+            insert: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+          };
+        }
+        return {};
+      });
+
+      await expect(addTeamMember("u", "e@e.com", null)).rejects.toThrow("Failed to add team member");
+    });
+
+    it("should reject non-admin users before any DB write", async () => {
+      mockAuthUserId = null;
+      const mockInsert = vi.fn();
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_team_members") return { insert: mockInsert };
+        return {};
+      });
+
+      await expect(addTeamMember("u", "e@e.com", null)).rejects.toThrow("Unauthorized");
+      expect(mockInsert).not.toHaveBeenCalled();
     });
   });
 });
