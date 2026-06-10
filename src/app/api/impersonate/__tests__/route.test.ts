@@ -19,10 +19,23 @@ const adminAuth = {
   sessionClaims: { publicMetadata: { isAdmin: true } },
 };
 
+const nonAdminAuth = {
+  userId: "user_1",
+  sessionClaims: { publicMetadata: { isAdmin: false } },
+};
+
+const unauthenticatedAuth = {
+  userId: null,
+  sessionClaims: null,
+};
+
 function makePostRequest(body?: unknown): NextRequest {
-  const init: RequestInit = { method: "POST" };
+  const init = { method: "POST" } as const;
   if (body !== undefined) {
-    init.body = JSON.stringify(body);
+    return new NextRequest("http://localhost:3001/api/impersonate", {
+      ...init,
+      body: JSON.stringify(body),
+    });
   }
   return new NextRequest("http://localhost:3001/api/impersonate", init);
 }
@@ -130,5 +143,29 @@ describe("API: /api/impersonate", () => {
     await POST(makePostRequest({ token }));
 
     expect(mockValidateImpersonationToken).toHaveBeenCalledWith(token);
+  });
+
+  describe("auth gates", () => {
+    it("returns 401 Not authenticated when user is not signed in", async () => {
+      mockAuth.mockResolvedValue(unauthenticatedAuth);
+
+      const response = await POST(makePostRequest({ token: "any_token" }));
+
+      expect(response.status).toBe(401);
+      const body = await response.json();
+      expect(body.error).toBe("Not authenticated");
+      expect(mockValidateImpersonationToken).not.toHaveBeenCalled();
+    });
+
+    it("returns 403 Not authorized when user is not an admin", async () => {
+      mockAuth.mockResolvedValue(nonAdminAuth);
+
+      const response = await POST(makePostRequest({ token: "any_token" }));
+
+      expect(response.status).toBe(403);
+      const body = await response.json();
+      expect(body.error).toBe("Not authorized");
+      expect(mockValidateImpersonationToken).not.toHaveBeenCalled();
+    });
   });
 });
