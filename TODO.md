@@ -204,14 +204,41 @@ These are components the lathe-studio main app needs to implement.
 
 ---
 
+## 🔧 Refactor-round candidates (collected during the 2026-06 test-repair round)
+
+A site refactor is planned as its OWN round after the test-repair round lands
+(green suite + coverage first = safety net). The reviewer appends candidates
+here as reviews surface them — do not start these during the test round.
+
+- `src/lib/dev-auth/client.tsx` / `server.ts` — lazy `require("@clerk/nextjs")`
+  pattern is mock-hostile (broke 19 TicketDetail tests) and dodges static
+  analysis. Candidate: static imports behind a build-time flag, or DI.
+- `src/lib/actions/support-tickets.ts` (770+ lines) — mixes queue reads,
+  comment writes, team management, SLA math, and analytics. Candidate: split
+  by concern; analytics functions have no tests and a huge mock surface.
+- `src/app/billing/page.tsx` — client component loading data via server
+  actions in `useEffect`; "is Stripe configured" inferred from all-zero
+  metrics. Candidate: server component + explicit configured-flag from the
+  action.
+- `requireAdmin()` is re-declared per action file (25 copies of the same
+  3-line guard). Candidate: single shared guard in `lib/clerk/`.
+- `src/test/database/*` (47 tests, 4 files hard-`describe.skip`ped) — need a
+  dedicated test database story before they can ever run; until then they rot.
+- TESTING.md — drifted from reality (mentions removing `.skip` casually, CI
+  example includes a lint step that no longer exists, mock examples predate
+  the current setup.ts shapes).
+- 22 action files still untested after Plans 04–05 — next coverage slices.
+
+---
+
 ## 🐛 Known Issues
 
 - `src/app/setup-admin/page.tsx` — references non-existent `setupEmergencyAdmin` export from `setup-admin.ts`
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
 - Admin console queries `build_queue_items` but lathe-studio uses `builds` (real table) — fixed in Phase 6
 - `admin_audit_logs` table present but `logAdminAction()` writes silently fail (needs root-cause investigation)
-- `npm run lint` is broken: Next.js 16 removed `next lint` command
-- ~60 pre-existing test failures from Clerk/Supabase mocking in jsdom (unrelated to current code)
+- ~~`npm run lint` is broken: Next.js 16 removed `next lint` command~~ → script removed (`28c9884`); verify gate is `npm run test` + `npm run typecheck`
+- ~~~60 pre-existing test failures from Clerk/Supabase mocking in jsdom~~ → being repaired by the 2026-06 test-repair round (PLAN_01 merged: 61→24 failures; Plans 02–03 cover the rest)
 
 ---
 
