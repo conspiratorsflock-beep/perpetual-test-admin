@@ -205,21 +205,67 @@ describe("Feature Flag Actions", () => {
   });
 
   describe("checkFeatureEnabled", () => {
-    it("should check if feature is enabled for user", async () => {
-      mockSupabaseRpc.mockResolvedValue({ data: true, error: null });
+    it("should return true when feature is enabled globally", async () => {
+      const mockMaybeSingle = vi.fn(() =>
+        Promise.resolve({
+          data: {
+            enabled_globally: true,
+            enabled_for_orgs: [],
+            enabled_for_users: [],
+          },
+          error: null,
+        })
+      );
+      const mockEq = vi.fn(() => ({ maybeSingle: mockMaybeSingle }));
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: mockEq })),
+      });
 
       const result = await checkFeatureEnabled("new_feature", "user_123", "org_123");
 
       expect(result).toBe(true);
-      expect(mockSupabaseRpc).toHaveBeenCalledWith("is_feature_enabled", {
-        flag_key: "new_feature",
-        user_id: "user_123",
-        org_id: "org_123",
-      });
+      expect(mockSupabaseFrom).toHaveBeenCalledWith("feature_flags");
+      expect(mockEq).toHaveBeenCalledWith("key", "new_feature");
     });
 
-    it("should return false on error", async () => {
-      mockSupabaseRpc.mockResolvedValue({ data: null, error: { message: "Error" } });
+    it("should return true when feature is enabled for the org", async () => {
+      const mockMaybeSingle = vi.fn(() =>
+        Promise.resolve({
+          data: {
+            enabled_globally: false,
+            enabled_for_orgs: ["org_123"],
+            enabled_for_users: [],
+          },
+          error: null,
+        })
+      );
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) })),
+      });
+
+      const result = await checkFeatureEnabled("new_feature", "user_123", "org_123");
+
+      expect(result).toBe(true);
+    });
+
+    it("should return false when flag is not found", async () => {
+      const mockMaybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) })),
+      });
+
+      const result = await checkFeatureEnabled("new_feature");
+
+      expect(result).toBe(false);
+    });
+
+    it("should return false on database error", async () => {
+      const mockMaybeSingle = vi.fn(() =>
+        Promise.resolve({ data: null, error: { message: "DB Error" } })
+      );
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) })),
+      });
 
       const result = await checkFeatureEnabled("new_feature");
 
