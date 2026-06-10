@@ -104,3 +104,5 @@
     - `addTicketComment` side-effect matrix fully locked: pending → in_progress only when `isAgent && !isInternal`; no flip for internal notes, non-agent comments, or non-pending tickets.
   - Verified: zero-line diff on `src/lib/actions/support-tickets.ts`; audit action strings (`support_ticket.*`, `support_team.member_add`) asserted byte-exact; auth-gate tests on every write assert `mockSupabaseFrom` not called for non-admin users.
   - NOT verified: fixture column names vs live DB; `support_sla_config.first_response_hours` values vs production (reviewer re-verifies).
+
+- **2026-06-10 22:30 UTC** — Cron check fired. PLAN_05 still `ready_for_review`; no new plan docs in `docs/plans/`. Holding for reviewer merge.
