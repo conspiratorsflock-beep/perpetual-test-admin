@@ -107,6 +107,13 @@ export async function validateImpersonationToken(token: string): Promise<{
     return { valid: false, error: "Token expired" };
   }
 
+  await logAdminAction({
+    action: "impersonation.token_used",
+    targetType: "user",
+    targetId: data.target_user_id,
+    metadata: { tokenCreatedBy: data.admin_id },
+  });
+
   return {
     valid: true,
     targetUserId: data.target_user_id,

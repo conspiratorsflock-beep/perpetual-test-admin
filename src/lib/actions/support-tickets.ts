@@ -280,6 +280,13 @@ export async function updateTicketPriority(
   }
 
   await logTicketEvent(ticketId, "priority_changed", priority, agentId, agentEmail);
+
+  await logAdminAction({
+    action: "support_ticket.priority_change",
+    targetType: "support_ticket",
+    targetId: ticketId,
+    metadata: { priority },
+  });
 }
 
 export async function addTicketComment(
@@ -329,6 +336,13 @@ export async function addTicketComment(
   }
 
   await logTicketEvent(ticketId, "comment_added", null, authorId, authorEmail);
+
+  await logAdminAction({
+    action: "support_ticket.comment_add",
+    targetType: "support_ticket",
+    targetId: ticketId,
+    metadata: { isInternal, isAgent },
+  });
 
   return mapCommentFromDB(data);
 }
@@ -451,6 +465,14 @@ export async function addTeamMember(
   if (error) {
     throw new Error(`Failed to add team member: ${error.message}`);
   }
+
+  await logAdminAction({
+    action: "support_team.member_add",
+    targetType: "user",
+    targetId: userId,
+    targetName: email,
+    metadata: { role },
+  });
 }
 
 // ============================================
