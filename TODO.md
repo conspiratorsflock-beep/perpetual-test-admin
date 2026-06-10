@@ -233,17 +233,16 @@ here as reviews surface them — do not start these during the test round.
 
 ## 🐛 Known Issues
 
-- **LIVE-DB SCHEMA DRIFT (found 2026-06-10, fix blocked pending approval):**
-  the live shared DB is missing the additive columns from
-  `20260601_unify_shared_schemas.sql` on `support_tickets` (`deleted_at`,
-  `first_response_at`, `tags`, `assigned_at`, `reference_code`) and
-  `support_ticket_comments` (`is_agent`, `edited_by`). Runtime consequence
-  TODAY: every Help Desk queue read (`.is("deleted_at", null)`) and every
-  comment insert (`is_agent`) fails against the live DB. Fix = re-apply the
-  two additive ALTER blocks (idempotent, `IF NOT EXISTS`); reviewer's
-  prepared migration `reapply_unify_shared_schemas_missing_columns` awaits
-  user approval. Same root cause as the 2026-06-05 "7 missing admin tables"
-  incident.
+- ✅ **LIVE-DB SCHEMA DRIFT — RESOLVED (2026-06-10, user-approved):** the live
+  shared DB was missing the additive columns from
+  `20260601_unify_shared_schemas.sql` on `support_tickets` (`deleted_at`, …)
+  and `support_ticket_comments` (`is_agent`, …), breaking every Help Desk
+  queue read and comment insert at runtime. Migration
+  `reapply_unify_shared_schemas_missing_columns` applied via Supabase MCP;
+  both paths smoke-tested against the live DB (queue read returns, comment
+  insert round-trips with `is_agent`). Same root cause as the 2026-06-05
+  "7 missing admin tables" incident — **watch for this class: a committed
+  migration file is not an applied migration.**
 - `src/app/setup-admin/page.tsx` — references non-existent `setupEmergencyAdmin` export from `setup-admin.ts`
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
 - Admin console queries `build_queue_items` but lathe-studio uses `builds` (real table) — fixed in Phase 6
