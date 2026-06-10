@@ -528,4 +528,233 @@ describe("Organization Actions", () => {
       expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
+
+  describe("searchOrganizations", () => {
+    it("should return mapped organizations with DB enrichment", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [mockClerkOrg],
+        totalCount: 1,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() =>
+              Promise.resolve({
+                data: [mockDbOrg],
+                error: null,
+              })
+            ),
+          })),
+        };
+      });
+
+      const result = await searchOrganizations();
+
+      expect(result.orgs).toHaveLength(1);
+      expect(result.orgs[0].id).toBe("org_clerk_1");
+      expect(result.orgs[0].clerkOrgId).toBe("org_clerk_1");
+      expect(result.orgs[0].name).toBe("Acme Corp");
+      expect(result.orgs[0].trialLockState).toBe("active");
+      expect(result.orgs[0].trialEndsAt).toBe("2024-01-15T00:00:00Z");
+      expect(result.orgs[0].stripeCustomerId).toBe("cus_1");
+      expect(result.total).toBe(1);
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should pass query and pagination to Clerk", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [],
+        totalCount: 0,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        };
+      });
+
+      await searchOrganizations({ query: "acme", limit: 10, offset: 20 });
+
+      expect(mockClerkClient.organizations.getOrganizationList).toHaveBeenCalledWith({
+        limit: 10,
+        offset: 20,
+        query: "acme",
+      });
+    });
+
+    it("should filter by trial state locally", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [
+          { ...mockClerkOrg, id: "org_1" },
+          { ...mockClerkOrg, id: "org_2" },
+        ],
+        totalCount: 2,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() =>
+              Promise.resolve({
+                data: [
+                  { ...mockDbOrg, clerk_org_id: "org_1", trial_lock_state: "hard_locked" },
+                  { ...mockDbOrg, clerk_org_id: "org_2", trial_lock_state: "active" },
+                ],
+                error: null,
+              })
+            ),
+          })),
+        };
+      });
+
+      const result = await searchOrganizations({ trialState: "hard_locked" });
+
+      expect(result.orgs).toHaveLength(1);
+      expect(result.orgs[0].trialLockState).toBe("hard_locked");
+      expect(result.total).toBe(1);
+    });
+
+    it("should default missing DB org to active state", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [mockClerkOrg],
+        totalCount: 1,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+          })),
+        };
+      });
+
+      const result = await searchOrganizations();
+
+      expect(result.orgs[0].trialLockState).toBe("active");
+    });
+
+    it("currently swallows database errors and returns orgs with defaults (source bug)", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [mockClerkOrg],
+        totalCount: 1,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+          })),
+        };
+      });
+
+      // NOTE: organizations.ts:42-47 does not check `error` from the Supabase `.in()` call;
+      // it silently treats null data as "no DB orgs" and returns defaults. This is a
+      // suspected source bug — reported, not fixed, because this plan is confirm-and-lock.
+      const result = await searchOrganizations();
+
+      expect(result.orgs).toHaveLength(1);
+      expect(result.orgs[0].trialLockState).toBe("active");
+    });
+  });
+
+  describe("getOrganizationById", () => {
+    it("should return organization with members, projects and usage", async () => {
+      mockClerkClient.organizations.getOrganization.mockResolvedValue(mockClerkOrg);
+      mockClerkClient.organizations.getOrganizationMembershipList.mockResolvedValue({
+        data: [
+          {
+            publicUserData: { userId: "user_1", identifier: "user@example.com", firstName: "John", lastName: "Doe" },
+            role: "admin",
+            createdAt: Date.now(),
+          },
+        ],
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "organizations") {
+          return {
+            select: vi.fn((columns?: string) => {
+              if (columns === "id") {
+                return {
+                  eq: vi.fn((col: string, val: string) => {
+                    if (col === "clerk_org_id" && val === "org_clerk_1") {
+                      return {
+                        single: vi.fn(() =>
+                          Promise.resolve({ data: { id: "org_db_1" }, error: null })
+                        ),
+                      };
+                    }
+                    return { single: vi.fn(() => Promise.resolve({ data: null, error: null })) };
+                  }),
+                };
+              }
+              return {
+                eq: vi.fn(() => ({
+                  single: vi.fn(() => Promise.resolve({ data: mockDbOrg, error: null })),
+                })),
+              };
+            }),
+          };
+        }
+        if (table === "projects") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                is: vi.fn(() =>
+                  Promise.resolve({
+                    data: [{ id: "proj_1", name: "Project One", created_at: "2024-02-01T00:00:00Z" }],
+                    error: null,
+                  })
+                ),
+              })),
+            })),
+          };
+        }
+        if (table === "api_usage_logs") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                gte: vi.fn(() => Promise.resolve({ count: 42, error: null })),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      const result = await getOrganizationById("org_clerk_1");
+
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe("org_clerk_1");
+      expect(result?.members).toHaveLength(1);
+      expect(result?.members[0].email).toBe("user@example.com");
+      expect(result?.projects).toHaveLength(1);
+      expect(result?.projects[0].name).toBe("Project One");
+      expect(result?.usage.apiCallsThisMonth).toBe(42);
+      expect(result?.dbOrgId).toBe("org_db_1");
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should return null when Clerk throws", async () => {
+      mockClerkClient.organizations.getOrganization.mockRejectedValue(new Error("Not found"));
+
+      const result = await getOrganizationById("org_unknown");
+
+      expect(result).toBeNull();
+    });
+
+    it("should reject non-admin users", async () => {
+      mockAuthUserId = null;
+
+      await expect(getOrganizationById("org_clerk_1")).rejects.toThrow("Unauthorized");
+    });
+  });
 });
