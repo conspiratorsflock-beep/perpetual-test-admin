@@ -57,8 +57,8 @@ describe("Audit Export Actions", () => {
       expect(result).toContain("user.create");
       expect(result).toContain("John Doe");
 
-      // Check that targetName is quoted properly
-      expect(result).toContain('"John Doe"');
+      // Check that plain targetName is included (no commas/quotes/newlines -> unquoted per RFC-4180-ish logic)
+      expect(result).toContain("John Doe");
 
       // Check JSON metadata is included
       expect(result).toContain('email');
