@@ -373,4 +373,159 @@ describe("Organization Actions", () => {
       expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
+
+  describe("updateOrgApiQuota", () => {
+    it("should update API monthly quota and log action", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn((columns?: string) => {
+            if (columns === "id") {
+              return {
+                eq: vi.fn((col: string, val: string) => {
+                  if (col === "clerk_org_id" && val === "org_clerk_1") {
+                    return {
+                      single: vi.fn(() =>
+                        Promise.resolve({ data: { id: "org_db_1" }, error: null })
+                      ),
+                    };
+                  }
+                  return { single: vi.fn(() => Promise.resolve({ data: null, error: null })) };
+                }),
+              };
+            }
+            return {
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { name: "Acme Corp" }, error: null })
+                ),
+              })),
+            };
+          }),
+          update: mockUpdate,
+        };
+      });
+
+      await updateOrgApiQuota("org_clerk_1", 50000);
+
+      expect(mockUpdate).toHaveBeenCalledWith({ api_monthly_quota: 50000 });
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "organization.api_quota_update",
+        targetType: "organization",
+        targetId: "org_clerk_1",
+        targetName: "Acme Corp",
+        metadata: { apiMonthlyQuota: 50000 },
+      });
+    });
+
+    it("should update API quota to null", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn((columns?: string) => {
+            if (columns === "id") {
+              return {
+                eq: vi.fn((col: string, val: string) => {
+                  if (col === "clerk_org_id" && val === "org_clerk_1") {
+                    return {
+                      single: vi.fn(() =>
+                        Promise.resolve({ data: { id: "org_db_1" }, error: null })
+                      ),
+                    };
+                  }
+                  return { single: vi.fn(() => Promise.resolve({ data: null, error: null })) };
+                }),
+              };
+            }
+            return {
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { name: "Acme Corp" }, error: null })
+                ),
+              })),
+            };
+          }),
+          update: mockUpdate,
+        };
+      });
+
+      await updateOrgApiQuota("org_clerk_1", null);
+
+      expect(mockUpdate).toHaveBeenCalledWith({ api_monthly_quota: null });
+    });
+
+    it("should throw when organization is not found in database", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+            })),
+          })),
+        };
+      });
+
+      await expect(updateOrgApiQuota("org_clerk_unknown", 1000)).rejects.toThrow(
+        "Organization not found in database"
+      );
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn((columns?: string) => {
+            if (columns === "id") {
+              return {
+                eq: vi.fn((col: string, val: string) => {
+                  if (col === "clerk_org_id" && val === "org_clerk_1") {
+                    return {
+                      single: vi.fn(() =>
+                        Promise.resolve({ data: { id: "org_db_1" }, error: null })
+                      ),
+                    };
+                  }
+                  return { single: vi.fn(() => Promise.resolve({ data: null, error: null })) };
+                }),
+              };
+            }
+            return {
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { name: "Acme Corp" }, error: null })
+                ),
+              })),
+            };
+          }),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+          })),
+        };
+      });
+
+      await expect(updateOrgApiQuota("org_clerk_1", 1000)).rejects.toThrow(
+        "Failed to update org API quota"
+      );
+    });
+
+    it("should reject non-admin users before any DB write", async () => {
+      mockAuthUserId = "user_123";
+      mockClerkClient.users.getUser.mockResolvedValue({
+        id: "user_123",
+        publicMetadata: { isAdmin: false },
+      });
+
+      await expect(updateOrgApiQuota("org_clerk_1", 1000)).rejects.toThrow("Unauthorized");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+  });
 });
