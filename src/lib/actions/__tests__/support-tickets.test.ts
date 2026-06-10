@@ -365,4 +365,273 @@ describe("Support Ticket Actions", () => {
       expect(result[0].resourceName).toBe("Project One");
     });
   });
+
+  describe("assignTicket", () => {
+    it("should update assigned_to and status in_progress, log event and audit", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") return { update: mockUpdate };
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        return {};
+      });
+
+      await assignTicket("ticket_1", "agent_1", "agent@example.com");
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        assigned_to: "agent_1",
+        status: "in_progress",
+        updated_at: expect.any(String),
+      });
+      expect(mockEventInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticket_id: "ticket_1",
+          event_type: "assigned",
+          new_value: null,
+          performed_by: "agent_1",
+          performed_by_name: "agent@example.com",
+        })
+      );
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_ticket.assign",
+        targetType: "support_ticket",
+        targetId: "ticket_1",
+        metadata: { assignedTo: "agent_1" },
+      });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(assignTicket("ticket_1", "agent_1", "agent@example.com")).rejects.toThrow(
+        "Failed to assign ticket"
+      );
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should reject non-admin users before any DB write", async () => {
+      mockAuthUserId = "user_123";
+      mockClerkClient.users.getUser.mockResolvedValue({
+        id: "user_123",
+        publicMetadata: { isAdmin: false },
+      });
+
+      await expect(assignTicket("ticket_1", "agent_1", "agent@example.com")).rejects.toThrow(
+        "Unauthorized"
+      );
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateTicketStatus", () => {
+    it("should update status and set resolved_at when resolved", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") return { update: mockUpdate };
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        return {};
+      });
+
+      await updateTicketStatus("ticket_1", "resolved", "agent_1", "agent@example.com");
+
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "resolved",
+          resolved_at: expect.any(String),
+          updated_at: expect.any(String),
+        })
+      );
+      expect(mockEventInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ticket_id: "ticket_1",
+          event_type: "status_changed",
+          new_value: "resolved",
+        })
+      );
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_ticket.status_change",
+        targetType: "support_ticket",
+        targetId: "ticket_1",
+        metadata: { status: "resolved" },
+      });
+    });
+
+    it("should update status without resolved_at for non-resolved status", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") return { update: mockUpdate };
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        return {};
+      });
+
+      await updateTicketStatus("ticket_1", "pending", "agent_1", "agent@example.com");
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        status: "pending",
+        updated_at: expect.any(String),
+      });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        updateTicketStatus("ticket_1", "closed", "agent_1", "agent@example.com")
+      ).rejects.toThrow("Failed to update ticket status");
+    });
+  });
+
+  describe("updateTicketPriority", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-03-01T00:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should update priority and recalculate SLA deadline", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+      const mockEventInsert = vi.fn(() => Promise.resolve({ error: null }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { created_at: "2024-03-01T00:00:00Z" }, error: null })
+                ),
+              })),
+            })),
+            update: mockUpdate,
+          };
+        }
+        if (table === "support_ticket_events") return { insert: mockEventInsert };
+        if (table === "support_sla_config") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { first_response_hours: 4 }, error: null })
+                ),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await updateTicketPriority("ticket_1", "urgent", "agent_1", "agent@example.com");
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        priority: "urgent",
+        sla_deadline: expect.stringMatching(/^2024-03-01T04:00:00\.000Z$/),
+        updated_at: "2024-03-01T00:00:00.000Z",
+      });
+      expect(logAdminAction).toHaveBeenCalledWith({
+        action: "support_ticket.priority_change",
+        targetType: "support_ticket",
+        targetId: "ticket_1",
+        metadata: { priority: "urgent" },
+      });
+    });
+
+    it("should set sla_deadline null when ticket row missing", async () => {
+      const mockUpdate = vi.fn(() => ({
+        eq: vi.fn(() => Promise.resolve({ error: null })),
+      }));
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+              })),
+            })),
+            update: mockUpdate,
+          };
+        }
+        if (table === "support_ticket_events") return { insert: vi.fn(() => Promise.resolve({ error: null })) };
+        return {};
+      });
+
+      await updateTicketPriority("ticket_1", "low", "agent_1", "agent@example.com");
+
+      expect(mockUpdate).toHaveBeenCalledWith({
+        priority: "low",
+        sla_deadline: null,
+        updated_at: expect.any(String),
+      });
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table === "support_tickets") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { created_at: "2024-03-01T00:00:00Z" }, error: null })
+                ),
+              })),
+            })),
+            update: vi.fn(() => ({
+              eq: vi.fn(() => Promise.resolve({ error: { message: "DB Error" } })),
+            })),
+          };
+        }
+        if (table === "support_sla_config") {
+          return {
+            select: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                single: vi.fn(() =>
+                  Promise.resolve({ data: { first_response_hours: 4 }, error: null })
+                ),
+              })),
+            })),
+          };
+        }
+        return {};
+      });
+
+      await expect(
+        updateTicketPriority("ticket_1", "high", "agent_1", "agent@example.com")
+      ).rejects.toThrow("Failed to update priority");
+    });
+  });
 });
