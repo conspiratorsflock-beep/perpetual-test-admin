@@ -757,4 +757,196 @@ describe("Organization Actions", () => {
       await expect(getOrganizationById("org_clerk_1")).rejects.toThrow("Unauthorized");
     });
   });
+
+  describe("getOrgApiUsage", () => {
+    it("should return mapped usage rows", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "org_api_usage") return {};
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() =>
+                Promise.resolve({
+                  data: [
+                    { org_id: "org_db_1", year_month: "2024-03", total_calls: 1500, updated_at: "2024-03-15T00:00:00Z" },
+                  ],
+                  error: null,
+                })
+              ),
+            })),
+          })),
+        };
+      });
+
+      const result = await getOrgApiUsage("org_db_1");
+
+      expect(result).toHaveLength(1);
+      expect(result[0].orgId).toBe("org_db_1");
+      expect(result[0].year).toBe(2024);
+      expect(result[0].month).toBe(3);
+      expect(result[0].totalCalls).toBe(1500);
+      expect(result[0].totalTokens).toBe(0);
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should throw on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "org_api_usage") return {};
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              order: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+            })),
+          })),
+        };
+      });
+
+      await expect(getOrgApiUsage("org_db_1")).rejects.toThrow("Failed to fetch org API usage");
+    });
+  });
+
+  describe("getTrialMetrics", () => {
+    it("should aggregate trial lock states", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() =>
+            Promise.resolve({
+              data: [
+                { trial_lock_state: "active" },
+                { trial_lock_state: "active" },
+                { trial_lock_state: "soft_locked" },
+                { trial_lock_state: "hard_locked" },
+                { trial_lock_state: "paid" },
+              ],
+              error: null,
+            })
+          ),
+        };
+      });
+
+      const result = await getTrialMetrics();
+
+      expect(result.activeTrials).toBe(2);
+      expect(result.softLocked).toBe(1);
+      expect(result.hardLocked).toBe(1);
+      expect(result.paid).toBe(1);
+      expect(result.conversionRate).toBe(20);
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should return zeros on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+        };
+      });
+
+      const result = await getTrialMetrics();
+
+      expect(result).toEqual({
+        activeTrials: 0,
+        softLocked: 0,
+        hardLocked: 0,
+        paid: 0,
+        conversionRate: 0,
+      });
+    });
+  });
+
+  describe("getTotalOrgCount", () => {
+    it("should return total org count from Clerk", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [],
+        totalCount: 42,
+      });
+
+      const result = await getTotalOrgCount();
+
+      expect(result).toBe(42);
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getTrialsExpiringSoon", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2024-03-01T00:00:00Z"));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("should return count of trials expiring within 7 days", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              gte: vi.fn(() => ({
+                lte: vi.fn(() => Promise.resolve({ count: 3, error: null })),
+              })),
+            })),
+          })),
+        };
+      });
+
+      const result = await getTrialsExpiringSoon();
+
+      expect(result).toBe(3);
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should return 0 on database error", async () => {
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              gte: vi.fn(() => ({
+                lte: vi.fn(() => Promise.resolve({ count: null, error: { message: "DB Error" } })),
+              })),
+            })),
+          })),
+        };
+      });
+
+      const result = await getTrialsExpiringSoon();
+
+      expect(result).toBe(0);
+    });
+  });
+
+  describe("exportOrganizationsToCSV", () => {
+    it("should export organizations with current column values", async () => {
+      mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
+        data: [mockClerkOrg],
+        totalCount: 1,
+      });
+
+      mockSupabaseFrom.mockImplementation((table: string) => {
+        if (table !== "organizations") return {};
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn(() =>
+              Promise.resolve({
+                data: [mockDbOrg],
+                error: null,
+              })
+            ),
+          })),
+        };
+      });
+
+      const result = await exportOrganizationsToCSV();
+
+      expect(result).toContain("Name,Slug,Trial State,Trial Ends At,Members,Stripe Subscription ID,Created At");
+      expect(result).toContain("Acme Corp");
+      expect(result).toContain("active");
+      expect(result).toContain("sub_1");
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+  });
 });
