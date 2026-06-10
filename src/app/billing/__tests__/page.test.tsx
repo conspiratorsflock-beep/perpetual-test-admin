@@ -94,7 +94,9 @@ describe("BillingPage", () => {
     });
 
     expect(screen.getByText("$600,000")).toBeInTheDocument();
-    expect(screen.getByText("100")).toBeInTheDocument();
+    // The "Trial / Paid" card renders activeTrials / paidOrgs, not activeSubscriptions
+    expect(screen.getByText("10")).toBeInTheDocument();
+    expect(screen.getByText("95")).toBeInTheDocument();
   });
 
   it("should display MRR growth indicator", async () => {
@@ -113,9 +115,11 @@ describe("BillingPage", () => {
       expect(screen.getByText("Acme Corp")).toBeInTheDocument();
     });
 
-    // Check for the customer name and paid status
+    // Check for the customer name and paid status (scoped to the invoice row to avoid multiple matches)
     expect(screen.getByText("$500.00")).toBeInTheDocument();
-    expect(screen.getByText("paid")).toBeInTheDocument();
+    const invoiceRow = screen.getByText("Acme Corp").closest("tr");
+    expect(invoiceRow).not.toBeNull();
+    expect(invoiceRow!.textContent).toContain("paid");
   });
 
   it("should display coupons in the coupons tab", async () => {
@@ -142,8 +146,18 @@ describe("BillingPage", () => {
     render(<BillingPage />);
 
     await waitFor(() => {
-      // Look for error message more flexibly
-      expect(screen.getByText(/failed to load billing data/i)).toBeInTheDocument();
+      // Page renders err.message for Error instances
+      expect(screen.getByText("Failed to fetch")).toBeInTheDocument();
+    });
+  });
+
+  it("should display fallback error state for non-Error rejection", async () => {
+    mockGetBillingMetrics.mockRejectedValue("something went wrong");
+
+    render(<BillingPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed to load billing data")).toBeInTheDocument();
     });
   });
 
