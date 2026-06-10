@@ -77,7 +77,13 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: () =>
     Promise.resolve({
       users: {
-        getUser: vi.fn(),
+        getUser: vi.fn(() =>
+          Promise.resolve({
+            id: "user_test_123",
+            publicMetadata: { isAdmin: true },
+            emailAddresses: [{ emailAddress: "admin@test.local" }],
+          })
+        ),
         getUserList: vi.fn(() =>
           Promise.resolve({ data: [], totalCount: 0 })
         ),
@@ -104,11 +110,13 @@ vi.mock("@/lib/supabase/admin", () => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
           single: vi.fn(() => Promise.resolve({ data: null, error: null })),
+          maybeSingle: vi.fn(() => Promise.resolve({ data: null, error: null })),
           order: vi.fn(() => Promise.resolve({ data: [], error: null })),
           range: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
         })),
         order: vi.fn(() => Promise.resolve({ data: [], error: null })),
         range: vi.fn(() => Promise.resolve({ data: [], error: null, count: 0 })),
+        in: vi.fn(() => Promise.resolve({ data: [], error: null })),
       })),
       insert: vi.fn(() => Promise.resolve({ error: null })),
       update: vi.fn(() => Promise.resolve({ error: null })),
