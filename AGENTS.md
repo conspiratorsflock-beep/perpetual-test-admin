@@ -138,10 +138,11 @@ npm start
 
 # Type checking
 npm run typecheck
-
-# Linting
-npm run lint
 ```
+
+> Note: there is no lint script. `next lint` was removed in Next.js 16 and
+> ESLint is not configured in this repo. The verify gate is `npm run test`
+> + `npm run typecheck`.
 
 ## Testing Commands
 
