@@ -271,5 +271,45 @@ describe("Feature Flag Actions", () => {
 
       expect(result).toBe(false);
     });
+
+    it("should return true when feature is enabled for the user", async () => {
+      const mockMaybeSingle = vi.fn(() =>
+        Promise.resolve({
+          data: {
+            enabled_globally: false,
+            enabled_for_orgs: [],
+            enabled_for_users: ["user_123"],
+          },
+          error: null,
+        })
+      );
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) })),
+      });
+
+      const result = await checkFeatureEnabled("new_feature", "user_123", "org_123");
+
+      expect(result).toBe(true);
+    });
+
+    it("should return false when flag exists but is enabled for no one in scope", async () => {
+      const mockMaybeSingle = vi.fn(() =>
+        Promise.resolve({
+          data: {
+            enabled_globally: false,
+            enabled_for_orgs: ["org_other"],
+            enabled_for_users: ["user_other"],
+          },
+          error: null,
+        })
+      );
+      mockSupabaseFrom.mockReturnValue({
+        select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: mockMaybeSingle })) })),
+      });
+
+      const result = await checkFeatureEnabled("new_feature", "user_123", "org_123");
+
+      expect(result).toBe(false);
+    });
   });
 });
