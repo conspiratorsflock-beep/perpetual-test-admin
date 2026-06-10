@@ -140,21 +140,19 @@ describe("Organization Actions", () => {
 
   describe("changeTrialState", () => {
     it("should update trial lock state and log action", async () => {
+      const mockUpdate = makeUpdateChain(null);
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table !== "organizations") return {};
         return {
           select: makeUuidSelectChain("org_clerk_1", "org_db_1"),
-          update: makeUpdateChain(null),
+          update: mockUpdate,
         };
       });
 
       await changeTrialState("org_clerk_1", "hard_locked", "abuse");
 
-      // Verify update was called with wire value
-      const updateCall = mockSupabaseFrom.mock.results.find(
-        (r) => r.type === "return" && typeof r.value?.update === "function"
-      );
-      expect(updateCall).toBeDefined();
+      // The exact wire value must be in the update payload
+      expect(mockUpdate).toHaveBeenCalledWith({ trial_lock_state: "hard_locked" });
       expect(logAdminAction).toHaveBeenCalledWith({
         action: "org.trial_state_change",
         targetType: "organization",
@@ -640,7 +638,7 @@ describe("Organization Actions", () => {
       expect(result.orgs[0].trialLockState).toBe("active");
     });
 
-    it("currently swallows database errors and returns orgs with defaults (source bug)", async () => {
+    it("should throw when the org enrichment query fails (never silently default lock states)", async () => {
       mockClerkClient.organizations.getOrganizationList.mockResolvedValue({
         data: [mockClerkOrg],
         totalCount: 1,
@@ -655,13 +653,11 @@ describe("Organization Actions", () => {
         };
       });
 
-      // NOTE: organizations.ts:42-47 does not check `error` from the Supabase `.in()` call;
-      // it silently treats null data as "no DB orgs" and returns defaults. This is a
-      // suspected source bug — reported, not fixed, because this plan is confirm-and-lock.
-      const result = await searchOrganizations();
-
-      expect(result.orgs).toHaveLength(1);
-      expect(result.orgs[0].trialLockState).toBe("active");
+      // A swallowed error here used to render every org as "active" (bug found by
+      // PLAN_04's implementer, fixed by the reviewer at landing).
+      await expect(searchOrganizations()).rejects.toThrow(
+        "Failed to fetch organization data: DB Error"
+      );
     });
   });
 

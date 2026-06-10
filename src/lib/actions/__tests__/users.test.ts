@@ -112,6 +112,26 @@ describe("User Actions", () => {
 
       expect(result.users).toHaveLength(1);
     });
+
+    it("should throw when the user enrichment query fails (never silently default billing flags)", async () => {
+      mockClerkClient.users.getUserList.mockResolvedValue({
+        data: [mockUser],
+        totalCount: 1,
+      });
+
+      const { supabaseAdmin } = await import("@/lib/supabase/admin");
+      vi.mocked(supabaseAdmin.from).mockReturnValueOnce({
+        select: vi.fn(() => ({
+          in: vi.fn(() =>
+            Promise.resolve({ data: null, error: { message: "DB Error" } })
+          ),
+        })),
+      } as never);
+
+      await expect(searchUsers({})).rejects.toThrow(
+        "Failed to fetch user data: DB Error"
+      );
+    });
   });
 
   describe("getUserById", () => {

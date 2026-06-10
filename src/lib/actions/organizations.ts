@@ -39,10 +39,15 @@ export async function searchOrganizations({
 
   // Fetch lathe-studio org data for all results
   const clerkOrgIds = orgs.map((o) => o.id);
-  const { data: dbOrgs } = await supabaseAdmin
+  const { data: dbOrgs, error: dbOrgsError } = await supabaseAdmin
     .from("organizations")
     .select("clerk_org_id, trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id")
     .in("clerk_org_id", clerkOrgIds);
+
+  // A swallowed error here would render every org as "active" — fail loudly instead
+  if (dbOrgsError) {
+    throw new Error(`Failed to fetch organization data: ${dbOrgsError.message}`);
+  }
 
   const dbOrgMap = new Map(dbOrgs?.map((o) => [o.clerk_org_id, o]) ?? []);
 
@@ -426,12 +431,17 @@ export async function exportOrganizationsToCSV(): Promise<string> {
     if (response.data.length === 0) break;
 
     const clerkOrgIds = response.data.map((o) => o.id);
-    const { data: dbOrgs } = await supabaseAdmin
+    const { data: dbOrgs, error: dbOrgsError } = await supabaseAdmin
       .from("organizations")
       .select(
         "clerk_org_id, trial_lock_state, trial_started_at, trial_ends_at, trial_extension_used, stripe_customer_id, stripe_subscription_id, stripe_price_id"
       )
       .in("clerk_org_id", clerkOrgIds);
+
+    // Exported CSVs must never carry silently-defaulted trial states
+    if (dbOrgsError) {
+      throw new Error(`Failed to fetch organization data for export: ${dbOrgsError.message}`);
+    }
 
     const dbOrgMap = new Map(dbOrgs?.map((o) => [o.clerk_org_id, o]) ?? []);
 

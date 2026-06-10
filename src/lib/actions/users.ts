@@ -59,10 +59,15 @@ export async function searchUsers({
 
   // Enrich with lathe-studio billing owner flag
   const clerkIds = users.map((u) => u.id);
-  const { data: dbUsers } = await supabaseAdmin
+  const { data: dbUsers, error: dbUsersError } = await supabaseAdmin
     .from("users")
     .select("clerk_user_id, is_billing_owner")
     .in("clerk_user_id", clerkIds);
+
+  // A swallowed error here would silently drop billing-owner flags — fail loudly instead
+  if (dbUsersError) {
+    throw new Error(`Failed to fetch user data: ${dbUsersError.message}`);
+  }
 
   const dbUserMap = new Map(dbUsers?.map((u) => [u.clerk_user_id, u]) ?? []);
 
@@ -362,10 +367,15 @@ export async function exportUsersToCSV(): Promise<string> {
     if (response.data.length === 0) break;
 
     const clerkIds = response.data.map((u) => u.id);
-    const { data: dbUsers } = await supabaseAdmin
+    const { data: dbUsers, error: dbUsersError } = await supabaseAdmin
       .from("users")
       .select("clerk_user_id, is_billing_owner")
       .in("clerk_user_id", clerkIds);
+
+    // Exported CSVs must never carry silently-defaulted billing-owner flags
+    if (dbUsersError) {
+      throw new Error(`Failed to fetch user data for export: ${dbUsersError.message}`);
+    }
 
     const dbUserMap = new Map(dbUsers?.map((u) => [u.clerk_user_id, u]) ?? []);
 
