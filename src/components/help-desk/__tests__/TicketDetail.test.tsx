@@ -4,13 +4,20 @@ import { TicketDetail } from "../TicketDetail";
 import * as supportTicketsActions from "@/lib/actions/support-tickets";
 import type { SupportTicket } from "@/types/admin";
 
-// Mock Clerk
-vi.mock("@clerk/nextjs", () => ({
+// Mock dev-auth wrapper (TicketDetail imports useUser from here)
+vi.mock("@/lib/dev-auth/client", () => ({
   useUser: () => ({
+    isLoaded: true,
+    isSignedIn: true,
     user: {
       id: "agent_123",
+      emailAddresses: [{ emailAddress: "agent@example.com" }],
       primaryEmailAddress: { emailAddress: "agent@example.com" },
+      firstName: "Support",
+      lastName: "Agent",
       fullName: "Support Agent",
+      imageUrl: "",
+      publicMetadata: { isAdmin: true },
     },
   }),
 }));
