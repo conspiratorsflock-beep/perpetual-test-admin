@@ -5,10 +5,10 @@
 
 ## Current Status
 
-- **In-progress plan:** PLAN_05_support-tickets-action-tests.md
-- **Last plan completed:** PLAN_04_organizations-action-tests.md
-- **Next plan to execute:** PLAN_05_support-tickets-action-tests.md
-- **Total plans executed this session:** 4
+- **In-progress plan:** none
+- **Last plan completed:** PLAN_05_support-tickets-action-tests.md
+- **Next plan to execute:** none (waiting for next numbered plan)
+- **Total plans executed this session:** 5
 
 ## Plans Queue
 
@@ -20,7 +20,7 @@
 | 02 | PLAN_02_component-test-repair.md | completed | kimi/component-test-repair | 2026-06-10 16:05 UTC | 2026-06-10 ~16:15 UTC | Merged by reviewer at b00cad6/c151a65/1132ee3 |
 | 03 | PLAN_03_impersonate-route-tests.md | completed | kimi/impersonate-route-tests | 2026-06-10 16:15 UTC | 2026-06-10 ~16:25 UTC | Merged by reviewer at cfa783c/51b2d02/1e70967/722e379 |
 | 04 | PLAN_04_organizations-action-tests.md | completed | kimi/organizations-action-tests | 2026-06-10 16:25 UTC | 2026-06-10 ~16:50 UTC | Merged by reviewer at fdc2950 + review catch 3af0605 |
-| 05 | PLAN_05_support-tickets-action-tests.md | ready_for_review | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:50 UTC | New unit tests for support-tickets server actions |
+| 05 | PLAN_05_support-tickets-action-tests.md | completed | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:55 UTC | Merged by reviewer at 0369bb3; live-DB schema drift surfaced |
 
 ## Execution Notes
 
@@ -107,3 +107,5 @@
 
 - **2026-06-10 22:30 UTC** — Cron check fired. PLAN_05 still `ready_for_review`; no new plan docs in `docs/plans/`. Holding for reviewer merge.
 - **2026-06-10 22:35 UTC** — Cron check fired. PLAN_05 still `ready_for_review`; no new plan docs in `docs/plans/`. Holding for reviewer merge.
+- **2026-06-10 ~23:55 UTC (Claude, reviewer)** — PLAN_05 REVIEWED + MERGED (ff) into `feat/typed-supabase-client-and-perf` at `0369bb3`; executed plan doc removed. Verdict: pass. Reviewer surfaced live-DB schema drift: `support_tickets.deleted_at` and `support_ticket_comments.is_agent` are missing from the shared DB despite the `20260601_unify_shared_schemas.sql` migration; additive re-apply migration prepared and awaits user approval. Branch `kimi/support-tickets-action-tests` deleted. No new plan docs present; Kimi is idle.
+- **2026-06-10 23:55 UTC** — Cron check fired. PLAN_05 now `completed`; no new plan docs in `docs/plans/`. Idle, waiting for next numbered plan.
