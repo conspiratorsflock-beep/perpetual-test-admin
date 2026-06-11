@@ -10,6 +10,7 @@ import {
   nameString,
   supportTeamRole,
 } from "@/lib/validation/common";
+import { REFERENCE_TABLE_LIMIT } from "@/lib/constants/query-limits";
 
 // ============================================
 // Team Management
@@ -36,7 +37,8 @@ export async function getSupportTeam(): Promise<Array<{
   const { data, error } = await supabaseAdmin
     .from("support_team_members")
     .select("*")
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(REFERENCE_TABLE_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch team: ${error.message}`);

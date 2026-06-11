@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import { z } from "zod";
+import { EXPORT_ROW_LIMIT, STATS_QUERY_LIMIT } from "@/lib/constants/query-limits";
 import type { AdminErrorLog } from "@/types/admin";
 import type { Json } from "@/types/database.types";
 
@@ -135,7 +136,9 @@ export async function getErrorStats(hours = 24): Promise<{
   const { data, error } = await supabaseAdmin
     .from("admin_error_logs")
     .select("error_type,path")
-    .gte("created_at", since);
+    .gte("created_at", since)
+    .order("created_at", { ascending: false })
+    .limit(STATS_QUERY_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch error stats: ${error.message}`);
@@ -207,7 +210,8 @@ export async function exportErrorLogsToCSV({
   let query = supabaseAdmin
     .from("admin_error_logs")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(EXPORT_ROW_LIMIT);
 
   if (startDate) {
     query = query.gte("created_at", startDate);

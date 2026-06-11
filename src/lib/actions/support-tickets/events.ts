@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import type { SupportTicketEvent, SupportTicketLink } from "@/types/admin";
 import { mapLinkFromDB } from "./shared";
+import { PER_TICKET_CHILD_LIMIT } from "@/lib/constants/query-limits";
 
 export async function getSupportTicketEvents(ticketId: string): Promise<SupportTicketEvent[]> {
   await requireAdmin();
@@ -11,7 +12,8 @@ export async function getSupportTicketEvents(ticketId: string): Promise<SupportT
     .from("support_ticket_events")
     .select("*")
     .eq("ticket_id", ticketId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(PER_TICKET_CHILD_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch events: ${error.message}`);
@@ -36,7 +38,8 @@ export async function getSupportTicketLinks(ticketId: string): Promise<SupportTi
     .from("support_ticket_links")
     .select("*")
     .eq("ticket_id", ticketId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(PER_TICKET_CHILD_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch links: ${error.message}`);

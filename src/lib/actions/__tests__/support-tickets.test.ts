@@ -297,9 +297,9 @@ describe("Support Ticket Actions", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn(() =>
-                Promise.resolve({ data: [mockCommentRow], error: null })
-              ),
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: [mockCommentRow], error: null })),
+              })),
             })),
           })),
         };
@@ -318,7 +318,9 @@ describe("Support Ticket Actions", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+              })),
             })),
           })),
         };
@@ -335,7 +337,9 @@ describe("Support Ticket Actions", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn(() => Promise.resolve({ data: [mockEventRow], error: null })),
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: [mockEventRow], error: null })),
+              })),
             })),
           })),
         };
@@ -355,7 +359,9 @@ describe("Support Ticket Actions", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              order: vi.fn(() => Promise.resolve({ data: [mockLinkRow], error: null })),
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: [mockLinkRow], error: null })),
+              })),
             })),
           })),
         };
@@ -995,9 +1001,10 @@ describe("Support Ticket Actions", () => {
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "support_canned_responses") {
           const result = { data: canned, error: null };
-          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
+          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; limit: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
             eq: vi.fn(() => chain),
             order: vi.fn(() => chain),
+            limit: vi.fn(() => chain),
             then: vi.fn((resolve) => resolve(result)),
           };
           return { select: vi.fn(() => chain) };
@@ -1013,9 +1020,10 @@ describe("Support Ticket Actions", () => {
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "support_canned_responses") {
           const result = { data: null, error: { message: "DB Error" } };
-          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
+          const chain: { eq: ReturnType<typeof vi.fn>; order: ReturnType<typeof vi.fn>; limit: ReturnType<typeof vi.fn>; then: ReturnType<typeof vi.fn> } = {
             eq: vi.fn(() => chain),
             order: vi.fn(() => chain),
+            limit: vi.fn(() => chain),
             then: vi.fn((resolve) => resolve(result)),
           };
           return { select: vi.fn(() => chain) };
@@ -1039,15 +1047,17 @@ describe("Support Ticket Actions", () => {
         if (table === "support_team_members") {
           return {
             select: vi.fn(() => ({
-              order: vi.fn(() =>
-                Promise.resolve({
-                  data: [
-                    { id: "tm1", user_id: "u1", email: "a@b.com", name: "Alice", role: "admin", is_available: true, max_open_tickets: 5, skills: ["billing"], created_at: "2024-01-01T00:00:00Z" },
-                    { id: "tm2", user_id: "u2", email: "b@b.com", name: null, role: "agent", is_available: null, max_open_tickets: null, skills: null, created_at: "2024-01-01T00:00:00Z" },
-                  ],
-                  error: null,
-                })
-              ),
+              order: vi.fn(() => ({
+                limit: vi.fn(() =>
+                  Promise.resolve({
+                    data: [
+                      { id: "tm1", user_id: "u1", email: "a@b.com", name: "Alice", role: "admin", is_available: true, max_open_tickets: 5, skills: ["billing"], created_at: "2024-01-01T00:00:00Z" },
+                      { id: "tm2", user_id: "u2", email: "b@b.com", name: null, role: "agent", is_available: null, max_open_tickets: null, skills: null, created_at: "2024-01-01T00:00:00Z" },
+                    ],
+                    error: null,
+                  })
+                ),
+              })),
             })),
           };
         }
@@ -1065,7 +1075,9 @@ describe("Support Ticket Actions", () => {
         if (table === "support_team_members") {
           return {
             select: vi.fn(() => ({
-              order: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+              order: vi.fn(() => ({
+                limit: vi.fn(() => Promise.resolve({ data: null, error: { message: "DB Error" } })),
+              })),
             })),
           };
         }

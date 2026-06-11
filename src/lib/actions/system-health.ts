@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
+import { HEALTH_CHECK_LIMIT } from "@/lib/constants/query-limits";
 import type { SystemHealthCheck, ServiceStatus } from "@/types/admin";
 
 interface HealthCheckResult {
@@ -230,7 +231,8 @@ export async function getLatestHealthStatus(): Promise<SystemHealthCheck[]> {
     .from("system_health_checks")
     .select("*")
     .order("service_name", { ascending: true })
-    .order("checked_at", { ascending: false });
+    .order("checked_at", { ascending: false })
+    .limit(HEALTH_CHECK_LIMIT);
 
   if (error || !data) {
     return [];

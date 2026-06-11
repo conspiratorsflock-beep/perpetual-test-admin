@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { REFERENCE_TABLE_LIMIT } from "@/lib/constants/query-limits";
 
 // ============================================
 // Canned Responses
@@ -18,7 +19,8 @@ export async function getCannedResponses(category?: string): Promise<Array<{
     .from("support_canned_responses")
     .select("*")
     .eq("is_active", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(REFERENCE_TABLE_LIMIT);
 
   if (category) {
     query = query.eq("category", category);

@@ -13,6 +13,7 @@ import type {
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { seedingStrategy, boundedString } from "@/lib/validation/common";
+import { REFERENCE_TABLE_LIMIT } from "@/lib/constants/query-limits";
 
 const seedUnassignedTicketsSchema = z.object({
   strategy: seedingStrategy,
@@ -55,7 +56,8 @@ export async function getAvailableAgents(
   const { data: agents, error } = await supabaseAdmin
     .from("support_team_members")
     .select("*")
-    .eq("is_available", true);
+    .eq("is_available", true)
+    .limit(REFERENCE_TABLE_LIMIT);
 
   if (error || !agents) return [];
 

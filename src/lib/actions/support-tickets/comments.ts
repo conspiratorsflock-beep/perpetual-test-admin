@@ -6,6 +6,7 @@ import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import type { SupportTicketComment } from "@/types/admin";
 import { mapCommentFromDB, logTicketEvent } from "./shared";
+import { PER_TICKET_CHILD_LIMIT } from "@/lib/constants/query-limits";
 import {
   entityId,
   emailString,
@@ -38,7 +39,8 @@ export async function getSupportTicketComments(ticketId: string): Promise<Suppor
     .from("support_ticket_comments")
     .select("*")
     .eq("ticket_id", ticketId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(PER_TICKET_CHILD_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch comments: ${error.message}`);

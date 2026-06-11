@@ -11,6 +11,7 @@ import type {
   TicketStatus,
   TicketPriority,
 } from "@/types/admin";
+import { LIST_DEFAULT_LIMIT, STATS_QUERY_LIMIT } from "@/lib/constants/query-limits";
 
 const RECENT_COMMENTS_LIMIT = 3;
 
@@ -42,7 +43,8 @@ export async function getMyTickets(
 
   query = query
     .order("priority", { ascending: false })
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(LIST_DEFAULT_LIMIT);
 
   const { data: tickets, error } = await query;
   if (error || !tickets) {
@@ -170,7 +172,9 @@ export async function getAgentWorkload(agentId: string): Promise<{
     .from("support_tickets")
     .select("status, priority, created_at, sla_deadline")
     .eq("assigned_to", agentId)
-    .in("status", ["open", "in_progress", "pending"]);
+    .in("status", ["open", "in_progress", "pending"])
+    .order("created_at", { ascending: false })
+    .limit(STATS_QUERY_LIMIT);
 
   if (error || !tickets) {
     return { total: 0, open: 0, inProgress: 0, pending: 0, atRisk: 0, breached: 0 };

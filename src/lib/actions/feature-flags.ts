@@ -5,6 +5,7 @@ import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import { z } from "zod";
 import { entityId, boundedString } from "@/lib/validation/common";
+import { REFERENCE_TABLE_LIMIT } from "@/lib/constants/query-limits";
 import type { FeatureFlag } from "@/types/admin";
 
 
@@ -16,7 +17,8 @@ export async function getFeatureFlags(): Promise<FeatureFlag[]> {
   const { data, error } = await supabaseAdmin
     .from("feature_flags")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(REFERENCE_TABLE_LIMIT);
 
   if (error) {
     throw new Error(`Failed to fetch feature flags: ${error.message}`);
