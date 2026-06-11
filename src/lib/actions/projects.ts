@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId } from "@/lib/validation/common";
 import type { AdminProject } from "@/types/admin";
 
 
@@ -127,11 +129,20 @@ export async function getProjectById(projectId: string): Promise<AdminProject | 
   };
 }
 
+const toggleRequirementsEnabledSchema = z.object({
+  projectId: entityId,
+  enabled: z.boolean(),
+});
+
 /**
  * Toggle requirements_enabled for a project.
  */
 export async function toggleRequirementsEnabled(projectId: string, enabled: boolean): Promise<void> {
   await requireAdmin();
+  const parsed = toggleRequirementsEnabledSchema.safeParse({ projectId, enabled });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("projects")
@@ -150,11 +161,19 @@ export async function toggleRequirementsEnabled(projectId: string, enabled: bool
   });
 }
 
+const projectIdSchema = z.object({
+  projectId: entityId,
+});
+
 /**
  * Soft-delete a project.
  */
 export async function softDeleteProject(projectId: string): Promise<void> {
   await requireAdmin();
+  const parsed = projectIdSchema.safeParse({ projectId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("projects")
@@ -177,6 +196,10 @@ export async function softDeleteProject(projectId: string): Promise<void> {
  */
 export async function restoreProject(projectId: string): Promise<void> {
   await requireAdmin();
+  const parsed = projectIdSchema.safeParse({ projectId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("projects")

@@ -359,6 +359,13 @@ describe("Projects Actions — writes", () => {
       });
       await expect(toggleRequirementsEnabled("proj_1", false)).rejects.toThrow("Failed to update project: boom");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(toggleRequirementsEnabled("", true)).rejects.toThrow("Invalid input");
+      await expect(toggleRequirementsEnabled("proj_1", "yes" as unknown as boolean)).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("softDeleteProject", () => {
@@ -389,6 +396,12 @@ describe("Projects Actions — writes", () => {
       });
       await expect(softDeleteProject("proj_1")).rejects.toThrow("Failed to delete project: boom");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(softDeleteProject("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("restoreProject", () => {
@@ -418,6 +431,12 @@ describe("Projects Actions — writes", () => {
         return {};
       });
       await expect(restoreProject("proj_1")).rejects.toThrow("Failed to restore project: boom");
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(restoreProject("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });

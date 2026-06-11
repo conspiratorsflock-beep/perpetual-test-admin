@@ -4,6 +4,8 @@ export const uuid = z.string().uuid();
 
 export const clerkId = z.string().min(1).max(64);
 
+export const entityId = z.string().min(1).max(128);
+
 export function boundedString(max: number) {
   return z.string().trim().max(max);
 }
