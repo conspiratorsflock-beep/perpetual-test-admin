@@ -298,3 +298,26 @@ unconfigured (explicit flag false → alert + full dashboard). With the real
 key, the sandbox can't reach Stripe and the page correctly lands in the
 pre-existing error.tsx — same failure surface as the old client page,
 environment-caused, not a regression.
+
+---
+
+### 2026-06-10 — PLAN_13 (kimi/support-analytics-tests) — landed via ff-merge at 3e722db + review catch, verdict: pass
+
+**Keep doing:**
+- The sub-query error-swallowing find (analytics.ts:74,79) — correctly
+  REPORTED as an in-file NOTE under confirm-and-lock instead of fixed or
+  enshrined. Sixth instance of the class; reviewer fixed at landing and
+  replaced the NOTE with two locking tests.
+- Per-table chain factories matching real shapes (thenable team select vs
+  .in().order() comments) — exactly the dashboard.test.ts pattern, applied
+  cleanly.
+- The volume-data fixture proving null created_at skips the WHOLE row
+  (including its resolved date) — a subtle source behavior read correctly
+  rather than assumed.
+- Suite math exact: 331 + 18 = 349, full-suite numbers verifiable.
+
+**Miss patterns (process):** second plan in a row with no ready signal —
+Status line still "Not started", no Completion Summary, no log entry. The
+reviewer proceeded after two quiescent ticks. Flip the Status line and add
+the Completion Summary BEFORE going idle; it is the only signal channel
+now that the log is local-only.
