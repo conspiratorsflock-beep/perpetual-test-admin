@@ -47,7 +47,7 @@ function makeSelectCountChain(count: number | null = 0) {
 }
 
 function makeSimpleUpdateMock() {
-  const eqMock = vi.fn(() => Promise.resolve({ error: null }));
+  const eqMock = vi.fn<() => Promise<{ error: unknown }>>(() => Promise.resolve({ error: null }));
   const updateMock = vi.fn(() => ({ eq: eqMock }));
   return { update: updateMock, eq: eqMock };
 }
@@ -113,7 +113,7 @@ describe("Projects Actions — reads", () => {
         ilike: vi.fn(function (this: typeof chainable) {
           return this;
         }),
-        then: ((...args: unknown[]) => resultPromise.then(...args)) as typeof resultPromise.then,
+        then: resultPromise.then.bind(resultPromise) as typeof resultPromise.then,
       };
       return chainable;
     }

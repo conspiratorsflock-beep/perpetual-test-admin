@@ -53,6 +53,30 @@ describe("API Keys Actions — reads", () => {
 
   describe("searchApiKeys", () => {
     it("maps keys and applies org/project filters", async () => {
+      const resultPromise = Promise.resolve({
+        data: [
+          {
+            id: "key_1",
+            org_id: "org_1",
+            project_id: "proj_1",
+            name: "Production",
+            key_hash: "hash",
+            key_prefix: "pk_",
+            scopes: ["read", "write"],
+            rate_limit_per_minute: 100,
+            monthly_quota_override: 10000,
+            monthly_usage: 500,
+            last_used_at: "2024-06-01T00:00:00Z",
+            created_at: "2024-01-01T00:00:00Z",
+            created_by: "user_1",
+            expires_at: null,
+            revoked_at: null,
+            organizations: { name: "Acme" },
+          },
+        ],
+        error: null,
+        count: 1,
+      });
       const chainable = {
         range: vi.fn(function (this: typeof chainable) {
           return this;
@@ -66,31 +90,7 @@ describe("API Keys Actions — reads", () => {
         order: vi.fn(function (this: typeof chainable) {
           return this;
         }),
-        then: ((...args: unknown[]) =>
-          Promise.resolve({
-            data: [
-              {
-                id: "key_1",
-                org_id: "org_1",
-                project_id: "proj_1",
-                name: "Production",
-                key_hash: "hash",
-                key_prefix: "pk_",
-                scopes: ["read", "write"],
-                rate_limit_per_minute: 100,
-                monthly_quota_override: 10000,
-                monthly_usage: 500,
-                last_used_at: "2024-06-01T00:00:00Z",
-                created_at: "2024-01-01T00:00:00Z",
-                created_by: "user_1",
-                expires_at: null,
-                revoked_at: null,
-                organizations: { name: "Acme" },
-              },
-            ],
-            error: null,
-            count: 1,
-          }).then(...args)) as Promise<unknown>["then"],
+        then: resultPromise.then.bind(resultPromise) as Promise<unknown>["then"],
       };
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "api_keys") {
@@ -123,6 +123,7 @@ describe("API Keys Actions — reads", () => {
     });
 
     it("throws on Supabase error", async () => {
+      const resultPromise = Promise.resolve({ data: null, error: { message: "boom" }, count: null });
       const chainable = {
         range: vi.fn(function (this: typeof chainable) {
           return this;
@@ -136,8 +137,7 @@ describe("API Keys Actions — reads", () => {
         order: vi.fn(function (this: typeof chainable) {
           return this;
         }),
-        then: ((...args: unknown[]) =>
-          Promise.resolve({ data: null, error: { message: "boom" }, count: null }).then(...args)) as Promise<unknown>["then"],
+        then: resultPromise.then.bind(resultPromise) as Promise<unknown>["then"],
       };
       mockSupabaseFrom.mockImplementation((table: string) => {
         if (table === "api_keys") {
@@ -168,7 +168,7 @@ describe("API Keys Actions — writes", () => {
   });
 
   function makeApiKeysMock() {
-    const eqUpdateMock = vi.fn(() => Promise.resolve({ error: null }));
+    const eqUpdateMock = vi.fn<() => Promise<{ error: unknown }>>(() => Promise.resolve({ error: null }));
     const updateMock = vi.fn(() => ({ eq: eqUpdateMock }));
     const singleMock = vi.fn(() =>
       Promise.resolve({ data: { name: "Production", org_id: "org_1" }, error: null })
