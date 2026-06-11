@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, boundedString, announcementType, urlString, isoDate } from "@/lib/validation/common";
 import type { AdminAnnouncement, AnnouncementType } from "@/types/admin";
 
 
@@ -64,6 +66,20 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
   return active.map(mapRow);
 }
 
+const createAnnouncementSchema = z.object({
+  data: z.object({
+    message: z.string().trim().min(1).max(500),
+    style: announcementType,
+    tier: boundedString(500).optional(),
+    orgId: entityId.nullable().optional(),
+    linkUrl: urlString.nullable().optional(),
+    linkText: boundedString(500).nullable().optional(),
+    startsAt: isoDate.optional(),
+    endsAt: isoDate.nullable().optional(),
+  }),
+  createdBy: entityId,
+});
+
 /**
  * Create a new announcement.
  */
@@ -81,6 +97,10 @@ export async function createAnnouncement(
   createdBy: string
 ): Promise<AdminAnnouncement> {
   await requireAdmin();
+  const parsed = createAnnouncementSchema.safeParse({ data, createdBy });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { data: row, error } = await supabaseAdmin
     .from("admin_announcements")
     .insert({
@@ -112,6 +132,20 @@ export async function createAnnouncement(
   return mapRow(row);
 }
 
+const updateAnnouncementSchema = z.object({
+  id: entityId,
+  data: z.object({
+    message: z.string().trim().min(1).max(500).optional(),
+    style: announcementType.optional(),
+    tier: boundedString(500).optional(),
+    orgId: entityId.nullable().optional(),
+    linkUrl: urlString.nullable().optional(),
+    linkText: boundedString(500).nullable().optional(),
+    startsAt: isoDate.optional(),
+    endsAt: isoDate.nullable().optional(),
+  }),
+});
+
 /**
  * Update an announcement.
  */
@@ -129,6 +163,10 @@ export async function updateAnnouncement(
   }
 ): Promise<void> {
   await requireAdmin();
+  const parsed = updateAnnouncementSchema.safeParse({ id, data });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { error } = await supabaseAdmin
     .from("admin_announcements")
     .update({
@@ -155,11 +193,19 @@ export async function updateAnnouncement(
   });
 }
 
+const announcementIdSchema = z.object({
+  id: entityId,
+});
+
 /**
  * Expire an announcement immediately (set ends_at to now).
  */
 export async function expireAnnouncementNow(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = announcementIdSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { error } = await supabaseAdmin
     .from("admin_announcements")
     .update({ ends_at: new Date().toISOString() })
@@ -181,6 +227,10 @@ export async function expireAnnouncementNow(id: string): Promise<void> {
  */
 export async function deleteAnnouncement(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = announcementIdSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { data: row } = await supabaseAdmin
     .from("admin_announcements")
     .select("message")

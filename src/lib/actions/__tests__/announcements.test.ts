@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { logAdminAction } from "@/lib/audit/logger";
 import {
   getAnnouncements,
   getActiveAnnouncements,
@@ -361,6 +362,13 @@ describe("Announcements Actions", () => {
 
       expect(result.style).toBe("maintenance");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(createAnnouncement({ message: "", style: "info" }, "user_123")).rejects.toThrow("Invalid input");
+      await expect(createAnnouncement({ message: "Test", style: "invalid" as "info" }, "user_123")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateAnnouncement", () => {
@@ -389,6 +397,12 @@ describe("Announcements Actions", () => {
         updateAnnouncement("ann_123", { message: "Test" })
       ).rejects.toThrow("Failed to update announcement");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(updateAnnouncement("", { message: "Test" })).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("expireAnnouncementNow", () => {
@@ -402,6 +416,12 @@ describe("Announcements Actions", () => {
       expect(mockSupabaseUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ ends_at: expect.any(String) })
       );
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(expireAnnouncementNow("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
@@ -439,6 +459,12 @@ describe("Announcements Actions", () => {
       await expect(deleteAnnouncement("ann_123")).rejects.toThrow(
         "Failed to delete announcement"
       );
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(deleteAnnouncement("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });
