@@ -243,10 +243,11 @@ here as reviews surface them — do not start these during the test round.
   insert round-trips with `is_agent`). Same root cause as the 2026-06-05
   "7 missing admin tables" incident — **watch for this class: a committed
   migration file is not an applied migration.**
-- `src/app/setup-admin/page.tsx` — references non-existent `setupEmergencyAdmin` export from `setup-admin.ts`
+- ~~`src/app/setup-admin/page.tsx` references non-existent `setupEmergencyAdmin`~~ → stale: the export exists at `setup-admin.ts:73` and `SetupAdminContent.tsx` imports it (verified 2026-06-10)
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
-- Admin console queries `build_queue_items` but lathe-studio uses `builds` (real table) — fixed in Phase 6
-- `admin_audit_logs` table present but `logAdminAction()` writes silently fail (needs root-cause investigation)
+- ~~Admin console queries `build_queue_items`~~ → stale: `builds.ts` queries the real `builds` table; zero `build_queue_items` references remain (verified 2026-06-10)
+- ~~`admin_audit_logs` writes silently fail~~ → stale: resolved 2026-06-05 when the 7 missing admin tables were created; `logAdminAction()` persistence verified with an insert round-trip (see Schema drift section below)
+- **SECURITY (2026-06-10, fix planned as PLAN_06):** `billing.ts` (incl. `createCoupon`/`deleteCoupon`), `system-health.ts`, `support-tickets-my.ts`, `support-tickets-seeding.ts` have NO admin gate on any exported server action — violates Critical Rule 3. Being closed by the refactor round's first plan.
 - ~~`npm run lint` is broken: Next.js 16 removed `next lint` command~~ → script removed (`28c9884`); verify gate is `npm run test` + `npm run typecheck`
 - ~~~60 pre-existing test failures from Clerk/Supabase mocking in jsdom~~ → being repaired by the 2026-06 test-repair round (PLAN_01 merged: 61→24 failures; Plans 02–03 cover the rest)
 
