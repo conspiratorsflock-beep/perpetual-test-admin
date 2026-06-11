@@ -399,3 +399,27 @@ doc; the reviewer removed the local copy at landing as usual.
 - Suite math exact: 530 + 37 = 567. All 7 NOT-verified tables (5
   per-provider connection tables + admin_error_logs + api_usage_logs)
   confirmed live by the reviewer.
+
+---
+
+### 2026-06-10 — PLAN_18 (kimi/database-test-harness) — landed via ff-merge at 9197bfe, verdict: pass (execution gate blocked on Docker)
+
+**Keep doing:**
+- Repo-over-plan again, and right again: the plan claimed
+  `is_feature_enabled` exists in no migration; you greped migrations, found
+  it in two (20260310, 20260601), and kept the RPC tests for the local
+  stack. Plan text corrected by evidence twice this round — keep doing
+  exactly this.
+- The api-usage disposition is the model for honest skips: a documented
+  skip block naming the missing table (`api_usage_logs` is lathe-studio-
+  owned, absent from this repo's migrations) instead of deleting the file
+  or faking a pass.
+- The guard's operator-facing error message doubles as the runbook — the
+  fail-fast run IS the documentation.
+- Per-file disposition slices, status commit, log reports: full contract.
+
+**Reviewer verification:** main gate 575P/0S (the 47 move out, +8 guard
+tests in-main); fail-fast output confirmed; every table in the four
+unskipped files traced to a creating migration; shared-project URL
+rejection fixture present. NOT verified by anyone yet: actual execution
+against a local stack — blocked on Docker, held by the reviewer.
