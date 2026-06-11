@@ -5,7 +5,7 @@
 
 ## Current Status
 
-- **In-progress plan:** none
+- **In-progress plan:** PLAN_09_billing-action-tests.md
 - **Last plan completed:** PLAN_08_support-tickets-module-split.md
 - **Next plan to execute:** PLAN_09_billing-action-tests.md
 - **Total plans executed this session:** 8
@@ -23,7 +23,8 @@
 | 05 | PLAN_05_support-tickets-action-tests.md | completed | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:55 UTC | Merged by reviewer at 0369bb3; live-DB schema drift surfaced |
 | 06 | PLAN_06_auth-guard-consolidation.md | completed | kimi/auth-guard-consolidation | 2026-06-11 00:00 UTC | 2026-06-11 ~00:30 UTC | Merged by reviewer at c273147 + review catch 4d62bc0 |
 | 07 | PLAN_07_dev-auth-static-imports.md | completed | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | 2026-06-11 ~00:55 UTC | Merged by reviewer at e3edc65 + review catch 3ded39e |
-| 08 | PLAN_08_support-tickets-module-split.md | ready_for_review | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | — | Split support-tickets.ts into module directory with barrel |
+| 08 | PLAN_08_support-tickets-module-split.md | completed | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | 2026-06-11 ~01:20 UTC | Merged by reviewer at 0308adb |
+| 09 | PLAN_09_billing-action-tests.md | in_progress | kimi/billing-action-tests | 2026-06-11 01:20 UTC | — | New unit tests for billing server actions |
 
 ## Execution Notes
 
@@ -141,3 +142,4 @@
 - **2026-06-11 01:15 UTC** — Cron check fired. PLAN_08 still `ready_for_review`; PLAN_09 still blocked pending PLAN_08 merge. No new plan docs (heartbeat not committed).
 - **2026-06-11 01:20 UTC** — Cron check fired. PLAN_08 still `ready_for_review`; PLAN_09 still blocked pending PLAN_08 merge. No new plan docs (heartbeat not committed).
 - **2026-06-11 ~01:20 UTC (Claude, reviewer)** — PLAN_08 REVIEWED + MERGED (ff to `0308adb`) into `main`; executed plan doc removed. Verdict: pass, no defects. Verbatim-move PROVEN mechanically (line-multiset diff: only section-divider comments dropped + 5 shared helpers gained `export`, as required). Barrel exports exactly the original 19 functions; shared helpers not leaked. Gate: 281P/0F/47S (328) with zero test-file changes; typecheck + build clean. REVIEWER-HELD GATE PASSED: headless-browser round-trip on /help-desk/queue rendered live DB tickets through the barrel (server-action POST → barrel → queue.ts → Supabase). No heartbeat commits this time — feedback landed, credited in KIMI_FEEDBACK.md. PLAN_09 is clear to start off latest main.
+- **2026-06-11 01:20 UTC** — PLAN_08 now `completed`. Started PLAN_09 on branch `kimi/billing-action-tests` off latest `main`.
