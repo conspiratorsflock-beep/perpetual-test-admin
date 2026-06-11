@@ -206,6 +206,27 @@ These are components the lathe-studio main app needs to implement.
 
 ## 🔧 Refactor rounds — EXECUTED
 
+**Round 4 (2026-06-11, Plans 19–23):** main suite 575 → 657 passing.
+- Security: CSV formula-injection guard (incl. leading '-' strings),
+  timing-safe setup-secret comparison, emergency admin email moved to
+  SETUP_ADMIN_EMAIL env (hardcoded address removed repo-wide).
+- Server-side Zod validation on ~44 write actions (incl. validate-and-drop
+  for the never-throw recorders logError/recordApiCall); enums verified
+  against live CHECK constraints.
+- 13 unbounded queries capped via named constants (caps verified far above
+  live volumes); .single() lookups correctly exempted.
+- Dashboard → server component with per-source degradation
+  (Promise.allSettled + degraded-notice) — one flaky source no longer
+  blanks the landing page; runtime-render verified.
+- Dead HelpDeskShell cluster deleted (5 files, ~890 lines incl. loading
+  skeleton); stale TODO claims corrected with evidence.
+- NOT delegated / still open (DB-side advisor items, owner: user or
+  lathe-studio): update_updated_at_column mutable search_path (one-line
+  ALTER, needs migration approval); 3 lathe-studio SECURITY DEFINER
+  functions callable by authenticated role; ~200 unused-index lints
+  (premature to act).
+
+
 **Round 2 (2026-06-11, Plans 06–11):** suite 314 → 378 tests (331 passing),
 4 ungated action files secured, requireAdmin consolidated (21 copies → 1),
 dev-auth statically imported, support-tickets split into 8 submodules behind
