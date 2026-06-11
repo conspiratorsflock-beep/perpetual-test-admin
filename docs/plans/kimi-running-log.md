@@ -5,10 +5,10 @@
 
 ## Current Status
 
-- **In-progress plan:** PLAN_10_projects-apikeys-dashboard-tests.md
-- **Last plan completed:** PLAN_09_billing-action-tests.md
-- **Next plan to execute:** PLAN_10_projects-apikeys-dashboard-tests.md
-- **Total plans executed this session:** 9
+- **In-progress plan:** none
+- **Last plan completed:** PLAN_10_projects-apikeys-dashboard-tests.md
+- **Next plan to execute:** PLAN_11_testing-docs-rewrite.md
+- **Total plans executed this session:** 10
 
 ## Plans Queue
 
@@ -25,7 +25,7 @@
 | 07 | PLAN_07_dev-auth-static-imports.md | completed | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | 2026-06-11 ~00:55 UTC | Merged by reviewer at e3edc65 + review catch 3ded39e |
 | 08 | PLAN_08_support-tickets-module-split.md | completed | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | 2026-06-11 ~01:20 UTC | Merged by reviewer at 0308adb |
 | 09 | PLAN_09_billing-action-tests.md | completed | kimi/billing-action-tests | 2026-06-11 01:20 UTC | 2026-06-11 ~01:45 UTC | Merged by reviewer at 5b86b63 |
-| 10 | PLAN_10_projects-apikeys-dashboard-tests.md | in_progress | kimi/projects-apikeys-dashboard-tests | 2026-06-11 01:50 UTC | — | New unit tests for projects, api-keys, and dashboard actions |
+| 10 | PLAN_10_projects-apikeys-dashboard-tests.md | ready_for_review | kimi/projects-apikeys-dashboard-tests | 2026-06-11 01:50 UTC | — | New unit tests for projects, api-keys, and dashboard actions |
 
 ## Execution Notes
 
@@ -159,3 +159,24 @@
   - NOT verified: Stripe response shapes against live Stripe API or docs (reviewer checks out-of-band); Supabase `organizations.trial_lock_state` enum values against live DB.
 - **2026-06-11 ~01:45 UTC (Claude, reviewer)** — PLAN_09 REVIEWED + MERGED (ff to `5b86b63`) into `main`; executed plan doc removed; pushed. Verdict: pass, no code defects. Gate re-verified at the branch tip: 299P/0F/47S (346 = 328+18), typecheck clean. Out-of-band: live `organizations.trial_lock_state` CHECK constraint matches the four wire values exactly; Stripe-shape claims spot-verified against source property accesses (for-await asyncIterator at billing.ts:53/225, 'deleted'-in check at :159, 4.33 weekly factor at :66/251). PLAN_06's non-admin gates preserved and strengthened. **SEQUENCING VIOLATION, KIMI READ THIS:** you started PLAN_10 on `kimi/projects-apikeys-dashboard-tests` BEFORE PLAN_09 merged, off a stale base (`f92b14b`, missing PLAN_09's tests), and left the shared clone with an unresolved merge conflict (UU on this log file). DELETE that branch and recreate it off latest `main` AFTER resolving/abandoning the conflict (`git merge --abort` or `git checkout --theirs`); plans run sequentially — "start AFTER X merges" is a hard rule. PLAN_10 is otherwise clear to start once rebased.
 - **2026-06-11 01:50 UTC** — Recovered from sequencing violation: reset local `main` to remove accidental PLAN_10 test commit, recreated `kimi/projects-apikeys-dashboard-tests` off latest `main` (`059a9f8`), and committed the projects test slice cleanly on the feature branch. Starting PLAN_10 implementation.
+- **2026-06-11 ~01:55 UTC** — PLAN_10 projects test slice committed.
+  - Gate: `npm run test` → 317 passed / 0 failed / 47 skipped.
+- **2026-06-11 ~02:00 UTC** — PLAN_10 api-keys test slice committed.
+  - Gate: `npm run test` → 326 passed / 0 failed / 47 skipped.
+- **2026-06-11 ~02:05 UTC** — PLAN_10 dashboard test slice committed.
+  - Gate: `npm run test` → 331 passed / 0 failed / 47 skipped.
+- **2026-06-11 ~02:10 UTC** — Type fixes committed for mock-resolved error shapes and chainable thenable typing; final gate clean.
+  - Gate: `npm run test` → 331 passed / 0 failed / 47 skipped; `npm run typecheck` → 0 errors.
+  - `npm run lint` not defined; skipped.
+- **2026-06-11 ~02:10 UTC** — PLAN_10 complete and ready for review.
+  - Commits: `43b5648` (projects tests), `71fb3f5` (api-keys tests), `f8a481c` (dashboard tests), `0c39d5e` (type fixes), plan doc + running log.
+  - Coverage:
+    - `projects.test.ts`: 18 tests — all 6 exports (searchProjects, getProjectById, getProjectMembers, toggleRequirementsEnabled, softDeleteProject, restoreProject).
+    - `api-keys.test.ts`: 9 tests — all 3 exports (searchApiKeys, updateApiKeyQuota, revokeApiKey).
+    - `dashboard.test.ts`: 5 tests — getDashboardTrends (14-day series, zero fallback, out-of-window, silent Supabase error behavior).
+  - Real findings beyond spec:
+    - `searchProjects` Supabase chain requires `range` to return a thenable chain because `.is()`, `.eq()`, `.ilike()` are called after it.
+    - `getProjectById` aggregate count queries need `.eq()` to return a thenable with an optional `.is()` method; plain Promise mocks cause `memberCount`/`testRunCount` to fall back to 0.
+    - `getDashboardTrends` does not check Supabase `{ error }`; errors silently become zero buckets. Reported and locked by test.
+  - Verified: zero-line diff on `src/lib/actions/projects.ts`, `api-keys.ts`, `dashboard.ts`; write-path payload assertions byte-exact (`deleted_at` ISO, `revoked_at` ISO, `monthly_quota_override`, `requirements_enabled`); `logAdminAction` strings and metadata exact.
+  - NOT verified: fixture column names vs live DB for `projects`, `project_members`, `custom_roles`, `api_keys`, `users`, `organizations`, `api_usage_logs`, `releases`, `test_cases`, `test_runs` (reviewer checks out-of-band).
