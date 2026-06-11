@@ -2,12 +2,9 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import type { SupportTicket, SupportTicketComment, SupportTicketEvent, SupportTicketLink, TicketCategory, TicketStatus, TicketPriority } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 // ============================================
 // Ticket Queries

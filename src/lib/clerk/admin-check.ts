@@ -20,6 +20,16 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
 }
 
 /**
+ * Throws if the current user is not an admin.
+ * Use at the top of every server action that requires admin access.
+ */
+export async function requireAdmin(): Promise<void> {
+  if (!(await isCurrentUserAdmin())) {
+    throw new Error("Unauthorized");
+  }
+}
+
+/**
  * Promotes a user to admin by setting isAdmin: true in publicMetadata.
  * Requires CLERK_SECRET_KEY with admin permissions.
  */

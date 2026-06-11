@@ -2,14 +2,11 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toCsv } from "@/lib/utils/csv";
 import type { AdminOrganization, OrganizationWithDetails, TrialLockState, OrgApiUsage } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 interface SearchOrgsParams {
   query?: string;

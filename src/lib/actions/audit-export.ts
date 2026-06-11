@@ -1,13 +1,10 @@
 "use server";
 
 import { getAuditLogs } from "@/lib/audit/logger";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import { toCsv } from "@/lib/utils/csv";
 import type { AuditTargetType } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 /**
  * Export audit logs to CSV format.

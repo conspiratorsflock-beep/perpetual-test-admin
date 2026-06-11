@@ -1,12 +1,9 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import type { LatheAuditLog } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 interface SearchLatheAuditLogsParams {
   resourceType?: string;

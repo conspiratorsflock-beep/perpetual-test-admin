@@ -2,13 +2,10 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import type { AdminErrorLog } from "@/types/admin";
 import type { Json } from "@/types/database.types";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 /**
  * Log an error (to be called from the main app or API routes).

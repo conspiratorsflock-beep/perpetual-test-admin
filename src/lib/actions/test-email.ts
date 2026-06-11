@@ -1,6 +1,6 @@
 "use server";
 
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import { logAdminAction } from "@/lib/audit/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
@@ -12,9 +12,6 @@ import type {
   TestEmailInboundHealth,
 } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 const SAFE_MESSAGE_COLUMNS = "id, mailbox_id, received_at, read";
 

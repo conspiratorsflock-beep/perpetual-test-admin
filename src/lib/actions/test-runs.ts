@@ -1,12 +1,9 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import type { TestRun, TestRunStatus } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 export async function getProjectTestRuns(
   projectId: string,

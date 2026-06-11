@@ -1,11 +1,8 @@
 "use server";
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 function startOfDay(date: Date): string {
   const d = new Date(date);

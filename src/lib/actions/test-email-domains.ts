@@ -1,14 +1,11 @@
 "use server";
 
 import { auth } from "@/lib/dev-auth/server";
-import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
 import { logAdminAction } from "@/lib/audit/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type { TestEmailDomain } from "@/types/admin";
 
-async function requireAdmin() {
-  if (!(await isCurrentUserAdmin())) throw new Error("Unauthorized");
-}
 
 const DOMAIN_RE =
   /^(?!https?:\/\/)(?!.*\/)(?!.*\s)[a-zA-Z0-9][a-zA-Z0-9-]{0,62}(\.[a-zA-Z0-9][a-zA-Z0-9-]{0,62})+$/;
