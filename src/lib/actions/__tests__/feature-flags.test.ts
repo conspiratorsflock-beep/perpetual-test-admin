@@ -44,7 +44,9 @@ describe("Feature Flag Actions", () => {
   describe("getFeatureFlags", () => {
     it("should return all feature flags", async () => {
       const mockSelect = vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve({ data: [mockFlag], error: null })),
+        order: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve({ data: [mockFlag], error: null })),
+        })),
       }));
       mockSupabaseFrom.mockReturnValue({ select: mockSelect });
 
@@ -57,9 +59,11 @@ describe("Feature Flag Actions", () => {
 
     it("should handle database error", async () => {
       const mockSelect = vi.fn(() => ({
-        order: vi.fn(() =>
-          Promise.resolve({ data: null, error: { message: "DB Error" } })
-        ),
+        order: vi.fn(() => ({
+          limit: vi.fn(() =>
+            Promise.resolve({ data: null, error: { message: "DB Error" } })
+          ),
+        })),
       }));
       mockSupabaseFrom.mockReturnValue({ select: mockSelect });
 

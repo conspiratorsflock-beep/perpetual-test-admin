@@ -51,6 +51,7 @@ function makeSearchChain(rows: unknown[], count: number | null, error: unknown =
     or: vi.fn(() => inner),
     order: vi.fn(() => inner),
     range: vi.fn(() => inner),
+    limit: vi.fn(() => inner),
     then: vi.fn((resolve: unknown) =>
       Promise.resolve(result).then(resolve as (value: typeof result) => unknown)
     ),
@@ -65,6 +66,7 @@ function makeExportChain(rows: unknown[], error: unknown = null) {
     gte: vi.fn(() => inner),
     lte: vi.fn(() => inner),
     order: vi.fn(() => inner),
+    limit: vi.fn(() => inner),
     then: vi.fn((resolve: unknown) =>
       Promise.resolve(result).then(resolve as (value: typeof result) => unknown)
     ),
@@ -92,7 +94,11 @@ function makeInsertChain(error: unknown = null) {
 function makeStatsChain(rows: unknown[], error: unknown = null) {
   return {
     select: vi.fn(() => ({
-      gte: vi.fn(() => Promise.resolve({ data: rows, error })),
+      gte: vi.fn(() => ({
+        order: vi.fn(() => ({
+          limit: vi.fn(() => Promise.resolve({ data: rows, error })),
+        })),
+      })),
     })),
   };
 }

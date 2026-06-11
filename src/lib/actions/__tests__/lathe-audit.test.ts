@@ -42,6 +42,7 @@ function makeSearchChain(rows: unknown[], count: number | null, error: unknown =
     ilike: vi.fn(() => chain),
     order: vi.fn(() => chain),
     range: vi.fn(() => chain),
+    limit: vi.fn(() => chain),
     then: vi.fn((resolve: unknown) =>
       Promise.resolve(result).then(resolve as (value: typeof result) => unknown)
     ),
@@ -61,7 +62,9 @@ function makeSingleChain(row: unknown | null, error: unknown = null) {
 
 function makeResourceTypesChain(rows: unknown[], error: unknown = null) {
   return {
-    select: vi.fn(() => Promise.resolve({ data: rows, error })),
+    select: vi.fn(() => ({
+      limit: vi.fn(() => Promise.resolve({ data: rows, error })),
+    })),
   };
 }
 

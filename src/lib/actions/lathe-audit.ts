@@ -2,6 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { REFERENCE_TABLE_LIMIT } from "@/lib/constants/query-limits";
 import type { LatheAuditLog } from "@/types/admin";
 
 
@@ -99,7 +100,8 @@ export async function getLatheAuditResourceTypes(): Promise<string[]> {
 
   const { data, error } = await supabaseAdmin
     .from("audit_logs")
-    .select("resource_type");
+    .select("resource_type")
+    .limit(REFERENCE_TABLE_LIMIT);
 
   if (error) {
     console.error("Failed to fetch resource types:", error);
