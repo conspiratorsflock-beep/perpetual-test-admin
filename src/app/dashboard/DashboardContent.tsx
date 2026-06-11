@@ -41,6 +41,8 @@ interface DashboardContentProps {
   trialsExpiring: number;
   openTickets: number;
   activityLogs: AuditLog[];
+  /** Names of data sources that failed server-side and fell back to zeros. */
+  degradedSources?: string[];
 }
 
 export default function DashboardContent({
@@ -52,6 +54,7 @@ export default function DashboardContent({
   trialsExpiring,
   openTickets,
   activityLogs,
+  degradedSources = [],
 }: DashboardContentProps) {
   const stats: StatCard[] = [
     {
@@ -183,6 +186,13 @@ export default function DashboardContent({
           Overview of Lathe Studio platform metrics.
         </p>
       </div>
+
+      {degradedSources.length > 0 && (
+        <div className="rounded-md border border-amber-700 bg-amber-900/20 px-4 py-3 text-sm text-amber-300/90">
+          Some metrics are temporarily unavailable and show as zero:{" "}
+          {degradedSources.join(", ")}. Check the server logs for details.
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

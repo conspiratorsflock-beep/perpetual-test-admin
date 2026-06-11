@@ -232,4 +232,27 @@ describe("DashboardPage (server)", () => {
     expect(container.textContent).toContain("1,500");
     expect(container.textContent).toContain("$50,000");
   });
+
+  it("degrades a failed source to zeros with a notice instead of throwing", async () => {
+    // One flaky source must not blank the landing page (reviewer catch,
+    // PLAN_22 — proven by the no-Clerk-key dev environment).
+    mockActions.getTotalOrgCount.mockRejectedValue(new Error("clerk down"));
+
+    const { default: DashboardPage } = await import("../page");
+    const result = await DashboardPage();
+    const { container } = render(result);
+
+    expect(container.textContent).toContain("Some metrics are temporarily unavailable");
+    expect(container.textContent).toContain("org count");
+    // The healthy sources still render real data
+    expect(container.textContent).toContain("1,500");
+  });
+
+  it("renders no degraded notice when every source succeeds", async () => {
+    const { default: DashboardPage } = await import("../page");
+    const result = await DashboardPage();
+    const { container } = render(result);
+
+    expect(container.textContent).not.toContain("Some metrics are temporarily unavailable");
+  });
 });
