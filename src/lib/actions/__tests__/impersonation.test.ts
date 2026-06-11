@@ -123,6 +123,12 @@ describe("Impersonation Actions", () => {
         "Failed to create impersonation token"
       );
     });
+
+    it("rejects invalid input before any Clerk/Supabase call", async () => {
+      await expect(generateImpersonationToken("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("validateImpersonationToken", () => {
@@ -226,6 +232,12 @@ describe("Impersonation Actions", () => {
 
       expect(result.valid).toBe(false);
       expect(result.error).toBe("Token expired");
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(validateImpersonationToken("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 

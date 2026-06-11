@@ -3,16 +3,27 @@
 import { auth } from "@/lib/dev-auth/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { createHash, randomBytes } from "crypto";
+import { z } from "zod";
+import { clerkId, secretString } from "@/lib/validation/common";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 
 const IMPERSONATION_TOKEN_EXPIRY_MINUTES = 30;
+
+const generateImpersonationTokenSchema = z.object({
+  targetUserId: clerkId,
+});
 
 /**
  * Generates a secure impersonation token for an admin to act as a target user.
  * Returns the plain token (to be shown once) and stores a hash in the database.
  */
 export async function generateImpersonationToken(targetUserId: string): Promise<string> {
+  const parsed = generateImpersonationTokenSchema.safeParse({ targetUserId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const { userId: adminId } = await auth();
   if (!adminId) {
     throw new Error("Not authenticated");
@@ -64,6 +75,10 @@ export async function generateImpersonationToken(targetUserId: string): Promise<
   return token;
 }
 
+const validateImpersonationTokenSchema = z.object({
+  token: z.string().trim().min(1).max(128),
+});
+
 /**
  * Validates an impersonation token and returns the target user ID if valid.
  * Uses a single atomic UPDATE ... WHERE used_at IS NULL to prevent race conditions
@@ -75,6 +90,11 @@ export async function validateImpersonationToken(token: string): Promise<{
   adminId?: string;
   error?: string;
 }> {
+  const parsed = validateImpersonationTokenSchema.safeParse({ token });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const now = new Date().toISOString();
 
