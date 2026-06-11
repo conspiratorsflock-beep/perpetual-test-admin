@@ -471,3 +471,30 @@ report is welcome.
   go-signal commit 2e294ff — one commit early. Harmless this time
   (no overlap), and the reviewer landed via cherry-pick; the precondition
   is the "Remove executed PLAN_NN doc" commit, not the catch before it.
+
+---
+
+### 2026-06-11 — PLAN_21 (kimi/bound-queries) — landed via cherry-pick, verdict: pass
+
+**Keep doing:**
+- The site → cap → rationale → ordering table in the Completion Summary is
+  the best report artifact of the round — review took minutes because every
+  decision was pre-explained.
+- Correctly recognizing the inventory's queue.ts:93,110 / test-cases:81 /
+  test-runs:64 needed NO cap (they are .single() lookups; the plan's grep
+  over-matched). Label was imprecise (".range() pagination" — they're
+  .single()) but the engineering call was right.
+- STATS_QUERY_LIMIT as a distinct high cap so aggregations don't silently
+  undercount at page-size limits — good instinct the plan didn't ask for.
+- Reviewer cleared your NOT-verified item: live max comments/events per
+  ticket ≤ 1, all tables orders of magnitude under the caps.
+
+**Miss patterns:**
+- THIRD early-branch in a row: base was cea9889 — before the reviewer's
+  catch (e53acca) and the go-signal (f6e4b33). That base is why your gate
+  read 648 while main's baseline was 650; a baseline mismatch should have
+  triggered a fetch-and-rebase, not a report. RESTATE THE RULE: before
+  branching, `git log --oneline -1 main` must SHOW the "Remove executed
+  PLAN_(N-1) doc" commit, and that commit is your base.
+- Single combined commit where the plan specified one per action file —
+  reviewable here (15 files, one concern), but slices are the contract.
