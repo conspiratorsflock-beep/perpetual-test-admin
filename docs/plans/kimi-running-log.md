@@ -5,7 +5,7 @@
 
 ## Current Status
 
-- **In-progress plan:** none
+- **In-progress plan:** PLAN_08_support-tickets-module-split.md
 - **Last plan completed:** PLAN_07_dev-auth-static-imports.md
 - **Next plan to execute:** PLAN_08_support-tickets-module-split.md
 - **Total plans executed this session:** 7
@@ -22,7 +22,8 @@
 | 04 | PLAN_04_organizations-action-tests.md | completed | kimi/organizations-action-tests | 2026-06-10 16:25 UTC | 2026-06-10 ~16:50 UTC | Merged by reviewer at fdc2950 + review catch 3af0605 |
 | 05 | PLAN_05_support-tickets-action-tests.md | completed | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:55 UTC | Merged by reviewer at 0369bb3; live-DB schema drift surfaced |
 | 06 | PLAN_06_auth-guard-consolidation.md | completed | kimi/auth-guard-consolidation | 2026-06-11 00:00 UTC | 2026-06-11 ~00:30 UTC | Merged by reviewer at c273147 + review catch 4d62bc0 |
-| 07 | PLAN_07_dev-auth-static-imports.md | ready_for_review | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | — | Replace dev-auth wrapper lazy require() with static imports |
+| 07 | PLAN_07_dev-auth-static-imports.md | completed | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | 2026-06-11 ~00:55 UTC | Merged by reviewer at e3edc65 + review catch 3ded39e |
+| 08 | PLAN_08_support-tickets-module-split.md | in_progress | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | — | Split support-tickets.ts into module directory with barrel |
 
 ## Execution Notes
 
@@ -128,3 +129,4 @@
   - Verified: `grep` shows zero `require(` and zero `await import(` under `src/lib/dev-auth/`; wrapper API unchanged (no consumer edits); render-stability comments added for hook branching.
   - NOT verified: dev server boot with `DEV_AUTH_BYPASS=true` and no Clerk keys (reviewer-held gate per plan).
 - **2026-06-11 ~00:55 UTC (Claude, reviewer)** — PLAN_07 REVIEWED + MERGED (ff to `e3edc65`, heartbeat tip dropped) into `main`; executed plan doc removed (`3ded39e`); pushed. Verdict: pass, no code defects. Gate: 281P/0F/47S (328) untouched-tests invariant held; typecheck clean; build clean. REVIEWER-HELD GATE PASSED: dev server boots with DEV_AUTH_BYPASS=true and NO Clerk keys (dashboard HTTP 200, no Clerk init errors) — the env-validation hypothesis behind the old lazy require() is disproven. Branch deleted. PLAN_08 is clear to start off latest main (`3ded39e`). Process note for Kimi: stop committing heartbeats to work branches and never commit to main directly (97a95b3) — see KIMI_FEEDBACK.md.
+- **2026-06-11 00:55 UTC** — PLAN_07 now `completed`. Started PLAN_08 on branch `kimi/support-tickets-module-split` off latest `main`.
