@@ -200,6 +200,18 @@ describe("Organization Actions", () => {
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
     });
+
+    it("should reject invalid input before any DB write", async () => {
+      await expect(changeTrialState("", "hard_locked")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid trial state before any DB write", async () => {
+      await expect(changeTrialState("org_clerk_1", "invalid_state" as unknown as "active")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("extendTrial", () => {
@@ -370,6 +382,20 @@ describe("Organization Actions", () => {
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
     });
+
+    it("should reject invalid input before any DB write", async () => {
+      await expect(extendTrial("", 7)).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid days before any DB write", async () => {
+      await expect(extendTrial("org_clerk_1", 0)).rejects.toThrow("Invalid input");
+      await expect(extendTrial("org_clerk_1", -1)).rejects.toThrow("Invalid input");
+      await expect(extendTrial("org_clerk_1", 366)).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateOrgApiQuota", () => {
@@ -522,6 +548,13 @@ describe("Organization Actions", () => {
       });
 
       await expect(updateOrgApiQuota("org_clerk_1", 1000)).rejects.toThrow("Unauthorized");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid input before any DB write", async () => {
+      await expect(updateOrgApiQuota("", 1000)).rejects.toThrow("Invalid input");
+      await expect(updateOrgApiQuota("org_clerk_1", -1)).rejects.toThrow("Invalid input");
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
     });

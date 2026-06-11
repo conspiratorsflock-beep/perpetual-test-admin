@@ -5,6 +5,8 @@ import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toCsv } from "@/lib/utils/csv";
+import { z } from "zod";
+import { clerkId, trialLockState, boundedString } from "@/lib/validation/common";
 import type { AdminOrganization, OrganizationWithDetails, TrialLockState, OrgApiUsage } from "@/types/admin";
 
 
@@ -175,6 +177,12 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
   }
 }
 
+const changeTrialStateSchema = z.object({
+  orgId: clerkId,
+  newState: trialLockState,
+  reason: boundedString(10_000).optional(),
+});
+
 /**
  * Change an organization's trial state.
  */
@@ -184,6 +192,10 @@ export async function changeTrialState(
   reason?: string
 ): Promise<void> {
   await requireAdmin();
+  const parsed = changeTrialStateSchema.safeParse({ orgId, newState, reason });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const orgUuid = await getOrgUuidFromClerkId(orgId);
   if (!orgUuid) {
@@ -207,12 +219,21 @@ export async function changeTrialState(
   });
 }
 
+const extendTrialSchema = z.object({
+  orgId: clerkId,
+  days: z.number().int().min(1).max(365),
+});
+
 /**
  * Extend an organization's trial by N days.
  * Enforces a one-time-only extension policy.
  */
 export async function extendTrial(orgId: string, days: number): Promise<{ newTrialEndsAt: string }> {
   await requireAdmin();
+  const parsed = extendTrialSchema.safeParse({ orgId, days });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const orgUuid = await getOrgUuidFromClerkId(orgId);
   if (!orgUuid) {
@@ -263,11 +284,20 @@ export async function extendTrial(orgId: string, days: number): Promise<{ newTri
   return { newTrialEndsAt };
 }
 
+const updateOrgApiQuotaSchema = z.object({
+  clerkOrgId: clerkId,
+  apiMonthlyQuota: z.number().int().min(0).nullable(),
+});
+
 /**
  * Update an organization's API monthly quota.
  */
 export async function updateOrgApiQuota(clerkOrgId: string, apiMonthlyQuota: number | null): Promise<void> {
   await requireAdmin();
+  const parsed = updateOrgApiQuotaSchema.safeParse({ clerkOrgId, apiMonthlyQuota });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const orgUuid = await getOrgUuidFromClerkId(clerkOrgId);
   if (!orgUuid) {
