@@ -5,10 +5,10 @@
 
 ## Current Status
 
-- **In-progress plan:** PLAN_07_dev-auth-static-imports.md
-- **Last plan completed:** PLAN_06_auth-guard-consolidation.md
-- **Next plan to execute:** PLAN_07_dev-auth-static-imports.md
-- **Total plans executed this session:** 6
+- **In-progress plan:** none
+- **Last plan completed:** PLAN_07_dev-auth-static-imports.md
+- **Next plan to execute:** PLAN_08_support-tickets-module-split.md
+- **Total plans executed this session:** 7
 
 ## Plans Queue
 
@@ -22,7 +22,7 @@
 | 04 | PLAN_04_organizations-action-tests.md | completed | kimi/organizations-action-tests | 2026-06-10 16:25 UTC | 2026-06-10 ~16:50 UTC | Merged by reviewer at fdc2950 + review catch 3af0605 |
 | 05 | PLAN_05_support-tickets-action-tests.md | completed | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:55 UTC | Merged by reviewer at 0369bb3; live-DB schema drift surfaced |
 | 06 | PLAN_06_auth-guard-consolidation.md | completed | kimi/auth-guard-consolidation | 2026-06-11 00:00 UTC | 2026-06-11 ~00:30 UTC | Merged by reviewer at c273147 + review catch 4d62bc0 |
-| 07 | PLAN_07_dev-auth-static-imports.md | in_progress | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | — | Replace dev-auth wrapper lazy require() with static imports |
+| 07 | PLAN_07_dev-auth-static-imports.md | ready_for_review | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | — | Replace dev-auth wrapper lazy require() with static imports |
 
 ## Execution Notes
 
@@ -121,3 +121,9 @@
   - NOT verified: whether any main-app/unauthenticated caller legitimately invokes the newly gated actions (reviewer checks out-of-band).
 - **2026-06-11 ~00:30 UTC (Claude, reviewer)** — PLAN_06 REVIEWED + LANDED on `main` via cherry-pick through `c273147` (branch forked before the reviewer's TODO commit, so no ff). Verdict: pass. Gate re-verified on landing state: 281P/0F/47S (328 = 314 + 14), typecheck clean. Out-of-band: all callers of the 4 newly gated files are admin-console pages; zero lathe-studio/cron/webhook callers — gating confirmed safe. Review catch `4d62bc0`: dropped 21 dead `isCurrentUserAdmin` imports. Four heartbeat commits dropped at landing (repeat pattern — see KIMI_FEEDBACK.md). Branch deleted; executed plan doc removed; pushed. PLAN_07 is clear to start off latest main (`4d62bc0`).
 - **2026-06-11 00:30 UTC** — PLAN_06 now `completed`. Started PLAN_07 on branch `kimi/dev-auth-static-imports` off latest `main`.
+- **2026-06-11 ~00:35 UTC** — PLAN_07 complete and ready for review.
+  - Commits: `c87c206`, `577ec3d`
+  - Gate: `npm run test` → 281 passed / 0 failed / 47 skipped (328 total); `npm run typecheck` → 0 errors; `npm run build` → completed.
+  - Replaced lazy `require("@clerk/nextjs")` in `client.tsx` and dynamic `import("@clerk/nextjs/server")` in `server.ts` with top-level static imports. Kept DEV_BYPASS branching and mock returns byte-identical.
+  - Verified: `grep` shows zero `require(` and zero `await import(` under `src/lib/dev-auth/`; wrapper API unchanged (no consumer edits); render-stability comments added for hook branching.
+  - NOT verified: dev server boot with `DEV_AUTH_BYPASS=true` and no Clerk keys (reviewer-held gate per plan).
