@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId } from "@/lib/validation/common";
 import type { IntegrationHealth, IntegrationStatus } from "@/types/admin";
 
 
@@ -153,8 +155,17 @@ export async function searchIntegrations({
   return { integrations: paginated, total };
 }
 
+const disconnectIntegrationSchema = z.object({
+  id: entityId,
+  type: z.string().min(1),
+});
+
 export async function disconnectIntegration(id: string, type: IntegrationHealth["type"]): Promise<void> {
   await requireAdmin();
+  const parsed = disconnectIntegrationSchema.safeParse({ id, type });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const tableMap: Record<string, string> = {
     cicd: "cicd_connections",

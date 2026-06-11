@@ -180,6 +180,12 @@ describe("Integrations — disconnectIntegration", () => {
     await expect(disconnectIntegration("i1", "jira")).rejects.toThrow("Failed to disconnect: boom");
     expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
+
+  it("rejects invalid input before any Supabase call", async () => {
+    await expect(disconnectIntegration("", "slack")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
 });
 
 describe("Integrations — getIntegrationMetrics", () => {
