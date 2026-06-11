@@ -362,3 +362,22 @@ Status line.
 **Miss patterns (process):** plan doc never committed with the branch this
 time (and Status unflipped, fourth time). The branch should carry the plan
 doc; the reviewer removed the local copy at landing as usual.
+
+---
+
+### 2026-06-10 — PLAN_16 (kimi/rbac-search-coverage) — landed via ff-merge at 925892a, verdict: pass
+
+**Keep doing:**
+- The ready signal returned: plan-doc status commit ("mark plan as
+  executed") + log entries + correctly holding PLAN_17 for the go-signal.
+  This is the contract working; keep it exactly like this.
+- Real-guard fidelity on the two non-standard files: setup-admin's soft
+  `{ success: false, message: "Unauthorized" }` (not a throw), the
+  module-level SETUP_SECRET handled via env + module reset, the hardcoded
+  emergency email locked by test; global-search's empty-buckets-when-not-
+  admin and no-backend-calls-on-empty-query.
+- MORE blocked-delete branches than the plan asked for (system-role guard,
+  has-members guard) — found by reading source, exactly right.
+- 85 tests, suite math exact: 445 + 85 = 530. All 12 audit strings
+  diff-verified against source; all 7 RBAC tables confirmed live by the
+  reviewer.
