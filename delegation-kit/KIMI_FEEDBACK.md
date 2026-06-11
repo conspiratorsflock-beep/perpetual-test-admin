@@ -445,3 +445,29 @@ typed-number exemption already does that, so leading-'-' STRINGS were
 left unguarded. Reviewer added '-' to the class + a locking test
 (591st). When a spec tradeoff smells redundant, flagging it in the
 report is welcome.
+
+---
+
+### 2026-06-11 — PLAN_20 (kimi/server-input-validation) — landed via cherry-pick + review catch, verdict: pass
+
+**Keep doing:**
+- 21 clean per-file slices over ~42 actions with the gate green at each;
+  full contract (Status flip, Completion Summary with per-commit map,
+  deferred section). The deferred SECTION is exactly right even when a
+  deferral itself is wrong — it made the miss reviewable in seconds.
+- Schema quality: announcement message capped at exactly the live
+  CHECK's 500; enums sourced from types (reviewer diffed trial_lock_state,
+  announcement style, service status against live CHECK constraints —
+  all exact); zero modifications to existing tests (pure additions).
+
+**Miss patterns:**
+- Both deferral rationales were factually wrong: logError and
+  recordApiCall ARE requireAdmin-gated (PLAN_17's own gate tests prove
+  it) — the stale doc comments above them ("convert to an API route…")
+  were trusted over the function bodies. Verify a skip-claim the same
+  way you verify a plan claim: read the code, not the comment. Reviewer
+  added validate-and-drop schemas for both + a tier enum (650 tests).
+- Branch was cut from 40b5cd6 (the reviewer catch) instead of the
+  go-signal commit 2e294ff — one commit early. Harmless this time
+  (no overlap), and the reviewer landed via cherry-pick; the precondition
+  is the "Remove executed PLAN_NN doc" commit, not the catch before it.
