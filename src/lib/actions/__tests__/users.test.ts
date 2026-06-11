@@ -6,6 +6,8 @@ import {
   deleteUser,
   toggleUserAdmin,
   getTotalUserCount,
+  createUser,
+  inviteUser,
 } from "../users";
 import { logAdminAction } from "@/lib/audit/logger";
 
@@ -34,6 +36,10 @@ const mockClerkClient = {
     updateUser: vi.fn(),
     updateUserMetadata: vi.fn(),
     deleteUser: vi.fn(),
+    createUser: vi.fn(),
+  },
+  invitations: {
+    createInvitation: vi.fn(),
   },
   organizations: {
     getOrganizationMembershipList: vi.fn(),
@@ -211,6 +217,12 @@ describe("User Actions", () => {
         { publicMetadata: { customField: "value" } }
       );
     });
+
+    it("should reject invalid input before any Clerk call", async () => {
+      await expect(updateUser("", { firstName: "Jane" })).rejects.toThrow("Invalid input");
+      expect(mockClerkClient.users.updateUser).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("deleteUser", () => {
@@ -227,6 +239,13 @@ describe("User Actions", () => {
         targetName: "test@example.com",
         metadata: { email: "test@example.com" },
       });
+    });
+
+    it("should reject invalid input before any Clerk call", async () => {
+      await expect(deleteUser("")).rejects.toThrow("Invalid input");
+      expect(mockClerkClient.users.getUser).not.toHaveBeenCalled();
+      expect(mockClerkClient.users.deleteUser).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
@@ -260,6 +279,13 @@ describe("User Actions", () => {
         metadata: { isAdmin: false },
       });
     });
+
+    it("should reject invalid input before any Clerk call", async () => {
+      await expect(toggleUserAdmin("", true)).rejects.toThrow("Invalid input");
+      await expect(toggleUserAdmin("user_123", "yes" as unknown as boolean)).rejects.toThrow("Invalid input");
+      expect(mockClerkClient.users.updateUserMetadata).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("getTotalUserCount", () => {
@@ -272,6 +298,24 @@ describe("User Actions", () => {
       const result = await getTotalUserCount();
 
       expect(result).toBe(150);
+    });
+  });
+
+  describe("createUser", () => {
+    it("should reject invalid email before any Clerk call", async () => {
+      await expect(createUser({ email: "" })).rejects.toThrow("Invalid input");
+      await expect(createUser({ email: "not-an-email" })).rejects.toThrow("Invalid input");
+      expect(mockClerkClient.users.createUser).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("inviteUser", () => {
+    it("should reject invalid email before any Clerk call", async () => {
+      await expect(inviteUser({ email: "" })).rejects.toThrow("Invalid input");
+      await expect(inviteUser({ email: "not-an-email" })).rejects.toThrow("Invalid input");
+      expect(mockClerkClient.invitations.createInvitation).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });

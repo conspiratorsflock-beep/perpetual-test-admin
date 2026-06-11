@@ -5,6 +5,8 @@ import { logAdminAction } from "@/lib/audit/logger";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toCsv } from "@/lib/utils/csv";
+import { z } from "zod";
+import { clerkId, boundedString, emailString } from "@/lib/validation/common";
 import type { AdminUser, UserWithDetails, ProjectMembership } from "@/types/admin";
 
 interface SearchUsersParams {
@@ -161,6 +163,15 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
   }
 }
 
+const updateUserSchema = z.object({
+  userId: clerkId,
+  data: z.object({
+    firstName: boundedString(500).optional(),
+    lastName: boundedString(500).optional(),
+    publicMetadata: z.record(z.unknown()).optional(),
+  }),
+});
+
 /**
  * Update a user's basic information.
  */
@@ -172,6 +183,11 @@ export async function updateUser(
     publicMetadata?: Record<string, unknown>;
   }
 ): Promise<void> {
+  const parsed = updateUserSchema.safeParse({ userId, data });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const client = await clerkClient();
 
   if (data.firstName !== undefined || data.lastName !== undefined) {
@@ -195,10 +211,19 @@ export async function updateUser(
   });
 }
 
+const deleteUserSchema = z.object({
+  userId: clerkId,
+});
+
 /**
  * Delete a user permanently.
  */
 export async function deleteUser(userId: string): Promise<void> {
+  const parsed = deleteUserSchema.safeParse({ userId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const client = await clerkClient();
 
   const user = await client.users.getUser(userId);
@@ -215,10 +240,20 @@ export async function deleteUser(userId: string): Promise<void> {
   });
 }
 
+const toggleUserAdminSchema = z.object({
+  userId: clerkId,
+  makeAdmin: z.boolean(),
+});
+
 /**
  * Toggle admin status for a user.
  */
 export async function toggleUserAdmin(userId: string, makeAdmin: boolean): Promise<void> {
+  const parsed = toggleUserAdminSchema.safeParse({ userId, makeAdmin });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const client = await clerkClient();
 
   await client.users.updateUserMetadata(userId, {
@@ -242,6 +277,14 @@ export async function getTotalUserCount(): Promise<number> {
   return response.totalCount;
 }
 
+const createUserSchema = z.object({
+  email: emailString,
+  firstName: boundedString(500).optional(),
+  lastName: boundedString(500).optional(),
+  isAdmin: z.boolean().optional(),
+  skipPasswordRequirement: z.boolean().optional(),
+});
+
 /**
  * Create a new user in Clerk.
  */
@@ -258,6 +301,11 @@ export async function createUser({
   isAdmin?: boolean;
   skipPasswordRequirement?: boolean;
 }): Promise<{ userId: string; email: string }> {
+  const parsed = createUserSchema.safeParse({ email, firstName, lastName, isAdmin, skipPasswordRequirement });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const client = await clerkClient();
 
   try {
@@ -284,6 +332,15 @@ export async function createUser({
   }
 }
 
+const inviteUserSchema = z.object({
+  email: emailString,
+  firstName: boundedString(500).optional(),
+  lastName: boundedString(500).optional(),
+  isAdmin: z.boolean().optional(),
+  orgId: clerkId.optional(),
+  role: boundedString(500).optional(),
+});
+
 /**
  * Invite a user via email (sends invitation email).
  */
@@ -302,6 +359,11 @@ export async function inviteUser({
   orgId?: string;
   role?: string;
 }): Promise<{ invitationId: string; email: string }> {
+  const parsed = inviteUserSchema.safeParse({ email, firstName, lastName, isAdmin, orgId, role });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
   const client = await clerkClient();
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
