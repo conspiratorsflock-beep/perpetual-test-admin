@@ -1,3 +1,4 @@
+import { auth as authReal, currentUser as currentUserReal } from "@clerk/nextjs/server";
 import type { auth as RealAuth, currentUser as RealCurrentUser } from "@clerk/nextjs/server";
 
 type AuthReturn = Awaited<ReturnType<typeof RealAuth>>;
@@ -34,16 +35,14 @@ const mockUser: UserObj = {
 
 export async function auth(): Promise<AuthReturn> {
   if (!DEV_BYPASS) {
-    const { auth: realAuth } = await import("@clerk/nextjs/server");
-    return realAuth();
+    return authReal();
   }
   return mockAuth;
 }
 
 export async function currentUser(): Promise<UserReturn> {
   if (!DEV_BYPASS) {
-    const { currentUser: realCurrentUser } = await import("@clerk/nextjs/server");
-    return realCurrentUser();
+    return currentUserReal();
   }
   return mockUser;
 }
