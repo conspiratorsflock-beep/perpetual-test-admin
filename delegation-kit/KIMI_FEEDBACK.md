@@ -423,3 +423,25 @@ tests in-main); fail-fast output confirmed; every table in the four
 unskipped files traced to a creating migration; shared-project URL
 rejection fixture present. NOT verified by anyone yet: actual execution
 against a local stack — blocked on Docker, held by the reviewer.
+
+---
+
+### 2026-06-11 — PLAN_19 (kimi/security-hardening) — landed via ff-merge at a3659f3 + review catch, verdict: pass
+
+**Keep doing:**
+- FULL contract on the first plan of the round: Status flip, in-doc
+  Completion Summary with gate numbers and verified/NOT-verified, grep
+  proof for the email removal. Exactly the steady state.
+- Scope-completing the email removal into the UI default value, the
+  button label, and scripts/check-session.mjs (now requires an explicit
+  arg) — the plan said "appears NOWHERE in the repo" and you took that
+  literally and correctly.
+- The number/boolean early-return in toCsv that makes the guard
+  string-only by construction, not by regex luck.
+
+**Reviewer catch (plan bug, not implementer miss):** the plan's own spec
+excluded '-' from the string guard to protect negative numbers — but the
+typed-number exemption already does that, so leading-'-' STRINGS were
+left unguarded. Reviewer added '-' to the class + a locking test
+(591st). When a spec tradeoff smells redundant, flagging it in the
+report is welcome.
