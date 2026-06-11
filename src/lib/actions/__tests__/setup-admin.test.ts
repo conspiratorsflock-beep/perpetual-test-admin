@@ -95,6 +95,15 @@ describe("setup-admin — promoteUserToAdminByEmail", () => {
     const result = await promoteUserToAdminByEmail("user@example.com");
     expect(result).toEqual({ success: false, message: "Failed to promote user" });
   });
+
+  it("rejects invalid email before any Clerk call", async () => {
+    mockIsCurrentUserAdmin.mockResolvedValue(true);
+    const { promoteUserToAdminByEmail } = await loadSetupAdmin();
+
+    await expect(promoteUserToAdminByEmail("")).rejects.toThrow("Invalid input");
+    await expect(promoteUserToAdminByEmail("not-an-email")).rejects.toThrow("Invalid input");
+    expect(mockClerkClient).not.toHaveBeenCalled();
+  });
 });
 
 describe("setup-admin — setupEmergencyAdmin", () => {
@@ -140,5 +149,14 @@ describe("setup-admin — setupEmergencyAdmin", () => {
     const result = await setupEmergencyAdmin("secret-a");
     expect(result).toEqual({ success: true, message: "Successfully promoted admin@example.com to admin" });
     expect(client.users.updateUserMetadata).toHaveBeenCalledWith("u99", { publicMetadata: { isAdmin: true } });
+  });
+
+  it("rejects invalid secret before any Clerk call", async () => {
+    process.env.SETUP_ADMIN_SECRET = "secret-a";
+    process.env.SETUP_ADMIN_EMAIL = "admin@example.com";
+    const { setupEmergencyAdmin } = await loadSetupAdmin();
+
+    await expect(setupEmergencyAdmin("")).rejects.toThrow("Invalid input");
+    expect(mockClerkClient).not.toHaveBeenCalled();
   });
 });

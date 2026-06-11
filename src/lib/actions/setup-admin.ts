@@ -3,8 +3,18 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { createHash, timingSafeEqual } from "crypto";
+import { z } from "zod";
+import { emailString, secretString } from "@/lib/validation/common";
 
 const SETUP_SECRET = process.env.SETUP_ADMIN_SECRET;
+
+const promoteUserToAdminByEmailSchema = z.object({
+  email: emailString,
+});
+
+const setupEmergencyAdminSchema = z.object({
+  secret: secretString.min(1),
+});
 
 function hashSecret(s: string): Buffer {
   return createHash("sha256").update(s).digest();
@@ -68,7 +78,11 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
   if (!(await isCurrentUserAdmin())) {
     return { success: false, message: "Unauthorized" };
   }
-  return promoteUser(email);
+  const parsed = promoteUserToAdminByEmailSchema.safeParse({ email });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+  return promoteUser(parsed.data.email);
 }
 
 /**
@@ -86,7 +100,12 @@ export async function setupEmergencyAdmin(secret: string): Promise<{
     };
   }
 
-  if (!timingSafeEqual(hashSecret(secret), hashSecret(SETUP_SECRET))) {
+  const parsed = setupEmergencyAdminSchema.safeParse({ secret });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
+
+  if (!timingSafeEqual(hashSecret(parsed.data.secret), hashSecret(SETUP_SECRET))) {
     return {
       success: false,
       message: "Invalid setup secret",
