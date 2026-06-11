@@ -54,14 +54,25 @@ ALTER TABLE support_sla_config
   ADD COLUMN IF NOT EXISTS business_days INTEGER[],
   ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
 
--- Migrate hour-based values to minutes if first_response_time is null
-UPDATE support_sla_config
-SET first_response_time = first_response_hours * 60
-WHERE first_response_time IS NULL AND first_response_hours IS NOT NULL;
+-- Migrate hour-based values to minutes if first_response_time is null.
+-- The *_hours columns only exist on the legacy shared DB; on a fresh chain
+-- (local test stack) they were never created, so guard on their existence.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'support_sla_config' AND column_name = 'first_response_hours') THEN
+    UPDATE support_sla_config
+    SET first_response_time = first_response_hours * 60
+    WHERE first_response_time IS NULL AND first_response_hours IS NOT NULL;
+  END IF;
 
-UPDATE support_sla_config
-SET resolution_time = resolution_hours * 60
-WHERE resolution_time IS NULL AND resolution_hours IS NOT NULL;
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'support_sla_config' AND column_name = 'resolution_hours') THEN
+    UPDATE support_sla_config
+    SET resolution_time = resolution_hours * 60
+    WHERE resolution_time IS NULL AND resolution_hours IS NOT NULL;
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────
 -- 4. support_team_members: Merge columns from both schemas
@@ -98,7 +109,8 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON admin_audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON admin_audit_logs(created_at DESC);
 
 ALTER TABLE admin_audit_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON admin_audit_logs
+DROP POLICY IF EXISTS "Service role full access" ON admin_audit_logs;
+CREATE POLICY "Service role full access" ON admin_audit_logs
   FOR ALL USING (auth.role() = 'service_role');
 
 -- feature_flags
@@ -118,7 +130,8 @@ CREATE INDEX IF NOT EXISTS idx_feature_flags_key ON feature_flags(key);
 CREATE INDEX IF NOT EXISTS idx_feature_flags_enabled ON feature_flags(enabled_globally);
 
 ALTER TABLE feature_flags ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON feature_flags
+DROP POLICY IF EXISTS "Service role full access" ON feature_flags;
+CREATE POLICY "Service role full access" ON feature_flags
   FOR ALL USING (auth.role() = 'service_role');
 
 -- impersonation_tokens
@@ -140,7 +153,8 @@ CREATE INDEX IF NOT EXISTS idx_impersonation_tokens_target ON impersonation_toke
 CREATE INDEX IF NOT EXISTS idx_impersonation_tokens_expires ON impersonation_tokens(expires_at);
 
 ALTER TABLE impersonation_tokens ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON impersonation_tokens
+DROP POLICY IF EXISTS "Service role full access" ON impersonation_tokens;
+CREATE POLICY "Service role full access" ON impersonation_tokens
   FOR ALL USING (auth.role() = 'service_role');
 
 -- system_health_checks
@@ -157,7 +171,8 @@ CREATE INDEX IF NOT EXISTS idx_health_checks_service ON system_health_checks(ser
 CREATE INDEX IF NOT EXISTS idx_health_checks_checked_at ON system_health_checks(checked_at DESC);
 
 ALTER TABLE system_health_checks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON system_health_checks
+DROP POLICY IF EXISTS "Service role full access" ON system_health_checks;
+CREATE POLICY "Service role full access" ON system_health_checks
   FOR ALL USING (auth.role() = 'service_role');
 
 -- admin_error_logs
@@ -178,7 +193,8 @@ CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON admin_error_logs(created
 CREATE INDEX IF NOT EXISTS idx_error_logs_user ON admin_error_logs(user_id);
 
 ALTER TABLE admin_error_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON admin_error_logs
+DROP POLICY IF EXISTS "Service role full access" ON admin_error_logs;
+CREATE POLICY "Service role full access" ON admin_error_logs
   FOR ALL USING (auth.role() = 'service_role');
 
 -- api_usage_daily
@@ -194,11 +210,26 @@ CREATE TABLE IF NOT EXISTS api_usage_daily (
   UNIQUE(date, endpoint, method)
 );
 
-CREATE INDEX IF NOT EXISTS idx_api_usage_daily_date ON api_usage_daily(date);
-CREATE INDEX IF NOT EXISTS idx_api_usage_daily_endpoint ON api_usage_daily(endpoint);
+-- 20260312_api_calls_tracking.sql creates api_usage_daily with a different
+-- shape (endpoint_breakdown JSONB, no endpoint/date columns), so the CREATE
+-- TABLE above no-ops on a fresh chain and these indexes must be guarded.
+-- (The feature is dead either way: api_usage_daily was reconciled out of the
+-- code in 2026-06 and intentionally never created on the live DB.)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'api_usage_daily' AND column_name = 'date') THEN
+    CREATE INDEX IF NOT EXISTS idx_api_usage_daily_date ON api_usage_daily(date);
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name = 'api_usage_daily' AND column_name = 'endpoint') THEN
+    CREATE INDEX IF NOT EXISTS idx_api_usage_daily_endpoint ON api_usage_daily(endpoint);
+  END IF;
+END $$;
 
 ALTER TABLE api_usage_daily ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON api_usage_daily
+DROP POLICY IF EXISTS "Service role full access" ON api_usage_daily;
+CREATE POLICY "Service role full access" ON api_usage_daily
   FOR ALL USING (auth.role() = 'service_role');
 
 -- system_settings
@@ -212,7 +243,8 @@ CREATE TABLE IF NOT EXISTS system_settings (
 );
 
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
-CREATE POLICY IF NOT EXISTS "Service role full access" ON system_settings
+DROP POLICY IF EXISTS "Service role full access" ON system_settings;
+CREATE POLICY "Service role full access" ON system_settings
   FOR ALL USING (auth.role() = 'service_role');
 
 -- ─────────────────────────────────────────────────────────────
