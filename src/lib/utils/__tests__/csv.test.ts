@@ -58,6 +58,11 @@ describe("toCsv", () => {
       expect(result).toBe("H\n'\rbad");
     });
 
+    it("prefixes STRINGS starting with - (typed numbers stay exempt)", () => {
+      const result = toCsv(["H"], [["-2+3+cmd"]]);
+      expect(result).toBe("H\n'-2+3+cmd");
+    });
+
     it("does NOT guard numeric negative values", () => {
       const result = toCsv(["H"], [[-5]]);
       expect(result).toBe("H\n-5");
