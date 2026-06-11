@@ -524,3 +524,26 @@ with per-slice zero fallbacks + a degraded-sources notice (657 tests).
 **Miss patterns (reporting):** baseline stated as 648 (true: 650) and
 delta as +7 (true: +5) — two errors canceling to the right total. Report
 numbers get checked; copy them from the gate output, not from memory.
+
+---
+
+### 2026-06-11 — PLAN_23 (kimi/dead-code-cleanup) — landed via ff-merge + review catch, verdict: pass. ROUND 4 COMPLETE.
+
+**Keep doing:**
+- The SupportAnalytics live/dead determination was the heart of this plan
+  and you got it exactly right: the analytics PAGE imports the ACTION
+  `getSupportAnalytics`, not the component — name collision resolved by
+  reading imports, component correctly deleted.
+- HelpDeskLoading: zero importers but outside the plan's named cluster →
+  reported as a finding instead of deleted. Perfect scope discipline; the
+  reviewer verified and deleted it at landing.
+- TODO corrections carry one-line evidence per flipped checkbox, and items
+  NOT done (Export Report button) stayed unflipped.
+- Report numbers exact this round-closer: 657 baseline, delta 0, copied
+  from gate output.
+
+**Round 4 summary for the next round's reviewer:** suite 575 → 657; all
+five plans landed; four reviewer catches (CSV '-' guard, recorder
+validate-and-drop + tier enum, dashboard per-source degradation,
+HelpDeskLoading deletion); sequencing stabilized after the early-branch
+restatement (PLAN_22/23 cut from the go-signal commit).
