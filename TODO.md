@@ -30,7 +30,7 @@ Last updated: 2026-06-05.
 - [x] Created `/integrations`, `/leads`, `/builds` pages with filtering and actions
 
 ### Phase 5 — Audit + Test Views
-- [x] Created `lathe_audit_logs` table
+- [x] ~~Created `lathe_audit_logs` table~~ → stale: the code reads lathe-studio's real `audit_logs` table (verified live 2026-06-10); `20260620_lathe_audit_logs.sql` was never applied and defines an unused table
 - [x] Created `/audit-logs` page with entity type filters
 - [x] Added Test Cases and Test Runs tabs to `/projects/[id]`
 - [x] Full schema-aware types for `test_cases` and `test_runs`
