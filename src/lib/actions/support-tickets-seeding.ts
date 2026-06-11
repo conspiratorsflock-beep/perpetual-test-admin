@@ -11,6 +11,15 @@ import type {
   SupportTeamMember,
 } from "@/types/admin";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { seedingStrategy, boundedString } from "@/lib/validation/common";
+
+const seedUnassignedTicketsSchema = z.object({
+  strategy: seedingStrategy,
+  respectSchedule: z.boolean(),
+  maxPerAgent: z.number().int().min(1).max(1000),
+  categories: z.array(boundedString(64)).max(50),
+});
 
 // ============================================
 // Ticket Seeding
@@ -89,6 +98,10 @@ export async function seedUnassignedTickets(
   config: TicketSeedingConfig
 ): Promise<TicketSeedingResult> {
   await requireAdmin();
+  const parsed = seedUnassignedTicketsSchema.safeParse(config);
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const result: TicketSeedingResult = { seeded: 0, assignments: [], errors: [] };
 
   try {
