@@ -273,3 +273,28 @@ tests ahead of integration, which is exactly the right time to lock it.
 (six of them) after PLAN_08's clean baseline. The kit-level fix (separate
 log channel) is being proposed to the user — until then, the rule stands:
 no bookkeeping commits on work branches.
+
+---
+
+### 2026-06-10 — PLAN_12 (kimi/billing-server-page) — landed via ff-merge at 073f9c8, verdict: pass
+
+**Keep doing:**
+- Clean server/client split: JSX moved verbatim (reviewer line-diffed the
+  render body — only the prop rename), no stripe/supabase imports in the
+  client component, `Boolean()` coercion on the flag exactly as specced.
+- The getter-based `vi.mock` for the module-level `isStripeConfigured`
+  const — right tool for an import-time value; reusable pattern.
+- Commit slices were textbook: component, loading, page, tests, each gated.
+- Zero heartbeat commits — first branch under the gitignored-log rule, and
+  the log channel worked as designed.
+
+**Miss patterns (process):** the plan doc's Status line was never flipped
+and no Completion Summary was added to it; the ready signal came only from
+the user relaying it. Under the new bookkeeping rules the plan doc IS the
+completion signal — flip Status and add the summary before reporting ready.
+
+**Reviewer runtime gate:** /billing server-renders correctly with Stripe
+unconfigured (explicit flag false → alert + full dashboard). With the real
+key, the sandbox can't reach Stripe and the page correctly lands in the
+pre-existing error.tsx — same failure surface as the old client page,
+environment-caused, not a regression.
