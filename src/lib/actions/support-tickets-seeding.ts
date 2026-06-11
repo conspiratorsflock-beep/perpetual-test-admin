@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/clerk/admin-check";
+
 import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import type {
@@ -18,6 +20,7 @@ export async function getUnassignedTickets(
   categories: string[],
   limit: number = 100
 ): Promise<Array<Record<string, unknown>>> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("support_tickets")
     .select("*")
@@ -39,6 +42,7 @@ export async function getUnassignedTickets(
 export async function getAvailableAgents(
   respectSchedule: boolean = false
 ): Promise<AgentAvailability[]> {
+  await requireAdmin();
   const { data: agents, error } = await supabaseAdmin
     .from("support_team_members")
     .select("*")
@@ -84,6 +88,7 @@ export async function getAvailableAgents(
 export async function seedUnassignedTickets(
   config: TicketSeedingConfig
 ): Promise<TicketSeedingResult> {
+  await requireAdmin();
   const result: TicketSeedingResult = { seeded: 0, assignments: [], errors: [] };
 
   try {

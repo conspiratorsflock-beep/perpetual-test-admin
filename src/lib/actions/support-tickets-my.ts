@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/clerk/admin-check";
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {
   SupportTicketWithAssignee,
@@ -22,6 +24,7 @@ export async function getMyTickets(
   agentId: string,
   filters: MyTicketsFilters = {}
 ): Promise<SupportTicketWithAssignee[]> {
+  await requireAdmin();
   let query = supabaseAdmin
     .from("support_tickets")
     .select("*")
@@ -162,6 +165,7 @@ export async function getAgentWorkload(agentId: string): Promise<{
   atRisk: number;
   breached: number;
 }> {
+  await requireAdmin();
   const { data: tickets, error } = await supabaseAdmin
     .from("support_tickets")
     .select("status, priority, created_at, sla_deadline")

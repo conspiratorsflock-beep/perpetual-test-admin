@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/clerk/admin-check";
+
 import { stripe, isStripeConfigured } from "@/lib/stripe/client";
 import { logAdminAction } from "@/lib/audit/logger";
 import type { BillingMetrics, TrialMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
@@ -31,6 +33,7 @@ const mockMRRHistory = [
  * Get billing metrics from Stripe
  */
 export async function getBillingMetrics(): Promise<BillingMetrics> {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     console.warn("Stripe not configured, returning mock billing metrics");
     return mockMetrics;
@@ -136,6 +139,7 @@ export async function getBillingMetrics(): Promise<BillingMetrics> {
  * Get recent invoices from Stripe
  */
 export async function getRecentInvoices(limit = 10): Promise<StripeInvoice[]> {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     console.warn("Stripe not configured, returning empty invoices");
     return [];
@@ -172,6 +176,7 @@ export async function getRecentInvoices(limit = 10): Promise<StripeInvoice[]> {
  * Get active coupons from Stripe
  */
 export async function getActiveCoupons(): Promise<StripeCoupon[]> {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     console.warn("Stripe not configured, returning empty coupons");
     return [];
@@ -208,6 +213,7 @@ export async function getActiveCoupons(): Promise<StripeCoupon[]> {
  * Get MRR history for chart data
  */
 export async function getMRRHistory(months = 6): Promise<{ month: string; mrr: number }[]> {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     console.warn("Stripe not configured, returning mock MRR history");
     return mockMRRHistory.slice(-months);
@@ -276,6 +282,7 @@ export async function createCoupon(params: {
   durationInMonths?: number;
   maxRedemptions?: number;
 }) {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
   }
@@ -310,6 +317,7 @@ export async function createCoupon(params: {
  * Delete a coupon
  */
 export async function deleteCoupon(couponId: string) {
+  await requireAdmin();
   if (!isStripeConfigured || !stripe) {
     throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
   }

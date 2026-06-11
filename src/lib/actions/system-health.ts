@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/clerk/admin-check";
+
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe/client";
 import { clerkClient } from "@clerk/nextjs/server";
@@ -158,6 +160,7 @@ async function checkMainAppHealth(): Promise<HealthCheckResult> {
  * Run all health checks and store results.
  */
 export async function runHealthChecks(): Promise<HealthCheckResult[]> {
+  await requireAdmin();
   const results = await Promise.all([
     checkSupabaseHealth(),
     checkClerkHealth(),
@@ -195,6 +198,7 @@ export async function runHealthChecks(): Promise<HealthCheckResult[]> {
  * Get recent health check history.
  */
 export async function getHealthCheckHistory(limit = 50): Promise<SystemHealthCheck[]> {
+  await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("system_health_checks")
     .select("*")
@@ -219,6 +223,7 @@ export async function getHealthCheckHistory(limit = 50): Promise<SystemHealthChe
  * Get latest health status for all services.
  */
 export async function getLatestHealthStatus(): Promise<SystemHealthCheck[]> {
+  await requireAdmin();
   // NOTE: the `get_latest_health_status` Postgres function isn't deployed to the
   // shared DB, so fetch ordered rows and keep the most recent per service in code.
   const { data, error } = await supabaseAdmin
