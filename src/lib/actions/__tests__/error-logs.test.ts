@@ -142,6 +142,14 @@ describe("Error Logs — logError", () => {
 
     await expect(logError({ errorType: "x", message: "m" })).resolves.toBeUndefined();
   });
+
+  it("drops invalid input without throwing and without a Supabase call", async () => {
+    // Validate-and-drop: the never-throw recorder contract holds even for
+    // junk input (reviewer catch, PLAN_20).
+    await expect(logError({ errorType: "", message: "m" })).resolves.toBeUndefined();
+    await expect(logError({ errorType: "x", message: "" })).resolves.toBeUndefined();
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
 });
 
 describe("Error Logs — getErrorLogs", () => {

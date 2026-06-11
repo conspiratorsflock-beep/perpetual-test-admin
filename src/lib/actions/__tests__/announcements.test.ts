@@ -366,6 +366,9 @@ describe("Announcements Actions", () => {
     it("rejects invalid input before any Supabase call", async () => {
       await expect(createAnnouncement({ message: "", style: "info" }, "user_123")).rejects.toThrow("Invalid input");
       await expect(createAnnouncement({ message: "Test", style: "invalid" as "info" }, "user_123")).rejects.toThrow("Invalid input");
+      // tier is CHECK-constrained in the live DB to all|basic|pro|enterprise
+      // (reviewer catch, PLAN_20)
+      await expect(createAnnouncement({ message: "Test", style: "info", tier: "trial" }, "user_123")).rejects.toThrow("Invalid input");
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
     });

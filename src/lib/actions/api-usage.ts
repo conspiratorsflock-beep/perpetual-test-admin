@@ -2,6 +2,14 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+
+const recordApiCallSchema = z.object({
+  endpoint: z.string().trim().min(1).max(500),
+  method: z.string().trim().min(1).max(10),
+  statusCode: z.number().int().min(100).max(599),
+  orgId: z.string().min(1).max(128).optional(),
+});
 
 
 function startOfDay(date: Date): string {
@@ -114,6 +122,13 @@ export async function recordApiCall({
   orgId?: string;
 }): Promise<void> {
   await requireAdmin();
+  // Validate-and-drop: non-critical telemetry must never throw into the
+  // caller's flow, so invalid input is logged and discarded.
+  const parsed = recordApiCallSchema.safeParse({ endpoint, method, statusCode, orgId });
+  if (!parsed.success) {
+    console.error("recordApiCall: invalid input dropped:", parsed.error.issues[0].message);
+    return;
+  }
   try {
     await supabaseAdmin.from("api_usage_logs").insert({
       endpoint,

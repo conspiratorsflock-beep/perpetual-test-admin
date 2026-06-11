@@ -66,11 +66,14 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
   return active.map(mapRow);
 }
 
+// Live DB CHECK constrains tier to these four values
+const announcementTier = z.enum(["all", "basic", "pro", "enterprise"]);
+
 const createAnnouncementSchema = z.object({
   data: z.object({
     message: z.string().trim().min(1).max(500),
     style: announcementType,
-    tier: boundedString(500).optional(),
+    tier: announcementTier.optional(),
     orgId: entityId.nullable().optional(),
     linkUrl: urlString.nullable().optional(),
     linkText: boundedString(500).nullable().optional(),
@@ -137,7 +140,7 @@ const updateAnnouncementSchema = z.object({
   data: z.object({
     message: z.string().trim().min(1).max(500).optional(),
     style: announcementType.optional(),
-    tier: boundedString(500).optional(),
+    tier: announcementTier.optional(),
     orgId: entityId.nullable().optional(),
     linkUrl: urlString.nullable().optional(),
     linkText: boundedString(500).nullable().optional(),

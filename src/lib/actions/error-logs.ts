@@ -8,6 +8,16 @@ import type { AdminErrorLog } from "@/types/admin";
 import type { Json } from "@/types/database.types";
 
 
+const logErrorSchema = z.object({
+  errorType: z.string().trim().min(1).max(100),
+  message: z.string().min(1).max(10_000),
+  stackTrace: z.string().max(50_000).optional(),
+  userId: z.string().min(1).max(128).optional(),
+  orgId: z.string().min(1).max(128).optional(),
+  path: z.string().max(2_000).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
 /**
  * Log an error (to be called from the main app or API routes).
  * NOTE: If this needs to be called cross-app without an admin session, convert
@@ -31,6 +41,21 @@ export async function logError({
   metadata?: Record<string, unknown>;
 }): Promise<void> {
   await requireAdmin();
+  // Validate-and-drop: this recorder must never throw into the caller's
+  // flow, so invalid input is logged and discarded rather than rejected.
+  const parsed = logErrorSchema.safeParse({
+    errorType,
+    message,
+    stackTrace,
+    userId,
+    orgId,
+    path,
+    metadata,
+  });
+  if (!parsed.success) {
+    console.error("logError: invalid input dropped:", parsed.error.issues[0].message);
+    return;
+  }
   try {
     await supabaseAdmin.from("admin_error_logs").insert({
       error_type: errorType,

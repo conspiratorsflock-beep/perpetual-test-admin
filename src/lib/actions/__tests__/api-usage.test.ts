@@ -189,4 +189,12 @@ describe("API Usage — recordApiCall", () => {
 
     await expect(recordApiCall({ endpoint: "/api/x", statusCode: 200 })).resolves.toBeUndefined();
   });
+
+  it("drops invalid input without throwing and without a Supabase call", async () => {
+    // Validate-and-drop: the never-throw telemetry contract holds even for
+    // junk input (reviewer catch, PLAN_20).
+    await expect(recordApiCall({ endpoint: "", statusCode: 200 })).resolves.toBeUndefined();
+    await expect(recordApiCall({ endpoint: "/api/x", statusCode: 9000 })).resolves.toBeUndefined();
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+  });
 });
