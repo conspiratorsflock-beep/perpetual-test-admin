@@ -218,6 +218,13 @@ describe("API Keys Actions — writes", () => {
       });
       await expect(updateApiKeyQuota("key_1", 1000)).rejects.toThrow("Failed to update API key quota: boom");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(updateApiKeyQuota("", 1000)).rejects.toThrow("Invalid input");
+      await expect(updateApiKeyQuota("key_1", -1)).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("revokeApiKey", () => {
@@ -249,6 +256,12 @@ describe("API Keys Actions — writes", () => {
         return {};
       });
       await expect(revokeApiKey("key_1")).rejects.toThrow("Failed to revoke API key: boom");
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(revokeApiKey("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });

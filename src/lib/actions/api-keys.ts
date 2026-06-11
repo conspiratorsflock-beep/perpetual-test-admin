@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId } from "@/lib/validation/common";
 import type { ApiKey } from "@/types/admin";
 
 
@@ -66,11 +68,20 @@ export async function searchApiKeys({
   return { keys, total: count ?? 0 };
 }
 
+const updateApiKeyQuotaSchema = z.object({
+  keyId: entityId,
+  monthlyQuotaOverride: z.number().int().min(0).nullable(),
+});
+
 /**
  * Update an API key's monthly quota override.
  */
 export async function updateApiKeyQuota(keyId: string, monthlyQuotaOverride: number | null): Promise<void> {
   await requireAdmin();
+  const parsed = updateApiKeyQuotaSchema.safeParse({ keyId, monthlyQuotaOverride });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: key } = await supabaseAdmin
     .from("api_keys")
@@ -96,11 +107,19 @@ export async function updateApiKeyQuota(keyId: string, monthlyQuotaOverride: num
   });
 }
 
+const revokeApiKeySchema = z.object({
+  keyId: entityId,
+});
+
 /**
  * Revoke an API key.
  */
 export async function revokeApiKey(keyId: string): Promise<void> {
   await requireAdmin();
+  const parsed = revokeApiKeySchema.safeParse({ keyId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: key } = await supabaseAdmin
     .from("api_keys")
