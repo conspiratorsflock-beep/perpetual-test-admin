@@ -2,7 +2,7 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { logAdminAction } from "@/lib/audit/logger";
-import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
+import { requireAdmin } from "@/lib/clerk/admin-check";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { toCsv } from "@/lib/utils/csv";
 import type { AdminOrganization, OrganizationWithDetails, TrialLockState, OrgApiUsage } from "@/types/admin";

@@ -1,6 +1,6 @@
 "use server";
 
-import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
+import { requireAdmin } from "@/lib/clerk/admin-check";
 import { logAdminAction } from "@/lib/audit/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import type {

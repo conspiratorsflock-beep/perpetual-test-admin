@@ -2,7 +2,7 @@
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
-import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
+import { requireAdmin } from "@/lib/clerk/admin-check";
 import type { Permission, CustomRole } from "@/types/admin";
 
 

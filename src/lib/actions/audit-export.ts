@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuditLogs } from "@/lib/audit/logger";
-import { isCurrentUserAdmin, requireAdmin } from "@/lib/clerk/admin-check";
+import { requireAdmin } from "@/lib/clerk/admin-check";
 import { toCsv } from "@/lib/utils/csv";
 import type { AuditTargetType } from "@/types/admin";
 
