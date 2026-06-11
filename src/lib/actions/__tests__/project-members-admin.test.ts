@@ -200,6 +200,12 @@ describe("Project Members Admin — updateProjectMemberCustomRole", () => {
     });
   });
 
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(updateProjectMemberCustomRole("p1", "", "r2")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("throws when member not found", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "project_members") {
@@ -269,6 +275,12 @@ describe("Project Members Admin — removeProjectMember", () => {
       targetName: "Ada",
       metadata: { projectId: "p1" },
     });
+  });
+
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(removeProjectMember("p1", "")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when member not found", async () => {

@@ -3,8 +3,21 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, clerkId } from "@/lib/validation/common";
 import type { ProjectMemberWithRole } from "@/types/admin";
 
+
+const updateProjectMemberCustomRoleSchema = z.object({
+  projectId: entityId,
+  clerkUserId: clerkId,
+  customRoleId: entityId.nullable(),
+});
+
+const removeProjectMemberSchema = z.object({
+  projectId: entityId,
+  clerkUserId: clerkId,
+});
 
 /**
  * Get project members enriched with custom role and group assignment info.
@@ -53,6 +66,10 @@ export async function updateProjectMemberCustomRole(
   customRoleId: string | null
 ): Promise<void> {
   await requireAdmin();
+  const parsed = updateProjectMemberCustomRoleSchema.safeParse({ projectId, clerkUserId, customRoleId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: member } = await supabaseAdmin
     .from("project_members")
@@ -92,6 +109,10 @@ export async function removeProjectMember(
   clerkUserId: string
 ): Promise<void> {
   await requireAdmin();
+  const parsed = removeProjectMemberSchema.safeParse({ projectId, clerkUserId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: member } = await supabaseAdmin
     .from("project_members")
