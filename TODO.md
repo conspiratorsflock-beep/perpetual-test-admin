@@ -204,30 +204,25 @@ These are components the lathe-studio main app needs to implement.
 
 ---
 
-## 🔧 Refactor-round candidates (collected during the 2026-06 test-repair round)
+## 🔧 Refactor round — EXECUTED 2026-06-11 (Plans 06–11)
 
-A site refactor is planned as its OWN round after the test-repair round lands
-(green suite + coverage first = safety net). The reviewer appends candidates
-here as reviews surface them — do not start these during the test round.
+Round result: suite 314 → 378 tests (331 passing, 0 failing), 4 ungated
+action files secured, requireAdmin consolidated (21 copies → 1), dev-auth
+statically imported, support-tickets split into 8 submodules behind a
+barrel, billing/projects/api-keys/dashboard action tests added, TESTING.md
+rewritten. Two reviewer-held runtime gates passed (no-Clerk-keys boot;
+barrel server-action round-trip).
 
-- `src/lib/dev-auth/client.tsx` / `server.ts` — lazy `require("@clerk/nextjs")`
-  pattern is mock-hostile (broke 19 TicketDetail tests) and dodges static
-  analysis. Candidate: static imports behind a build-time flag, or DI.
-- `src/lib/actions/support-tickets.ts` (770+ lines) — mixes queue reads,
-  comment writes, team management, SLA math, and analytics. Candidate: split
-  by concern; analytics functions have no tests and a huge mock surface.
+Remaining candidates (NOT executed — future rounds):
 - `src/app/billing/page.tsx` — client component loading data via server
   actions in `useEffect`; "is Stripe configured" inferred from all-zero
-  metrics. Candidate: server component + explicit configured-flag from the
-  action.
-- `requireAdmin()` is re-declared per action file (25 copies of the same
-  3-line guard). Candidate: single shared guard in `lib/clerk/`.
-- `src/test/database/*` (47 tests, 4 files hard-`describe.skip`ped) — need a
-  dedicated test database story before they can ever run; until then they rot.
-- TESTING.md — drifted from reality (mentions removing `.skip` casually, CI
-  example includes a lint step that no longer exists, mock examples predate
-  the current setup.ts shapes).
-- 22 action files still untested after Plans 04–05 — next coverage slices.
+  metrics. Candidate: server component + explicit configured-flag.
+- `support-tickets/analytics.ts` — now isolated but still untested (large
+  mock surface); next coverage slice.
+- `src/test/database/*` (47 tests, deliberately skipped) — need a dedicated
+  test database story before they can ever run; until then they rot.
+- ~18 action files still untested — next coverage slices (test-email,
+  integrations, builds, releases, user-groups, custom-roles, …).
 
 ---
 
@@ -247,7 +242,7 @@ here as reviews surface them — do not start these during the test round.
 - `src/lib/shared/admin-banner.ts` `linkUrl` type resolved but keep an eye on callers passing `undefined`
 - ~~Admin console queries `build_queue_items`~~ → stale: `builds.ts` queries the real `builds` table; zero `build_queue_items` references remain (verified 2026-06-10)
 - ~~`admin_audit_logs` writes silently fail~~ → stale: resolved 2026-06-05 when the 7 missing admin tables were created; `logAdminAction()` persistence verified with an insert round-trip (see Schema drift section below)
-- **SECURITY (2026-06-10, fix planned as PLAN_06):** `billing.ts` (incl. `createCoupon`/`deleteCoupon`), `system-health.ts`, `support-tickets-my.ts`, `support-tickets-seeding.ts` have NO admin gate on any exported server action — violates Critical Rule 3. Being closed by the refactor round's first plan.
+- ✅ **SECURITY — RESOLVED (2026-06-11, PLAN_06):** `billing.ts`, `system-health.ts`, `support-tickets-my.ts`, `support-tickets-seeding.ts` had NO admin gate on any exported server action. All 14 functions now call the shared `requireAdmin()`, locked by non-admin tests asserting no DB/Stripe call.
 - ~~`npm run lint` is broken: Next.js 16 removed `next lint` command~~ → script removed (`28c9884`); verify gate is `npm run test` + `npm run typecheck`
 - ~~~60 pre-existing test failures from Clerk/Supabase mocking in jsdom~~ → being repaired by the 2026-06 test-repair round (PLAN_01 merged: 61→24 failures; Plans 02–03 cover the rest)
 
