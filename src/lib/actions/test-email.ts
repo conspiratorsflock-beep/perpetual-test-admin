@@ -3,6 +3,8 @@
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import { logAdminAction } from "@/lib/audit/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { z } from "zod";
+import { entityId } from "@/lib/validation/common";
 import type {
   TestEmailMailbox,
   TestEmailMessageSafe,
@@ -14,6 +16,14 @@ import type {
 
 
 const SAFE_MESSAGE_COLUMNS = "id, mailbox_id, received_at, read";
+
+const forceExpireMailboxSchema = z.object({
+  id: entityId,
+});
+
+const deleteMailboxSchema = z.object({
+  id: entityId,
+});
 
 /**
  * Probe: are the test_email tables provisioned and queryable?
@@ -361,6 +371,10 @@ export async function getTestEmailHealth(): Promise<TestEmailHealth> {
  */
 export async function forceExpireMailbox(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = forceExpireMailboxSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: mailbox } = await supabaseAdmin
     .from("test_email_mailboxes")
@@ -395,6 +409,10 @@ export async function forceExpireMailbox(id: string): Promise<void> {
  */
 export async function deleteMailbox(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = deleteMailboxSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: mailbox } = await supabaseAdmin
     .from("test_email_mailboxes")

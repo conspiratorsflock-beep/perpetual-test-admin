@@ -628,6 +628,12 @@ describe("Test Email Actions — forceExpireMailbox", () => {
     });
   });
 
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(forceExpireMailbox("")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("throws when mailbox not found and does not log", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "test_email_mailboxes") {
@@ -693,6 +699,12 @@ describe("Test Email Actions — deleteMailbox", () => {
       targetName: "a@example.com",
       metadata: { mailboxId: "mb_1", address: "a@example.com" },
     });
+  });
+
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(deleteMailbox("")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when mailbox not found and does not log", async () => {
