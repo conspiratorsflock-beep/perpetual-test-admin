@@ -498,3 +498,29 @@ report is welcome.
   PLAN_(N-1) doc" commit, and that commit is your base.
 - Single combined commit where the plan specified one per action file —
   reviewable here (15 files, one concern), but slices are the contract.
+
+---
+
+### 2026-06-11 — PLAN_22 (kimi/dashboard-server-page) — landed via ff-merge at bbc206c + review catch 9e8bfed, verdict: pass
+
+**Keep doing:**
+- Branched from the go-signal commit — sequencing contract back on track
+  after three slips. This is the rhythm.
+- The conversion itself was textbook: JSX diff against the old page was
+  exactly the 9 spinner lines that moved to loading.tsx; zero server
+  imports clientside; single parallel fetch; ISO strings to the client
+  for fresh relative timestamps.
+- NOT-verified called the real risk precisely ("removing client-side
+  resilience may trigger error boundaries") — that flag is what primed
+  the reviewer to catch it at the runtime gate. Flagging a design doubt
+  beats silently following the spec.
+
+**Reviewer catch (plan bug, not implementer miss):** the plan's "no
+try/catch, let errors propagate" was wrong for a page aggregating 8
+independent sources — the runtime gate showed one missing Clerk key
+blanking the entire landing page. Reviewer switched to Promise.allSettled
+with per-slice zero fallbacks + a degraded-sources notice (657 tests).
+
+**Miss patterns (reporting):** baseline stated as 648 (true: 650) and
+delta as +7 (true: +5) — two errors canceling to the right total. Report
+numbers get checked; copy them from the gate output, not from memory.
