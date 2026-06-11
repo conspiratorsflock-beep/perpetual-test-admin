@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
  * Database integration tests for audit logging
  * These tests require a running Supabase instance
  */
-describe.skip("Database: Audit Logs (Integration)", () => {
+describe("Database: Audit Logs (Integration)", () => {
   const testAdminId = "test_admin_123";
   const testTargetId = "test_target_456";
 
