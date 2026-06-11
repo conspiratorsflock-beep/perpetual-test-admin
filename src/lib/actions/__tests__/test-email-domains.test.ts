@@ -219,6 +219,12 @@ describe("Test Email Domains — addTestEmailDomain", () => {
     expect(mockSupabaseFrom).not.toHaveBeenCalled();
   });
 
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(addTestEmailDomain("")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("throws on DB insert error and does not log", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "test_email_domains") {
@@ -278,6 +284,12 @@ describe("Test Email Domains — deactivateTestEmailDomain", () => {
       targetName: "dom.example.com",
       metadata: { stopNewOnly: true },
     });
+  });
+
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(deactivateTestEmailDomain("")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when domain not found", async () => {
@@ -343,6 +355,12 @@ describe("Test Email Domains — reactivateTestEmailDomain", () => {
       targetName: "dom.example.com",
       metadata: {},
     });
+  });
+
+  it("throws on invalid input and does not call DB or log", async () => {
+    await expect(reactivateTestEmailDomain("")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when domain not found", async () => {

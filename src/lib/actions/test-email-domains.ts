@@ -4,6 +4,8 @@ import { auth } from "@/lib/dev-auth/server";
 import { requireAdmin } from "@/lib/clerk/admin-check";
 import { logAdminAction } from "@/lib/audit/logger";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { z } from "zod";
+import { entityId, boundedString, descriptionString } from "@/lib/validation/common";
 import type { TestEmailDomain } from "@/types/admin";
 
 
@@ -40,6 +42,19 @@ function mapDomain(row: {
   };
 }
 
+const addTestEmailDomainSchema = z.object({
+  domain: boundedString(500).min(1),
+  notes: descriptionString.nullish(),
+});
+
+const deactivateTestEmailDomainSchema = z.object({
+  id: entityId,
+});
+
+const reactivateTestEmailDomainSchema = z.object({
+  id: entityId,
+});
+
 /**
  * List all test email domains, active first.
  */
@@ -68,6 +83,10 @@ export async function addTestEmailDomain(
   notes?: string | null
 ): Promise<TestEmailDomain> {
   await requireAdmin();
+  const parsed = addTestEmailDomainSchema.safeParse({ domain, notes });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const normalized = normalizeDomain(domain);
   if (!isValidDomain(normalized)) {
@@ -147,6 +166,10 @@ export async function addTestEmailDomain(
  */
 export async function deactivateTestEmailDomain(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = deactivateTestEmailDomainSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: domain } = await supabaseAdmin
     .from("test_email_domains")
@@ -187,6 +210,10 @@ export async function deactivateTestEmailDomain(id: string): Promise<void> {
  */
 export async function reactivateTestEmailDomain(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = reactivateTestEmailDomainSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: domain } = await supabaseAdmin
     .from("test_email_domains")
