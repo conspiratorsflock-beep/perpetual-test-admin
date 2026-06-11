@@ -204,25 +204,33 @@ These are components the lathe-studio main app needs to implement.
 
 ---
 
-## 🔧 Refactor round — EXECUTED 2026-06-11 (Plans 06–11)
+## 🔧 Refactor rounds — EXECUTED
 
-Round result: suite 314 → 378 tests (331 passing, 0 failing), 4 ungated
-action files secured, requireAdmin consolidated (21 copies → 1), dev-auth
-statically imported, support-tickets split into 8 submodules behind a
-barrel, billing/projects/api-keys/dashboard action tests added, TESTING.md
-rewritten. Two reviewer-held runtime gates passed (no-Clerk-keys boot;
-barrel server-action round-trip).
+**Round 2 (2026-06-11, Plans 06–11):** suite 314 → 378 tests (331 passing),
+4 ungated action files secured, requireAdmin consolidated (21 copies → 1),
+dev-auth statically imported, support-tickets split into 8 submodules behind
+a barrel, billing/projects/api-keys/dashboard action tests added, TESTING.md
+rewritten. Two reviewer-held runtime gates passed.
 
-Remaining candidates (NOT executed — future rounds):
-- `src/app/billing/page.tsx` — client component loading data via server
-  actions in `useEffect`; "is Stripe configured" inferred from all-zero
-  metrics. Candidate: server component + explicit configured-flag.
-- `support-tickets/analytics.ts` — now isolated but still untested (large
-  mock surface); next coverage slice.
-- `src/test/database/*` (47 tests, deliberately skipped) — need a dedicated
-  test database story before they can ever run; until then they rot.
-- ~18 action files still untested — next coverage slices (test-email,
-  integrations, builds, releases, user-groups, custom-roles, …).
+**Round 3 (2026-06-10/11, Plans 12–18):** main suite 331 → 575 passing,
+0 skipped (the 47 DB-integration tests moved to their own gated suite).
+- Billing page → async server component + `BillingDashboard` client
+  component; explicit Stripe-configured flag replaces the all-zeros guess.
+- 216 new action tests: support-tickets analytics, test-email(+domains),
+  builds/releases/test-cases/test-runs/lathe-audit, user-groups/
+  custom-roles/project-members-admin/global-search/setup-admin,
+  integrations/error-logs/api-usage. Every fixture table verified against
+  the live DB (zero drift).
+- Review catch: getSupportAnalytics sub-query errors no longer swallowed.
+- DB-test harness: `npm run test:db` (separate vitest config, node env, no
+  mocks) with a localhost-only safety interlock; 39 of 47 tests unskipped
+  and traced to creating migrations; api-usage tests skipped-with-reason
+  (`api_usage_logs` is lathe-studio-owned, absent from local migrations).
+  **NOT yet executed against a real local stack — needs Docker**
+  (`npx supabase start` → set SUPABASE_TEST_URL/_SERVICE_ROLE_KEY →
+  `RUN_DB_TESTS=1 npm run test:db`).
+- Stale-doc corrections: `lathe_audit_logs` claim (code correctly reads
+  lathe-studio's `audit_logs`).
 
 ---
 
