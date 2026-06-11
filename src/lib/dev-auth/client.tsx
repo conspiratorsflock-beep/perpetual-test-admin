@@ -1,6 +1,14 @@
 "use client";
 
 import React from "react";
+import {
+  ClerkProvider as ClerkProviderReal,
+  UserButton as UserButtonReal,
+  SignedIn as SignedInReal,
+  SignedOut as SignedOutReal,
+  useUser as useUserReal,
+  useAuth as useAuthReal,
+} from "@clerk/nextjs";
 
 const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
 
@@ -20,8 +28,7 @@ const mockUser = {
 // ============================================
 export function ClerkProvider({ children }: { children: React.ReactNode }) {
   if (!DEV_BYPASS) {
-    const { ClerkProvider: Real } = require("@clerk/nextjs");
-    return <Real>{children}</Real>;
+    return <ClerkProviderReal>{children}</ClerkProviderReal>;
   }
   return <>{children}</>;
 }
@@ -31,8 +38,7 @@ export function ClerkProvider({ children }: { children: React.ReactNode }) {
 // ============================================
 export function UserButton(props: Record<string, unknown>) {
   if (!DEV_BYPASS) {
-    const { UserButton: Real } = require("@clerk/nextjs");
-    return <Real {...props} />;
+    return <UserButtonReal {...props} />;
   }
   return (
     <div className="flex items-center gap-2 text-sm text-slate-300">
@@ -49,16 +55,14 @@ export function UserButton(props: Record<string, unknown>) {
 // ============================================
 export function SignedIn({ children }: { children: React.ReactNode }) {
   if (!DEV_BYPASS) {
-    const { SignedIn: Real } = require("@clerk/nextjs");
-    return <Real>{children}</Real>;
+    return <SignedInReal>{children}</SignedInReal>;
   }
   return <>{children}</>;
 }
 
 export function SignedOut({ children }: { children: React.ReactNode }) {
   if (!DEV_BYPASS) {
-    const { SignedOut: Real } = require("@clerk/nextjs");
-    return <Real>{children}</Real>;
+    return <SignedOutReal>{children}</SignedOutReal>;
   }
   return null;
 }
@@ -66,25 +70,25 @@ export function SignedOut({ children }: { children: React.ReactNode }) {
 // ============================================
 // useUser
 // ============================================
+// DEV_BYPASS is a build-time constant, so the hook-call branch is render-stable.
 export function useUser() {
   if (!DEV_BYPASS) {
-    const { useUser: real } = require("@clerk/nextjs");
-    return real();
+    return useUserReal();
   }
   return {
     isLoaded: true,
     isSignedIn: true,
-    user: mockUser as unknown as ReturnType<typeof import("@clerk/nextjs").useUser>["user"],
+    user: mockUser as unknown as ReturnType<typeof useUserReal>["user"],
   };
 }
 
 // ============================================
 // useAuth
 // ============================================
+// DEV_BYPASS is a build-time constant, so the hook-call branch is render-stable.
 export function useAuth() {
   if (!DEV_BYPASS) {
-    const { useAuth: real } = require("@clerk/nextjs");
-    return real();
+    return useAuthReal();
   }
   return {
     isLoaded: true,
