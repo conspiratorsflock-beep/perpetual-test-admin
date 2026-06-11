@@ -2,8 +2,13 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { createHash, timingSafeEqual } from "crypto";
 
 const SETUP_SECRET = process.env.SETUP_ADMIN_SECRET;
+
+function hashSecret(s: string): Buffer {
+  return createHash("sha256").update(s).digest();
+}
 
 async function promoteUser(email: string): Promise<{
   success: boolean;
@@ -81,7 +86,7 @@ export async function setupEmergencyAdmin(secret: string): Promise<{
     };
   }
 
-  if (secret !== SETUP_SECRET) {
+  if (!timingSafeEqual(hashSecret(secret), hashSecret(SETUP_SECRET))) {
     return {
       success: false,
       message: "Invalid setup secret",
