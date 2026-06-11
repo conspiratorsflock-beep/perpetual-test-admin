@@ -7,13 +7,8 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "test-key";
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-describe.skip("Support Tickets Database Integration", () => {
-  // Skip if no database connection
-  const hasDbConnection = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
-
+describe("Support Tickets Database Integration", () => {
   beforeAll(async () => {
-    if (!hasDbConnection) return;
-    
     // Clean up test data
     await supabase.from("support_ticket_events").delete().neq("id", "0");
     await supabase.from("support_ticket_comments").delete().neq("id", "0");
@@ -21,8 +16,6 @@ describe.skip("Support Tickets Database Integration", () => {
   });
 
   beforeEach(async () => {
-    if (!hasDbConnection) return;
-    
     // Clean up before each test
     await supabase.from("support_ticket_events").delete().neq("id", "0");
     await supabase.from("support_ticket_comments").delete().neq("id", "0");
@@ -30,8 +23,6 @@ describe.skip("Support Tickets Database Integration", () => {
   });
 
   afterAll(async () => {
-    if (!hasDbConnection) return;
-    
     // Final cleanup
     await supabase.from("support_ticket_events").delete().neq("id", "0");
     await supabase.from("support_ticket_comments").delete().neq("id", "0");
@@ -40,8 +31,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_tickets table", () => {
     it("should create a ticket with auto-generated ticket number", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -64,8 +53,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should auto-calculate priority based on keywords", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -84,8 +71,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should calculate SLA deadline based on priority", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_tickets")
         .insert({
@@ -110,8 +95,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should enforce valid status values", async () => {
-      if (!hasDbConnection) return;
-
       const { error } = await supabase
         .from("support_tickets")
         .insert({
@@ -127,8 +110,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should enforce valid priority values", async () => {
-      if (!hasDbConnection) return;
-
       const { error } = await supabase
         .from("support_tickets")
         .insert({
@@ -145,8 +126,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should enforce valid category values", async () => {
-      if (!hasDbConnection) return;
-
       const { error } = await supabase
         .from("support_tickets")
         .insert({
@@ -162,8 +141,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should soft delete tickets", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: created } = await supabase
         .from("support_tickets")
@@ -200,8 +177,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_ticket_comments table", () => {
     it("should create a comment linked to a ticket", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket first
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -236,8 +211,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should support internal notes", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -272,8 +245,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should support attachments in comments", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -320,8 +291,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_ticket_events table", () => {
     it("should create events linked to tickets", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -356,8 +325,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should enforce valid event types", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -388,8 +355,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_canned_responses table", () => {
     it("should create canned responses", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_canned_responses")
         .insert({
@@ -408,8 +373,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should track usage count", async () => {
-      if (!hasDbConnection) return;
-
       // Create response
       const { data: response } = await supabase
         .from("support_canned_responses")
@@ -442,8 +405,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_team_members table", () => {
     it("should create team members", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_team_members")
         .insert({
@@ -464,8 +425,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should enforce valid roles", async () => {
-      if (!hasDbConnection) return;
-
       const { error } = await supabase
         .from("support_team_members")
         .insert({
@@ -481,8 +440,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("support_sla_config table", () => {
     it("should have default SLA configurations", async () => {
-      if (!hasDbConnection) return;
-
       const { data, error } = await supabase
         .from("support_sla_config")
         .select("*")
@@ -499,8 +456,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should have reasonable SLA times", async () => {
-      if (!hasDbConnection) return;
-
       const { data: urgentSla } = await supabase
         .from("support_sla_config")
         .select("first_response_time")
@@ -520,8 +475,6 @@ describe.skip("Support Tickets Database Integration", () => {
 
   describe("cascading deletes", () => {
     it("should cascade delete comments when ticket is deleted", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
@@ -559,8 +512,6 @@ describe.skip("Support Tickets Database Integration", () => {
     });
 
     it("should cascade delete events when ticket is deleted", async () => {
-      if (!hasDbConnection) return;
-
       // Create ticket
       const { data: ticket } = await supabase
         .from("support_tickets")
