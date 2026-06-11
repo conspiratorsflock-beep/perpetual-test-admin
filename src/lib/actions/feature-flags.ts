@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, boundedString } from "@/lib/validation/common";
 import type { FeatureFlag } from "@/types/admin";
 
 
@@ -59,6 +61,13 @@ export async function getFeatureFlagById(id: string): Promise<FeatureFlag | null
   };
 }
 
+const createFeatureFlagSchema = z.object({
+  key: z.string().trim().min(1).max(500),
+  name: z.string().trim().min(1).max(500),
+  description: boundedString(10_000).optional(),
+  enabledGlobally: z.boolean().optional(),
+});
+
 /**
  * Create a new feature flag.
  */
@@ -69,6 +78,10 @@ export async function createFeatureFlag(data: {
   enabledGlobally?: boolean;
 }): Promise<FeatureFlag> {
   await requireAdmin();
+  const parsed = createFeatureFlagSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { data: row, error } = await supabaseAdmin
     .from("feature_flags")
     .insert({
@@ -105,6 +118,17 @@ export async function createFeatureFlag(data: {
   };
 }
 
+const updateFeatureFlagSchema = z.object({
+  id: entityId,
+  data: z.object({
+    name: z.string().trim().min(1).max(500).optional(),
+    description: boundedString(10_000).optional(),
+    enabledGlobally: z.boolean().optional(),
+    enabledForOrgs: z.array(entityId).optional(),
+    enabledForUsers: z.array(entityId).optional(),
+  }),
+});
+
 /**
  * Update a feature flag.
  */
@@ -119,6 +143,10 @@ export async function updateFeatureFlag(
   }
 ): Promise<void> {
   await requireAdmin();
+  const parsed = updateFeatureFlagSchema.safeParse({ id, data });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { error } = await supabaseAdmin
     .from("feature_flags")
     .update({
@@ -149,11 +177,19 @@ export async function toggleFeatureFlagGlobal(id: string, enabled: boolean): Pro
   await updateFeatureFlag(id, { enabledGlobally: enabled });
 }
 
+const deleteFeatureFlagSchema = z.object({
+  id: entityId,
+});
+
 /**
  * Delete a feature flag.
  */
 export async function deleteFeatureFlag(id: string): Promise<void> {
   await requireAdmin();
+  const parsed = deleteFeatureFlagSchema.safeParse({ id });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const flag = await getFeatureFlagById(id);
 
   const { error } = await supabaseAdmin.from("feature_flags").delete().eq("id", id);

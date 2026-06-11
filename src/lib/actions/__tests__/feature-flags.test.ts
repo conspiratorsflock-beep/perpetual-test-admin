@@ -136,6 +136,13 @@ describe("Feature Flag Actions", () => {
 
       expect(result.enabledGlobally).toBe(true);
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(createFeatureFlag({ key: "", name: "Test" })).rejects.toThrow("Invalid input");
+      await expect(createFeatureFlag({ key: "test", name: "" })).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateFeatureFlag", () => {
@@ -169,6 +176,12 @@ describe("Feature Flag Actions", () => {
 
       expect(mockSupabaseFrom).toHaveBeenCalledWith("feature_flags");
     });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(updateFeatureFlag("", { name: "Test" })).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("toggleFeatureFlagGlobal", () => {
@@ -201,6 +214,12 @@ describe("Feature Flag Actions", () => {
         targetId: "flag_123",
         targetName: "New Feature",
       });
+    });
+
+    it("rejects invalid input before any Supabase call", async () => {
+      await expect(deleteFeatureFlag("")).rejects.toThrow("Invalid input");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
