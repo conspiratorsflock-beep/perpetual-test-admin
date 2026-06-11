@@ -5,8 +5,9 @@ This document reflects the current testing setup for the Lathe Studio Admin Cons
 ## Quick verify gate
 
 ```bash
-npm run test        # 29 test files, ~330 passed, ~47 skipped
+npm run test        # ~40 test files, ~570 passed, 0 skipped (DB tests are excluded)
 npm run typecheck   # tsc --noEmit
+npm run test:db     # separate DB integration suite (local Supabase only)
 ```
 
 There is **no lint step**: Next 16 dropped `next lint` and ESLint is not configured (no `.eslintrc*`, no `eslint.config.*`, no `lint` script in `package.json`).
@@ -21,8 +22,9 @@ src/
   components/**/__tests__/         # Component tests
   app/api/impersonate/__tests__/   # API route tests
   test/
-    setup.ts                       # Shared Vitest mocks
-    database/                      # DB integration tests (deliberately skipped)
+    setup.ts                       # Shared Vitest mocks for the main suite
+    database/                      # DB integration tests (run only via `test:db`)
+    database-guard.test.ts         # Unit tests for the DB-test safety interlock
 e2e/                               # Playwright E2E tests
 ```
 
@@ -68,11 +70,42 @@ vi.mock("@/lib/dev-auth/client", () => ({
 
 Mocking `@clerk/nextjs` in these tests will silently fail because the component never imports it.
 
-## DB integration tests policy
+## Database integration tests (`npm run test:db`)
 
-Files under `src/test/database/` are wrapped in `describe.skip()` on purpose. They read and write the **live shared Supabase database**. Do not unskip them in CI or on a shared clone.
+The DB suite lives in `src/test/database/` and is **excluded from the main verify gate**. It is only runnable via `npm run test:db` against a **local Supabase stack**.
 
-A migration file being present in `supabase/migrations/` does not mean it has been applied to the live DB. Schema claims are verified against the live database out-of-band (reviewer via Supabase MCP), not by local tests.
+### Why local-only?
+
+The shared dev project (`zonsnvcwtfotqzrvozqs`) holds prod-ish lathe-studio data. Running write tests there would destroy real records. The main Vitest setup also globally mocks `@/lib/supabase/admin`, so these tests could never hit a real database under the old config even if unskipped.
+
+### How to run
+
+```bash
+# 1. Start the local stack
+npx supabase start
+
+# 2. Copy the local API URL and service role key from the output.
+# 3. Export them with the test-gate env names:
+export SUPABASE_TEST_URL=http://localhost:54321
+export SUPABASE_TEST_SERVICE_ROLE_KEY=eyJ...
+export RUN_DB_TESTS=1
+
+# 4. Run the DB suite
+npm run test:db
+
+# 5. Stop the stack when done
+npx supabase stop
+```
+
+The safety interlock in `src/test/database/guard.ts` refuses to run unless `RUN_DB_TESTS === "1"` **and** `SUPABASE_TEST_URL` resolves to `localhost` or `127.0.0.1`. Any remote URL — including the shared dev project — is rejected.
+
+### Skipped DB tests
+
+Some DB tests are deliberately skipped when the table they target is missing from `supabase/migrations/`:
+
+- `api-usage.test.ts` — skipped because the current code reads `api_usage_logs`, which is not created by any local migration (the old `api_usage_daily` table and RPCs remain but are no longer used by the actions).
+
+The remaining DB files (`audit-logs`, `feature-flags`, `impersonation`, `support-tickets`) target tables that exist in the local migration set and are unskipped.
 
 ## E2E tests (Playwright)
 
