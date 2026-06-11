@@ -4,6 +4,8 @@ import { requireAdmin } from "@/lib/clerk/admin-check";
 
 import { stripe, isStripeConfigured } from "@/lib/stripe/client";
 import { logAdminAction } from "@/lib/audit/logger";
+import { z } from "zod";
+import { entityId, boundedString } from "@/lib/validation/common";
 import type { BillingMetrics, TrialMetrics, StripeInvoice, StripeCoupon } from "@/types/admin";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -270,6 +272,16 @@ export async function getMRRHistory(months = 6): Promise<{ month: string; mrr: n
   }
 }
 
+const createCouponSchema = z.object({
+  name: z.string().trim().min(1).max(500),
+  percentOff: z.number().min(0).max(100).optional(),
+  amountOff: z.number().int().min(0).optional(),
+  currency: boundedString(3).optional(),
+  duration: z.enum(["once", "repeating", "forever"]),
+  durationInMonths: z.number().int().min(1).optional(),
+  maxRedemptions: z.number().int().min(1).optional(),
+});
+
 /**
  * Create a new coupon
  */
@@ -283,6 +295,10 @@ export async function createCoupon(params: {
   maxRedemptions?: number;
 }) {
   await requireAdmin();
+  const parsed = createCouponSchema.safeParse(params);
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   if (!isStripeConfigured || !stripe) {
     throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
   }
@@ -313,11 +329,19 @@ export async function createCoupon(params: {
   }
 }
 
+const deleteCouponSchema = z.object({
+  couponId: entityId,
+});
+
 /**
  * Delete a coupon
  */
 export async function deleteCoupon(couponId: string) {
   await requireAdmin();
+  const parsed = deleteCouponSchema.safeParse({ couponId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   if (!isStripeConfigured || !stripe) {
     throw new Error("Stripe is not configured. Please set STRIPE_SECRET_KEY in your environment.");
   }

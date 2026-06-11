@@ -482,6 +482,13 @@ describe("Billing Actions — Stripe configured", () => {
         "Failed to create coupon in Stripe"
       );
     });
+
+    it("rejects invalid input before any Stripe call", async () => {
+      await expect(createCoupon({ name: "", duration: "once" })).rejects.toThrow("Invalid input");
+      await expect(createCoupon({ name: "Test", duration: "invalid" as "once" })).rejects.toThrow("Invalid input");
+      expect(stripeMocks().couponsCreate).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("deleteCoupon", () => {
@@ -503,6 +510,12 @@ describe("Billing Actions — Stripe configured", () => {
     it("throws on Stripe error", async () => {
       stripeMocks().couponsDel.mockRejectedValue(new Error("Stripe down"));
       await expect(deleteCoupon("coupon_bad")).rejects.toThrow("Failed to delete coupon in Stripe");
+    });
+
+    it("rejects invalid input before any Stripe call", async () => {
+      await expect(deleteCoupon("")).rejects.toThrow("Invalid input");
+      expect(stripeMocks().couponsDel).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });
