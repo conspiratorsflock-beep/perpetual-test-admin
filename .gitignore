@@ -7,3 +7,11 @@ node_modules
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Delegation-kit bookkeeping: the implementer running log stays local-only.
+# Tracking it caused heartbeat commits and a merge conflict (June 2026 rounds);
+# the plan doc's Status line is the only completion signal.
+docs/plans/kimi-running-log.md
+
+# TypeScript incremental build state
+tsconfig.tsbuildinfo
