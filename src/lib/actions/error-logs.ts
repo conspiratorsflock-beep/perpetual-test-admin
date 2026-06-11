@@ -3,6 +3,7 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
 import type { AdminErrorLog } from "@/types/admin";
 import type { Json } from "@/types/database.types";
 
@@ -157,11 +158,19 @@ export async function getErrorStats(hours = 24): Promise<{
   };
 }
 
+const purgeOldErrorsSchema = z.object({
+  daysToKeep: z.number().int().min(1).max(3650),
+});
+
 /**
  * Delete old error logs.
  */
 export async function purgeOldErrors(daysToKeep = 30): Promise<{ deleted: number }> {
   await requireAdmin();
+  const parsed = purgeOldErrorsSchema.safeParse({ daysToKeep });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const cutoff = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toISOString();
 
   const { error, count } = await supabaseAdmin

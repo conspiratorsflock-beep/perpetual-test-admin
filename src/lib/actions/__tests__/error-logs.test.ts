@@ -252,6 +252,13 @@ describe("Error Logs — purgeOldErrors", () => {
     await expect(purgeOldErrors(30)).rejects.toThrow("Failed to purge old errors: boom");
     expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
+
+  it("rejects invalid input before any Supabase call", async () => {
+    await expect(purgeOldErrors(0)).rejects.toThrow("Invalid input");
+    await expect(purgeOldErrors(-1)).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
 });
 
 describe("Error Logs — exportErrorLogsToCSV", () => {
