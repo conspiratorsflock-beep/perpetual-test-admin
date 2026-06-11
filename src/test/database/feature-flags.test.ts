@@ -4,7 +4,7 @@ import { supabaseAdmin, supabaseAdminUntyped } from "@/lib/supabase/admin";
 /**
  * Database integration tests for feature flags
  */
-describe.skip("Database: Feature Flags (Integration)", () => {
+describe("Database: Feature Flags (Integration)", () => {
   const testFlagKey = `test_flag_${Date.now()}`;
 
   beforeAll(async () => {
