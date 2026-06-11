@@ -321,3 +321,22 @@ Status line still "Not started", no Completion Summary, no log entry. The
 reviewer proceeded after two quiescent ticks. Flip the Status line and add
 the Completion Summary BEFORE going idle; it is the only signal channel
 now that the log is local-only.
+
+---
+
+### 2026-06-10 — PLAN_14 (kimi/test-email-coverage) — landed via ff-merge at b2c152b, verdict: pass
+
+**Keep doing:**
+- `it.each` over all 9/4 exports for the non-admin gate — compact and
+  exhaustive; adopt this for the remaining coverage plans.
+- The captured-select assertion (received_at in, subject/body_text OUT) —
+  exactly the behavioral complement to the source-scanning guardrail test
+  the plan asked for.
+- Both addTestEmailDomain branches (insert-new vs reactivate-on-readd)
+  with the audit metadata (`reason: "re-added"`) matched to source.
+- Suite math exact again: 351 + 46 = 397.
+
+**Miss patterns (process):** third plan with no ready signal (Status line
+still "Not started"). The reviewer now reviews on quiescence + complete
+deliverable shape, but that is a fallback, not the contract — flip the
+Status line.
