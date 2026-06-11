@@ -203,6 +203,13 @@ describe("Builds Actions — updateBuildStatus", () => {
     await expect(updateBuildStatus("b1", "completed")).rejects.toThrow("Failed to update build: boom");
     expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
+
+  it("rejects invalid input before any Supabase call", async () => {
+    await expect(updateBuildStatus("", "completed")).rejects.toThrow("Invalid input");
+    await expect(updateBuildStatus("b1", "invalid" as "completed")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
 });
 
 describe("Builds Actions — assignBuildToProject", () => {
@@ -242,6 +249,13 @@ describe("Builds Actions — assignBuildToProject", () => {
     });
 
     await expect(assignBuildToProject("b1", "p2")).rejects.toThrow("Failed to assign build: boom");
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid input before any Supabase call", async () => {
+    await expect(assignBuildToProject("", "p2")).rejects.toThrow("Invalid input");
+    await expect(assignBuildToProject("b1", "")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
     expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 });

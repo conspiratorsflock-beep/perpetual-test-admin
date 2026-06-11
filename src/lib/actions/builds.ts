@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, buildStatus } from "@/lib/validation/common";
 import type { Build, BuildStatus, BuildSource } from "@/types/admin";
 
 
@@ -127,11 +129,20 @@ export async function getBuildById(id: string): Promise<Build | null> {
   };
 }
 
+const updateBuildStatusSchema = z.object({
+  buildId: entityId,
+  status: buildStatus,
+});
+
 /**
  * Update build status.
  */
 export async function updateBuildStatus(buildId: string, status: BuildStatus): Promise<void> {
   await requireAdmin();
+  const parsed = updateBuildStatusSchema.safeParse({ buildId, status });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("builds")
@@ -148,11 +159,20 @@ export async function updateBuildStatus(buildId: string, status: BuildStatus): P
   });
 }
 
+const assignBuildToProjectSchema = z.object({
+  buildId: entityId,
+  projectId: entityId,
+});
+
 /**
  * Assign a build to a project.
  */
 export async function assignBuildToProject(buildId: string, projectId: string): Promise<void> {
   await requireAdmin();
+  const parsed = assignBuildToProjectSchema.safeParse({ buildId, projectId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("builds")
