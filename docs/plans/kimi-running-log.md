@@ -5,10 +5,10 @@
 
 ## Current Status
 
-- **In-progress plan:** PLAN_06_auth-guard-consolidation.md
-- **Last plan completed:** PLAN_05_support-tickets-action-tests.md
-- **Next plan to execute:** PLAN_06_auth-guard-consolidation.md
-- **Total plans executed this session:** 5
+- **In-progress plan:** none
+- **Last plan completed:** PLAN_06_auth-guard-consolidation.md
+- **Next plan to execute:** PLAN_07_dev-auth-static-imports.md
+- **Total plans executed this session:** 6
 
 ## Plans Queue
 
@@ -21,6 +21,7 @@
 | 03 | PLAN_03_impersonate-route-tests.md | completed | kimi/impersonate-route-tests | 2026-06-10 16:15 UTC | 2026-06-10 ~16:25 UTC | Merged by reviewer at cfa783c/51b2d02/1e70967/722e379 |
 | 04 | PLAN_04_organizations-action-tests.md | completed | kimi/organizations-action-tests | 2026-06-10 16:25 UTC | 2026-06-10 ~16:50 UTC | Merged by reviewer at fdc2950 + review catch 3af0605 |
 | 05 | PLAN_05_support-tickets-action-tests.md | completed | kimi/support-tickets-action-tests | 2026-06-10 16:50 UTC | 2026-06-10 ~16:55 UTC | Merged by reviewer at 0369bb3; live-DB schema drift surfaced |
+| 06 | PLAN_06_auth-guard-consolidation.md | ready_for_review | kimi/auth-guard-consolidation | 2026-06-11 00:00 UTC | — | Consolidate requireAdmin + gate 4 ungated action files |
 
 ## Execution Notes
 
@@ -109,4 +110,11 @@
 - **2026-06-10 22:35 UTC** — Cron check fired. PLAN_05 still `ready_for_review`; no new plan docs in `docs/plans/`. Holding for reviewer merge.
 - **2026-06-10 ~23:55 UTC (Claude, reviewer)** — PLAN_05 REVIEWED + MERGED (ff) into `feat/typed-supabase-client-and-perf` at `0369bb3`; executed plan doc removed. Verdict: pass. Reviewer surfaced live-DB schema drift: `support_tickets.deleted_at` and `support_ticket_comments.is_agent` are missing from the shared DB despite the `20260601_unify_shared_schemas.sql` migration; additive re-apply migration prepared and awaits user approval. Branch `kimi/support-tickets-action-tests` deleted. No new plan docs present; Kimi is idle.
 - **2026-06-10 23:55 UTC** — Cron check fired. PLAN_05 now `completed`; no new plan docs in `docs/plans/`. Idle, waiting for next numbered plan.
-- **2026-06-11 00:00 UTC** — Discovered PLAN_06, PLAN_07, PLAN_08. Started PLAN_06 on branch `kimi/auth-guard-consolidation`.
+- **2026-06-11 00:00 UTC** — Discovered PLAN_06, PLAN_07, PLAN_08, PLAN_09, PLAN_10, PLAN_11. Started PLAN_06 on branch `kimi/auth-guard-consolidation`.
+- **2026-06-11 ~00:15 UTC** — PLAN_06 complete and ready for review.
+  - Commits: `6e13555`, `c919e41`, `26771b3`
+  - Gate: `npm run test` → 281 passed / 0 failed / 47 skipped (328 total); `npm run typecheck` → 0 errors.
+  - Converted 21 action files to import shared `requireAdmin`; left `users.ts`, `global-search.ts`, `setup-admin.ts` inline per deliberate semantics; left `impersonation.ts`, `error-logs.ts logError`, `api-usage.ts recordApiCall` untouched per plan exclusions.
+  - Gated 4 files: `billing.ts` (6 exports), `system-health.ts` (3 exports), `support-tickets-my.ts` (2 exports), `support-tickets-seeding.ts` (3 exports). Added 14 non-admin rejection tests asserting "Unauthorized" and no DB/Stripe call.
+  - Verified: exactly one `async function requireAdmin` in `src/` (`admin-check.ts`); throw message byte-exact; existing test count unchanged except +14 new tests.
+  - NOT verified: whether any main-app/unauthenticated caller legitimately invokes the newly gated actions (reviewer checks out-of-band).
