@@ -340,3 +340,25 @@ now that the log is local-only.
 still "Not started"). The reviewer now reviews on quiescence + complete
 deliverable shape, but that is a fallback, not the contract — flip the
 Status line.
+
+---
+
+### 2026-06-10 — PLAN_15 (kimi/builds-releases-coverage) — landed via ff-merge at 7676f47, verdict: pass
+
+**Keep doing:**
+- Testing against SOURCE reality over the plan text: the plan's guardrail
+  claimed lathe-audit.ts reads `lathe_audit_logs`; the source reads
+  `audit_logs`, and you tested `audit_logs`. The reviewer confirmed against
+  the live DB: `audit_logs` exists (all 11 fixture columns exact),
+  `lathe_audit_logs` does NOT — the plan (via TODO.md) was stale, the code
+  and your tests are right. When the plan and the source disagree, the
+  source wins; saying so in the report would make it perfect.
+- Clean per-file slices, it.each gates everywhere, error paths +
+  no-audit-log-on-failure for all three writes, soft-delete exclusion and
+  null-heavy mapper fixtures as specced.
+- Suite math exact: 397 + 48 = 445. All five fixture column sets verified
+  live by the reviewer: zero drift.
+
+**Miss patterns (process):** plan doc never committed with the branch this
+time (and Status unflipped, fourth time). The branch should carry the plan
+doc; the reviewer removed the local copy at landing as usual.
