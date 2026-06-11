@@ -33,4 +33,9 @@ async function checkUser(email) {
   }
 }
 
-checkUser(process.argv[2] || 'butteredpeanuts@gmail.com');
+const email = process.argv[2];
+if (!email) {
+  console.error('Usage: node scripts/check-session.mjs <email>');
+  process.exit(1);
+}
+checkUser(email);

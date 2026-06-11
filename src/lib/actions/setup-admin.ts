@@ -93,6 +93,12 @@ export async function setupEmergencyAdmin(secret: string): Promise<{
     };
   }
 
-  const email = "butteredpeanuts@gmail.com";
+  const email = process.env.SETUP_ADMIN_EMAIL;
+  if (!email) {
+    return {
+      success: false,
+      message: "SETUP_ADMIN_EMAIL is not configured on the server",
+    };
+  }
   return promoteUser(email);
 }

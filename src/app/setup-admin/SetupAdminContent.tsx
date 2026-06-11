@@ -12,7 +12,7 @@ export function SetupAdminContent() {
   const searchParams = useSearchParams();
   const secretToken = searchParams.get("token");
 
-  const [email, setEmail] = useState("butteredpeanuts@gmail.com");
+  const [email, setEmail] = useState("");
   const [secret, setSecret] = useState(secretToken || "");
   const [result, setResult] = useState<{
     success: boolean;
@@ -109,7 +109,7 @@ export function SetupAdminContent() {
             variant="outline"
             className="w-full border-slate-700 bg-slate-900 text-slate-300 hover:bg-slate-800"
           >
-            Emergency: Setup butteredpeanuts@gmail.com
+            Emergency: Setup Admin
           </Button>
 
           {result && (

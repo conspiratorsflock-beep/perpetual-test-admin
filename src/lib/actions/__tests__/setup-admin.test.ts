@@ -101,6 +101,7 @@ describe("setup-admin — setupEmergencyAdmin", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.SETUP_ADMIN_SECRET;
+    delete process.env.SETUP_ADMIN_EMAIL;
   });
 
   it("returns not configured when SETUP_ADMIN_SECRET is unset", async () => {
@@ -112,6 +113,7 @@ describe("setup-admin — setupEmergencyAdmin", () => {
 
   it("returns invalid secret when secret does not match", async () => {
     process.env.SETUP_ADMIN_SECRET = "secret-a";
+    process.env.SETUP_ADMIN_EMAIL = "admin@example.com";
     const { setupEmergencyAdmin } = await loadSetupAdmin();
 
     const result = await setupEmergencyAdmin("secret-b");
@@ -119,14 +121,24 @@ describe("setup-admin — setupEmergencyAdmin", () => {
     expect(mockClerkClient).not.toHaveBeenCalled();
   });
 
-  it("promotes the hardcoded emergency email when secret matches", async () => {
+  it("returns not configured when SETUP_ADMIN_EMAIL is unset", async () => {
     process.env.SETUP_ADMIN_SECRET = "secret-a";
-    const client = makeClient([makeClerkUser("u99", "butteredpeanuts@gmail.com", false)]);
+    const { setupEmergencyAdmin } = await loadSetupAdmin();
+
+    const result = await setupEmergencyAdmin("secret-a");
+    expect(result).toEqual({ success: false, message: "SETUP_ADMIN_EMAIL is not configured on the server" });
+    expect(mockClerkClient).not.toHaveBeenCalled();
+  });
+
+  it("promotes the configured emergency email when secret matches", async () => {
+    process.env.SETUP_ADMIN_SECRET = "secret-a";
+    process.env.SETUP_ADMIN_EMAIL = "admin@example.com";
+    const client = makeClient([makeClerkUser("u99", "admin@example.com", false)]);
     mockClerkClient.mockResolvedValue(client);
     const { setupEmergencyAdmin } = await loadSetupAdmin();
 
     const result = await setupEmergencyAdmin("secret-a");
-    expect(result).toEqual({ success: true, message: "Successfully promoted butteredpeanuts@gmail.com to admin" });
+    expect(result).toEqual({ success: true, message: "Successfully promoted admin@example.com to admin" });
     expect(client.users.updateUserMetadata).toHaveBeenCalledWith("u99", { publicMetadata: { isAdmin: true } });
   });
 });
