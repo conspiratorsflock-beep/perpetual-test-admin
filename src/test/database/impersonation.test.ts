@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 /**
  * Database integration tests for impersonation tokens
  */
-describe.skip("Database: Impersonation Tokens (Integration)", () => {
+describe("Database: Impersonation Tokens (Integration)", () => {
   const testAdminId = `test_admin_${Date.now()}`;
   const testTargetId = `test_target_${Date.now()}`;
   const testToken = `test_token_${Date.now()}`;
