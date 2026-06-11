@@ -60,11 +60,21 @@ export async function getDashboardTrends(days = 14): Promise<DashboardTrends> {
 
   const dateKeys = fillDates(windowStart, days);
 
-  const [{ data: usersData }, { data: orgsData }, { data: apiData }] = await Promise.all([
+  const [usersRes, orgsRes, apiRes] = await Promise.all([
     supabaseAdmin.from("users").select("created_at").gte("created_at", windowStartISO),
     supabaseAdmin.from("organizations").select("created_at").gte("created_at", windowStartISO),
     supabaseAdmin.from("api_usage_logs").select("created_at").gte("created_at", windowStartISO),
   ]);
+
+  // A swallowed error here would render flat-zero sparklines indistinguishable
+  // from "no activity" — fail loudly instead
+  const failed = [usersRes.error, orgsRes.error, apiRes.error].find(Boolean);
+  if (failed) {
+    throw new Error(`Failed to fetch dashboard trends: ${failed.message}`);
+  }
+  const { data: usersData } = usersRes;
+  const { data: orgsData } = orgsRes;
+  const { data: apiData } = apiRes;
 
   const newUsers = bucketByDay(usersData ?? [], dateKeys);
   const newOrgs = bucketByDay(orgsData ?? [], dateKeys);

@@ -151,7 +151,7 @@ describe("Dashboard Actions — getDashboardTrends", () => {
     expect(result.newUsers.reduce((a, b) => a + b, 0)).toBe(1);
   });
 
-  it("silently treats Supabase errors as empty buckets (current behavior)", async () => {
+  it("throws when a trends query fails (never render flat-zero sparklines on error)", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "users" || table === "organizations" || table === "api_usage_logs") {
         return {
@@ -163,10 +163,10 @@ describe("Dashboard Actions — getDashboardTrends", () => {
       return {};
     });
 
-    const result = await getDashboardTrends(14);
-
-    expect(result.newUsers).toHaveLength(14);
-    expect(result.newUsers.every((v) => v === 0)).toBe(true);
-    // Source does not check { error }; reported as confirm-and-lock behavior.
+    // Swallowed errors used to become zero buckets (bug found by PLAN_10's
+    // implementer, fixed by the reviewer at landing).
+    await expect(getDashboardTrends(14)).rejects.toThrow(
+      "Failed to fetch dashboard trends: boom"
+    );
   });
 });
