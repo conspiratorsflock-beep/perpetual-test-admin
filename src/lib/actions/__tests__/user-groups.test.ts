@@ -226,6 +226,12 @@ describe("User Groups — createUserGroup", () => {
     vi.mocked(requireAdmin).mockImplementation(async () => {});
   });
 
+  it("rejects invalid input before DB call", async () => {
+    await expect(createUserGroup("", "Name")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("creates and logs", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "user_groups") return makeInsertChain(makeBaseGroupRow());
@@ -258,6 +264,12 @@ describe("User Groups — updateUserGroup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(updateUserGroup("", { name: "X" })).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when group not found", async () => {
@@ -319,6 +331,12 @@ describe("User Groups — deleteUserGroup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(deleteUserGroup("")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when group not found", async () => {
@@ -436,6 +454,12 @@ describe("User Groups — addUserToGroup", () => {
     vi.mocked(requireAdmin).mockImplementation(async () => {});
   });
 
+  it("rejects invalid input before DB call", async () => {
+    await expect(addUserToGroup("", "u1")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("inserts membership and logs", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "user_groups") return makeSingleChain({ name: "Engineering", org_id: "o1" });
@@ -485,6 +509,12 @@ describe("User Groups — removeUserFromGroup", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(removeUserFromGroup("", "u1")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("deletes membership and logs", async () => {
@@ -588,6 +618,12 @@ describe("User Groups — assignGroupToProject", () => {
     vi.mocked(requireAdmin).mockImplementation(async () => {});
   });
 
+  it("rejects invalid input before DB call", async () => {
+    await expect(assignGroupToProject("", "g1", "r1")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("inserts access and logs", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "user_groups") return makeSingleChain({ name: "Engineering" });
@@ -638,6 +674,12 @@ describe("User Groups — removeGroupFromProject", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(removeGroupFromProject("", "g1")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("deletes access and logs", async () => {

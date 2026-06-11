@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, clerkId, nameString, descriptionString } from "@/lib/validation/common";
 import type { UserGroup, GroupMembership, ProjectGroupAccess } from "@/types/admin";
 
 
@@ -74,6 +76,12 @@ export async function getUserGroup(groupId: string): Promise<UserGroup> {
   };
 }
 
+const createUserGroupSchema = z.object({
+  orgId: entityId,
+  name: nameString,
+  description: descriptionString.nullable().optional(),
+});
+
 /**
  * Create a user group.
  */
@@ -83,6 +91,10 @@ export async function createUserGroup(
   description?: string | null
 ): Promise<UserGroup> {
   await requireAdmin();
+  const parsed = createUserGroupSchema.safeParse({ orgId, name, description });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const resolvedOrgId = await resolveOrgId(orgId);
 
   const { data, error } = await supabaseAdmin
@@ -114,6 +126,14 @@ export async function createUserGroup(
   };
 }
 
+const updateUserGroupSchema = z.object({
+  groupId: entityId,
+  updates: z.object({
+    name: nameString.optional(),
+    description: descriptionString.nullable().optional(),
+  }),
+});
+
 /**
  * Update a user group.
  */
@@ -122,6 +142,10 @@ export async function updateUserGroup(
   updates: { name?: string; description?: string | null }
 ): Promise<void> {
   await requireAdmin();
+  const parsed = updateUserGroupSchema.safeParse({ groupId, updates });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: existing } = await supabaseAdmin
     .from("user_groups")
@@ -155,11 +179,19 @@ export async function updateUserGroup(
   });
 }
 
+const deleteUserGroupSchema = z.object({
+  groupId: entityId,
+});
+
 /**
  * Delete a user group. Fails if members or project access exist.
  */
 export async function deleteUserGroup(groupId: string): Promise<void> {
   await requireAdmin();
+  const parsed = deleteUserGroupSchema.safeParse({ groupId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: existing } = await supabaseAdmin
     .from("user_groups")
@@ -226,11 +258,20 @@ export async function getGroupMembers(groupId: string): Promise<GroupMembership[
   });
 }
 
+const addUserToGroupSchema = z.object({
+  groupId: entityId,
+  clerkUserId: clerkId,
+});
+
 /**
  * Add a user to a group.
  */
 export async function addUserToGroup(groupId: string, clerkUserId: string): Promise<void> {
   await requireAdmin();
+  const parsed = addUserToGroupSchema.safeParse({ groupId, clerkUserId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: group } = await supabaseAdmin
     .from("user_groups")
@@ -257,11 +298,20 @@ export async function addUserToGroup(groupId: string, clerkUserId: string): Prom
   });
 }
 
+const removeUserFromGroupSchema = z.object({
+  groupId: entityId,
+  clerkUserId: clerkId,
+});
+
 /**
  * Remove a user from a group.
  */
 export async function removeUserFromGroup(groupId: string, clerkUserId: string): Promise<void> {
   await requireAdmin();
+  const parsed = removeUserFromGroupSchema.safeParse({ groupId, clerkUserId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: group } = await supabaseAdmin
     .from("user_groups")
@@ -316,6 +366,12 @@ export async function getProjectGroups(projectId: string): Promise<ProjectGroupA
   }));
 }
 
+const assignGroupToProjectSchema = z.object({
+  projectId: entityId,
+  groupId: entityId,
+  roleId: entityId,
+});
+
 /**
  * Assign a group to a project with a role.
  */
@@ -325,6 +381,10 @@ export async function assignGroupToProject(
   roleId: string
 ): Promise<void> {
   await requireAdmin();
+  const parsed = assignGroupToProjectSchema.safeParse({ projectId, groupId, roleId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: group } = await supabaseAdmin
     .from("user_groups")
@@ -356,11 +416,20 @@ export async function assignGroupToProject(
   });
 }
 
+const removeGroupFromProjectSchema = z.object({
+  projectId: entityId,
+  groupId: entityId,
+});
+
 /**
  * Remove a group from a project.
  */
 export async function removeGroupFromProject(projectId: string, groupId: string): Promise<void> {
   await requireAdmin();
+  const parsed = removeGroupFromProjectSchema.safeParse({ projectId, groupId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: group } = await supabaseAdmin
     .from("user_groups")
