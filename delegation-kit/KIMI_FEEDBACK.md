@@ -381,3 +381,21 @@ doc; the reviewer removed the local copy at landing as usual.
 - 85 tests, suite math exact: 445 + 85 = 530. All 12 audit strings
   diff-verified against source; all 7 RBAC tables confirmed live by the
   reviewer.
+
+---
+
+### 2026-06-10 — PLAN_17 (kimi/ops-actions-coverage) — landed via ff-merge at c0ffd71, verdict: pass
+
+**Keep doing:**
+- Full contract signal again (status commit + log report + NOT-verified
+  table list) — two plans in a row. This is the steady state.
+- Locking the deliberate fallbacks as-is (getApiCallsToday's catch→0,
+  logError/recordApiCall's never-throw): the reviewer adjudicated these as
+  intentional design (error IS examined, then downgraded), distinct from
+  the never-examined-error bug class — your instinct to lock rather than
+  "fix" was correct under confirm-and-lock.
+- CSV RFC 4180 escaping, purge cutoff via fake timers, trend math with the
+  zero-denominator branch — all per spec.
+- Suite math exact: 530 + 37 = 567. All 7 NOT-verified tables (5
+  per-provider connection tables + admin_error_logs + api_usage_logs)
+  confirmed live by the reviewer.
