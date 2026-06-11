@@ -76,10 +76,10 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 **Priority: HIGH** — During a live beta demo, a single failed Supabase query will crash the page with a generic Next.js error. The `setup-admin` page is also broken for first-time bootstrapping.
 
 **Tasks:**
-- [ ] Add `error.tsx` to every top-level route
-- [ ] Create a reusable `ErrorFallback` component with "Retry" and "Go to Dashboard" actions
+- [x] Add `error.tsx` to every top-level route — DONE: 15 of 17 top-level dirs have `error.tsx`. Missing: `(auth)/` (route group, Clerk-handled) and `api/` (API routes don't use React error boundaries). App root `error.tsx` also exists.
+- [x] Create a reusable `ErrorFallback` component with "Retry" and "Go to Dashboard" actions — DONE: `src/components/error-fallback.tsx` exists with retry + dashboard link.
 - [ ] Wrap critical server actions in try/catch that return `{ success: false, error: string }` instead of throwing raw errors
-- [ ] Fix or remove `src/app/setup-admin/page.tsx` — add a secret-token bypass (`?token=SETUP_SECRET`) so the first admin can bootstrap without manual Clerk Dashboard edits
+- [x] Fix or remove `src/app/setup-admin/page.tsx` — DONE: `setupEmergencyAdmin` works with `SETUP_ADMIN_SECRET` + `SETUP_ADMIN_EMAIL` env vars (PLAN_19). `/api/make-admin` curl approach also available.
 
 **What I need from you:**
 - Do you want to keep the emergency setup flow? Or should we remove it and rely on the `/api/make-admin` curl approach?
@@ -103,14 +103,14 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 ---
 
 ## Phase 9 — Help Desk: Real Analytics
-**Priority: MEDIUM-HIGH** — The entire `/help-desk/analytics` page is hardcoded mock data. During beta you won't know actual ticket volume, SLA performance, or agent workload.
+**Priority: MEDIUM-HIGH** — The `/help-desk/analytics` page is wired to real actions, not mock data.
 
 **Tasks:**
-- [ ] Replace `mockStats` with real aggregations from `support_tickets` and `support_ticket_comments`
-- [ ] Calculate `avgResponseTime` and `avgResolutionTime` in `getSupportTicketAnalytics()`
-- [ ] Build ticket volume chart (Recharts: daily created/resolved)
-- [ ] Replace hardcoded agent leaderboard with real `support_team_members` + assignment stats
-- [ ] Wire up "Last 30 Days" filter and "Export Report" button
+- [x] Replace `mockStats` with real aggregations from `support_tickets` and `support_ticket_comments` — DONE: `src/app/help-desk/analytics/page.tsx` imports `getSupportAnalytics`, `getTicketVolumeData`, `getAgentLeaderboard` from `@/lib/actions/support-tickets` (PLAN_13).
+- [x] Calculate `avgResponseTime` and `avgResolutionTime` in `getSupportTicketAnalytics()` — DONE: `getSupportAnalytics` returns `avgResponseTimeMinutes` and `avgResolutionTimeMinutes` (PLAN_13).
+- [x] Build ticket volume chart (Recharts: daily created/resolved) — DONE: Recharts `BarChart` with `created`/`resolved` bars in the Volume tab.
+- [x] Replace hardcoded agent leaderboard with real `support_team_members` + assignment stats — DONE: Agents tab renders `getAgentLeaderboard` data with resolved count, avg time, and open assigned.
+- [ ] Wire up "Export Report" button — NOT DONE: 7/30/90 day filter exists, but no export button.
 
 **What I need from you:**
 - How do you want to collect CSAT? (1–5 star on ticket close, stored in comment metadata, or separate table?)
@@ -182,7 +182,7 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 **Priority: LOW** — Nice-to-haves that make the console feel professional and complete.
 
 **Tasks:**
-- [ ] Delete 4 orphaned `HelpDeskShell`-era components (`HelpDeskShell.tsx`, `SupportAnalytics.tsx`, `TeamView.tsx`, `CannedResponsesView.tsx` — or wire the last one)
+- [x] Delete 4 orphaned `HelpDeskShell`-era components (`HelpDeskShell.tsx`, `SupportAnalytics.tsx`, `TeamView.tsx`, `CannedResponsesView.tsx`) — DONE (PLAN_23). Verified zero importers outside the dead cluster.
 - [ ] Add org activity timeline: API usage, login history, trial state changes, payment events
 - [ ] Add user activity timeline: project events, API key usage, tickets raised
 - [ ] Add trial countdown timer on org detail (red badge when <7 days)
