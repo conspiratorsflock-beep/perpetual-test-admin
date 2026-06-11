@@ -24,7 +24,7 @@
 | 06 | PLAN_06_auth-guard-consolidation.md | completed | kimi/auth-guard-consolidation | 2026-06-11 00:00 UTC | 2026-06-11 ~00:30 UTC | Merged by reviewer at c273147 + review catch 4d62bc0 |
 | 07 | PLAN_07_dev-auth-static-imports.md | completed | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | 2026-06-11 ~00:55 UTC | Merged by reviewer at e3edc65 + review catch 3ded39e |
 | 08 | PLAN_08_support-tickets-module-split.md | completed | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | 2026-06-11 ~01:20 UTC | Merged by reviewer at 0308adb |
-| 09 | PLAN_09_billing-action-tests.md | in_progress | kimi/billing-action-tests | 2026-06-11 01:20 UTC | — | New unit tests for billing server actions |
+| 09 | PLAN_09_billing-action-tests.md | ready_for_review | kimi/billing-action-tests | 2026-06-11 01:20 UTC | — | New unit tests for billing server actions |
 
 ## Execution Notes
 
@@ -143,3 +143,16 @@
 - **2026-06-11 01:20 UTC** — Cron check fired. PLAN_08 still `ready_for_review`; PLAN_09 still blocked pending PLAN_08 merge. No new plan docs (heartbeat not committed).
 - **2026-06-11 ~01:20 UTC (Claude, reviewer)** — PLAN_08 REVIEWED + MERGED (ff to `0308adb`) into `main`; executed plan doc removed. Verdict: pass, no defects. Verbatim-move PROVEN mechanically (line-multiset diff: only section-divider comments dropped + 5 shared helpers gained `export`, as required). Barrel exports exactly the original 19 functions; shared helpers not leaked. Gate: 281P/0F/47S (328) with zero test-file changes; typecheck + build clean. REVIEWER-HELD GATE PASSED: headless-browser round-trip on /help-desk/queue rendered live DB tickets through the barrel (server-action POST → barrel → queue.ts → Supabase). No heartbeat commits this time — feedback landed, credited in KIMI_FEEDBACK.md. PLAN_09 is clear to start off latest main.
 - **2026-06-11 01:20 UTC** — PLAN_08 now `completed`. Started PLAN_09 on branch `kimi/billing-action-tests` off latest `main`.
+- **2026-06-11 ~01:30 UTC** — PLAN_09 complete and ready for review.
+  - Commits: (billing tests + plan doc)
+  - Gate: `npm run test` → 299 passed / 0 failed / 47 skipped (346 total); `npm run typecheck` → 0 errors; `npm run build` → completed.
+  - Coverage: all 6 exported billing functions tested.
+    - Reads: `getBillingMetrics` (MRR/ARR, subscription counts, trial state counts, conversion rate, avg time), `getRecentInvoices` (customer name/pdf mapping), `getActiveCoupons` (valid-only filter), `getMRRHistory` (monthly window).
+    - Writes: `createCoupon`, `deleteCoupon` (audit logging, success shapes, Stripe errors).
+  - Stripe mock seam: `@/lib/stripe/client` getter reads `process.env.STRIPE_SECRET_KEY` so unconfigured/configured tests share one mock without `vi.doMock`.
+  - Real findings beyond spec:
+    - `stripe.subscriptions.list()` is consumed via `for await...of` in `getBillingMetrics`/`getMRRHistory`. A mock returning a Promise resolving to `{ data }` is not async-iterable; the mock must return an object with `[Symbol.asyncIterator]` directly (Stripe's `ApiListPromise` behavior).
+    - `getRecentInvoices` customer-name branch: `customer` object must omit `deleted` entirely — fixture with `deleted: undefined` flips the source's `'deleted' in invoice.customer` check and returns `"Unknown"`.
+    - Money assertions in cents: weekly MRR uses `* 4.33`, yielding integer truncation in source; tests assert the exact computed integer.
+  - Verified: zero-line diff on `src/lib/actions/billing.ts`; auth-gate tests assert no Stripe/Supabase calls for non-admin users; `logAdminAction` strings byte-exact for writes.
+  - NOT verified: Stripe response shapes against live Stripe API or docs (reviewer checks out-of-band); Supabase `organizations.trial_lock_state` enum values against live DB.
