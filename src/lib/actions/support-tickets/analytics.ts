@@ -71,16 +71,22 @@ export async function getSupportAnalytics(params: {
   let avgResponseTimeMinutes = 0;
 
   if (ticketIds.length > 0) {
-    const { data: teamMembers } = await supabaseAdmin
+    const { data: teamMembers, error: teamError } = await supabaseAdmin
       .from("support_team_members")
       .select("user_id");
+    if (teamError) {
+      throw new Error(`Failed to fetch team members: ${teamError.message}`);
+    }
     const agentIds = new Set((teamMembers || []).map((m) => m.user_id));
 
-    const { data: comments } = await supabaseAdmin
+    const { data: comments, error: commentsError } = await supabaseAdmin
       .from("support_ticket_comments")
       .select("ticket_id, author_id, created_at")
       .in("ticket_id", ticketIds)
       .order("created_at", { ascending: true });
+    if (commentsError) {
+      throw new Error(`Failed to fetch comments: ${commentsError.message}`);
+    }
 
     const firstResponseByTicket: Record<string, string> = {};
     for (const c of comments || []) {

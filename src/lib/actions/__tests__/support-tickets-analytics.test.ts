@@ -231,9 +231,40 @@ describe("Support Tickets Analytics — getSupportAnalytics", () => {
     expect(result.avgResponseTimeMinutes).toBe(90);
   });
 
-  // NOTE: getSupportAnalytics does NOT check `error` from the support_team_members
-  // or support_ticket_comments sub-queries (src/lib/actions/support-tickets/analytics.ts:74,79).
-  // Per PLAN_13 guardrail (confirm-and-lock), this is reported, not fixed.
+  it("throws when the team members sub-query fails", async () => {
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      if (table === "support_tickets") {
+        return makeTicketsChain([
+          { id: "t1", status: "open", priority: "high", category: "bug", resolved_at: null, created_at: "2024-06-01T10:00:00Z", sla_deadline: null },
+        ]);
+      }
+      if (table === "support_team_members") return makeTeamChain([], { message: "team boom" });
+      return {};
+    });
+
+    // Swallowed sub-query errors used to become avgResponseTimeMinutes: 0
+    // (found by PLAN_13's implementer, fixed by the reviewer at landing).
+    await expect(getSupportAnalytics({ startDate: "2024-06-01", endDate: "2024-06-30" })).rejects.toThrow(
+      "Failed to fetch team members: team boom"
+    );
+  });
+
+  it("throws when the comments sub-query fails", async () => {
+    mockSupabaseFrom.mockImplementation((table: string) => {
+      if (table === "support_tickets") {
+        return makeTicketsChain([
+          { id: "t1", status: "open", priority: "high", category: "bug", resolved_at: null, created_at: "2024-06-01T10:00:00Z", sla_deadline: null },
+        ]);
+      }
+      if (table === "support_team_members") return makeTeamChain([{ user_id: "agent_1" }]);
+      if (table === "support_ticket_comments") return makeCommentsChain([], { message: "comments boom" });
+      return {};
+    });
+
+    await expect(getSupportAnalytics({ startDate: "2024-06-01", endDate: "2024-06-30" })).rejects.toThrow(
+      "Failed to fetch comments: comments boom"
+    );
+  });
 });
 
 describe("Support Tickets Analytics — getTicketVolumeData", () => {
