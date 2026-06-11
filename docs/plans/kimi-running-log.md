@@ -5,9 +5,9 @@
 
 ## Current Status
 
-- **In-progress plan:** none
+- **In-progress plan:** PLAN_06_auth-guard-consolidation.md
 - **Last plan completed:** PLAN_05_support-tickets-action-tests.md
-- **Next plan to execute:** none (waiting for next numbered plan)
+- **Next plan to execute:** PLAN_06_auth-guard-consolidation.md
 - **Total plans executed this session:** 5
 
 ## Plans Queue
@@ -109,3 +109,4 @@
 - **2026-06-10 22:35 UTC** — Cron check fired. PLAN_05 still `ready_for_review`; no new plan docs in `docs/plans/`. Holding for reviewer merge.
 - **2026-06-10 ~23:55 UTC (Claude, reviewer)** — PLAN_05 REVIEWED + MERGED (ff) into `feat/typed-supabase-client-and-perf` at `0369bb3`; executed plan doc removed. Verdict: pass. Reviewer surfaced live-DB schema drift: `support_tickets.deleted_at` and `support_ticket_comments.is_agent` are missing from the shared DB despite the `20260601_unify_shared_schemas.sql` migration; additive re-apply migration prepared and awaits user approval. Branch `kimi/support-tickets-action-tests` deleted. No new plan docs present; Kimi is idle.
 - **2026-06-10 23:55 UTC** — Cron check fired. PLAN_05 now `completed`; no new plan docs in `docs/plans/`. Idle, waiting for next numbered plan.
+- **2026-06-11 00:00 UTC** — Discovered PLAN_06, PLAN_07, PLAN_08. Started PLAN_06 on branch `kimi/auth-guard-consolidation`.
