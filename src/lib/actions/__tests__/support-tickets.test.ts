@@ -436,6 +436,12 @@ describe("Support Ticket Actions", () => {
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
     });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(assignTicket("", "agent_1", "agent@example.com")).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateTicketStatus", () => {
@@ -510,6 +516,14 @@ describe("Support Ticket Actions", () => {
       await expect(
         updateTicketStatus("ticket_1", "closed", "agent_1", "agent@example.com")
       ).rejects.toThrow("Failed to update ticket status");
+    });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(
+        updateTicketStatus("ticket_1", "invalid_status", "agent_1", "agent@example.com")
+      ).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
@@ -634,6 +648,14 @@ describe("Support Ticket Actions", () => {
       await expect(
         updateTicketPriority("ticket_1", "high", "agent_1", "agent@example.com")
       ).rejects.toThrow("Failed to update priority");
+    });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(
+        updateTicketPriority("ticket_1", "invalid_priority", "agent_1", "agent@example.com")
+      ).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
@@ -815,6 +837,14 @@ describe("Support Ticket Actions", () => {
         addTicketComment("ticket_1", "Reply", "agent_1", "agent@example.com", "Agent")
       ).rejects.toThrow("Unauthorized");
     });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(
+        addTicketComment("ticket_1", "Reply", "agent_1", "not-an-email", "Agent")
+      ).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
+    });
   });
 
   describe("closeTicket", () => {
@@ -867,6 +897,12 @@ describe("Support Ticket Actions", () => {
       await expect(closeTicket("ticket_1", "agent_1", "agent@example.com")).rejects.toThrow(
         "Failed to close ticket"
       );
+    });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(closeTicket("", "agent_1", "agent@example.com")).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 
@@ -1088,6 +1124,12 @@ describe("Support Ticket Actions", () => {
 
       await expect(addTeamMember("u", "e@e.com", null)).rejects.toThrow("Unauthorized");
       expect(mockInsert).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid input before any DB call", async () => {
+      await expect(addTeamMember("user_9", "not-an-email", "Newbie", "agent")).rejects.toThrow("Invalid input:");
+      expect(mockSupabaseFrom).not.toHaveBeenCalled();
+      expect(logAdminAction).not.toHaveBeenCalled();
     });
   });
 });

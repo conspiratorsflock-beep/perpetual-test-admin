@@ -1,12 +1,26 @@
 "use server";
 
+import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import {
+  entityId,
+  emailString,
+  nameString,
+  supportTeamRole,
+} from "@/lib/validation/common";
 
 // ============================================
 // Team Management
 // ============================================
+
+const addTeamMemberSchema = z.object({
+  userId: entityId,
+  email: emailString,
+  name: nameString.nullable(),
+  role: supportTeamRole,
+});
 
 export async function getSupportTeam(): Promise<Array<{
   id: string;
@@ -47,11 +61,15 @@ export async function addTeamMember(
   role: string = "agent"
 ): Promise<void> {
   await requireAdmin();
+  const parsed = addTeamMemberSchema.safeParse({ userId, email, name, role });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const { error } = await supabaseAdmin.from("support_team_members").insert({
-    user_id: userId,
-    email,
-    name,
-    role,
+    user_id: parsed.data.userId,
+    email: parsed.data.email,
+    name: parsed.data.name,
+    role: parsed.data.role,
   });
 
   if (error) {
@@ -61,8 +79,8 @@ export async function addTeamMember(
   await logAdminAction({
     action: "support_team.member_add",
     targetType: "user",
-    targetId: userId,
-    targetName: email,
-    metadata: { role },
+    targetId: parsed.data.userId,
+    targetName: parsed.data.email,
+    metadata: { role: parsed.data.role },
   });
 }
