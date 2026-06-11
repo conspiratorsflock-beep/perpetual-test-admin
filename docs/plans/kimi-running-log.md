@@ -6,9 +6,9 @@
 ## Current Status
 
 - **In-progress plan:** none
-- **Last plan completed:** PLAN_10_projects-apikeys-dashboard-tests.md
-- **Next plan to execute:** PLAN_11_testing-docs-rewrite.md
-- **Total plans executed this session:** 10
+- **Last plan completed:** PLAN_11_testing-docs-rewrite.md
+- **Next plan to execute:** none
+- **Total plans executed this session:** 11
 
 ## Plans Queue
 
@@ -25,7 +25,8 @@
 | 07 | PLAN_07_dev-auth-static-imports.md | completed | kimi/dev-auth-static-imports | 2026-06-11 00:30 UTC | 2026-06-11 ~00:55 UTC | Merged by reviewer at e3edc65 + review catch 3ded39e |
 | 08 | PLAN_08_support-tickets-module-split.md | completed | kimi/support-tickets-module-split | 2026-06-11 00:55 UTC | 2026-06-11 ~01:20 UTC | Merged by reviewer at 0308adb |
 | 09 | PLAN_09_billing-action-tests.md | completed | kimi/billing-action-tests | 2026-06-11 01:20 UTC | 2026-06-11 ~01:45 UTC | Merged by reviewer at 5b86b63 |
-| 10 | PLAN_10_projects-apikeys-dashboard-tests.md | ready_for_review | kimi/projects-apikeys-dashboard-tests | 2026-06-11 01:50 UTC | — | New unit tests for projects, api-keys, and dashboard actions |
+| 10 | PLAN_10_projects-apikeys-dashboard-tests.md | completed | kimi/projects-apikeys-dashboard-tests | 2026-06-11 01:50 UTC | 2026-06-11 ~02:15 UTC | Landed on main with reviewer fixes to dashboard.ts error handling |
+| 11 | PLAN_11_testing-docs-rewrite.md | ready_for_review | kimi/testing-docs-rewrite | 2026-06-11 02:15 UTC | — | Rewrite TESTING.md to current reality |
 
 ## Execution Notes
 
@@ -169,6 +170,15 @@
   - Gate: `npm run test` → 331 passed / 0 failed / 47 skipped; `npm run typecheck` → 0 errors.
   - `npm run lint` not defined; skipped.
 - **2026-06-11 ~02:10 UTC** — PLAN_10 complete and ready for review.
+- **2026-06-11 02:15 UTC** — PLAN_10 still `ready_for_review`; PLAN_11 is docs-only and can proceed independently. Starting PLAN_11 on branch `kimi/testing-docs-rewrite` off latest `main`.
+- **2026-06-11 ~02:20 UTC** — PLAN_10 commits observed on `main`; dashboard.ts error-handling fix landed alongside the tests. Updated running log to reflect PLAN_10 `completed`.
+- **2026-06-11 ~02:25 UTC** — PLAN_11 complete and ready for review.
+  - Commits: `5c975ed` (TESTING.md rewrite), plan doc + running log.
+  - Rewrote `TESTING.md` from repo reality: verify gate (`npm run test` + `npm run typecheck`, no lint), shared mocks in `src/test/setup.ts`, house style pointers (`impersonation.test.ts`, `organizations.test.ts`), dev-auth trap with `TicketDetail.test.tsx` citation, DB integration `describe.skip` policy, current Playwright commands.
+  - Dropped: outdated per-file coverage tables, unverifiable GitHub Actions workflow, old "remove .skip" advice for DB integration tests, legacy troubleshooting sections.
+  - Gate: `npm run test` → 331 passed / 0 failed / 47 skipped (378 total); `npm run typecheck` → 0 errors.
+  - Verified: every command in the doc exists in `package.json` and was run; every cited file path exists; zero non-doc diffs.
+  - NOT verified: E2E runtime (Playwright browsers installed / tests pass) — commands are documented but not executed in this gate.
   - Commits: `43b5648` (projects tests), `71fb3f5` (api-keys tests), `f8a481c` (dashboard tests), `0c39d5e` (type fixes), plan doc + running log.
   - Coverage:
     - `projects.test.ts`: 18 tests — all 6 exports (searchProjects, getProjectById, getProjectMembers, toggleRequirementsEnabled, softDeleteProject, restoreProject).
