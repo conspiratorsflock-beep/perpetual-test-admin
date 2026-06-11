@@ -226,9 +226,11 @@ rewritten. Two reviewer-held runtime gates passed.
   mocks) with a localhost-only safety interlock; 39 of 47 tests unskipped
   and traced to creating migrations; api-usage tests skipped-with-reason
   (`api_usage_logs` is lathe-studio-owned, absent from local migrations).
-  **NOT yet executed against a real local stack — needs Docker**
-  (`npx supabase start` → set SUPABASE_TEST_URL/_SERVICE_ROLE_KEY →
-  `RUN_DB_TESTS=1 npm run test:db`).
+  **EXECUTED 2026-06-11 via OrbStack: 41 passed / 1 skipped (42).** First
+  real run surfaced and fixed three migration-chain bugs (mis-ordered
+  help-desk migration, legacy-column data migration, invalid CREATE
+  POLICY IF NOT EXISTS ×7) plus a lathe-studio baseline migration for
+  local stacks — the chain now applies from zero.
 - Stale-doc corrections: `lathe_audit_logs` claim (code correctly reads
   lathe-studio's `audit_logs`).
 
