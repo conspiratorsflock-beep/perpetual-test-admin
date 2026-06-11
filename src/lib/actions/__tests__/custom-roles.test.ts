@@ -242,6 +242,12 @@ describe("Custom Roles — createCustomRole", () => {
     vi.mocked(requireAdmin).mockImplementation(async () => {});
   });
 
+  it("rejects invalid input before DB call", async () => {
+    await expect(createCustomRole("", "Admin", null, [])).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
   it("creates role without permissions and logs", async () => {
     mockSupabaseFrom.mockImplementation((table: string) => {
       if (table === "custom_roles") return makeInsertChain(makeBaseRoleRow());
@@ -306,6 +312,12 @@ describe("Custom Roles — updateCustomRole", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(updateCustomRole("", { name: "X" })).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when role not found", async () => {
@@ -406,6 +418,12 @@ describe("Custom Roles — deleteCustomRole", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireAdmin).mockImplementation(async () => {});
+  });
+
+  it("rejects invalid input before DB call", async () => {
+    await expect(deleteCustomRole("")).rejects.toThrow("Invalid input:");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
   it("throws when role not found", async () => {

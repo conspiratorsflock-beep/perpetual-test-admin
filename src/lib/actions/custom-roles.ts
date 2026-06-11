@@ -3,8 +3,9 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, nameString, descriptionString } from "@/lib/validation/common";
 import type { Permission, CustomRole } from "@/types/admin";
-
 
 async function resolveOrgId(orgId: string): Promise<string> {
   if (!orgId.startsWith("org_")) return orgId;
@@ -110,6 +111,14 @@ export async function getCustomRole(roleId: string): Promise<CustomRole> {
   };
 }
 
+const createCustomRoleSchema = z.object({
+  orgId: entityId,
+  name: nameString,
+  description: descriptionString.nullable(),
+  permissionIds: z.array(entityId),
+  templateRole: nameString.optional(),
+});
+
 /**
  * Create a new custom role.
  */
@@ -121,6 +130,10 @@ export async function createCustomRole(
   templateRole?: string
 ): Promise<CustomRole> {
   await requireAdmin();
+  const parsed = createCustomRoleSchema.safeParse({ orgId, name, description, permissionIds, templateRole });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
   const resolvedOrgId = await resolveOrgId(orgId);
 
   const { data: roleData, error: roleError } = await supabaseAdmin
@@ -181,6 +194,15 @@ export async function createCustomRole(
   };
 }
 
+const updateCustomRoleSchema = z.object({
+  roleId: entityId,
+  updates: z.object({
+    name: nameString.optional(),
+    description: descriptionString.nullable().optional(),
+    permissionIds: z.array(entityId).optional(),
+  }),
+});
+
 /**
  * Update a custom role.
  */
@@ -193,6 +215,10 @@ export async function updateCustomRole(
   }
 ): Promise<void> {
   await requireAdmin();
+  const parsed = updateCustomRoleSchema.safeParse({ roleId, updates });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: existing } = await supabaseAdmin
     .from("custom_roles")
@@ -262,11 +288,19 @@ export async function updateCustomRole(
   });
 }
 
+const deleteCustomRoleSchema = z.object({
+  roleId: entityId,
+});
+
 /**
  * Delete a custom role. Fails if assigned to any members.
  */
 export async function deleteCustomRole(roleId: string): Promise<void> {
   await requireAdmin();
+  const parsed = deleteCustomRoleSchema.safeParse({ roleId });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { data: existing } = await supabaseAdmin
     .from("custom_roles")
