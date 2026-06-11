@@ -3,6 +3,8 @@
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { logAdminAction } from "@/lib/audit/logger";
 import { requireAdmin } from "@/lib/clerk/admin-check";
+import { z } from "zod";
+import { entityId, releaseStatus } from "@/lib/validation/common";
 import type { Release, ReleaseStatus } from "@/types/admin";
 
 
@@ -92,11 +94,20 @@ export async function getReleaseById(id: string): Promise<Release | null> {
   };
 }
 
+const updateReleaseStatusSchema = z.object({
+  releaseId: entityId,
+  status: releaseStatus,
+});
+
 /**
  * Update release status.
  */
 export async function updateReleaseStatus(releaseId: string, status: ReleaseStatus): Promise<void> {
   await requireAdmin();
+  const parsed = updateReleaseStatusSchema.safeParse({ releaseId, status });
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0].message}`);
+  }
 
   const { error } = await supabaseAdmin
     .from("releases")

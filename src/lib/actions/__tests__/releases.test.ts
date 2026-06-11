@@ -182,6 +182,13 @@ describe("Releases Actions — updateReleaseStatus", () => {
     await expect(updateReleaseStatus("r1", "released")).rejects.toThrow("Failed to update release: boom");
     expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
+
+  it("rejects invalid input before any Supabase call", async () => {
+    await expect(updateReleaseStatus("", "released")).rejects.toThrow("Invalid input");
+    await expect(updateReleaseStatus("r1", "invalid" as "released")).rejects.toThrow("Invalid input");
+    expect(mockSupabaseFrom).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
 });
 
 describe("Releases Actions — getReleaseMetrics", () => {
