@@ -15,3 +15,6 @@ docs/plans/kimi-running-log.md
 
 # TypeScript incremental build state
 tsconfig.tsbuildinfo
+
+# macOS metadata files
+.DS_Store

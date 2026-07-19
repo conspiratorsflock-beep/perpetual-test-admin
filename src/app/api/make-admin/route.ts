@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/dev-auth/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { logAdminAction } from "@/lib/audit/logger";
 
 function isAdminBootstrapAllowed(): boolean {
   return (
@@ -57,8 +58,19 @@ export async function POST(request: NextRequest) {
 
     // Promote the target user to admin
     const client = await clerkClient();
+    const targetUser = await client.users.getUser(targetUserId);
+    const targetEmail = targetUser.emailAddresses[0]?.emailAddress || "unknown";
+
     await client.users.updateUserMetadata(targetUserId, {
       publicMetadata: { isAdmin: true },
+    });
+
+    await logAdminAction({
+      action: "user.promote_admin",
+      targetType: "user",
+      targetId: targetUserId,
+      targetName: targetEmail,
+      metadata: { source: "api/make-admin" },
     });
 
     return NextResponse.json({
