@@ -15,6 +15,12 @@ chrome. This is a **change** task.
 Motivating incident class: lathe-studio's middleware rewrite-before-auth
 bypass (`43ea1fb`) — auth that exists but can be structurally skipped.
 
+**D2 ruling (Bryan 2026-07-19): the console shares the PRODUCT's Clerk
+instance** (revisit in 3–6 months; a separate admin instance is the eventual
+destination). Consequence: every Lathe Studio customer credential can attempt
+sign-in here — the `isAdmin` gate is the ONLY wall between a customer session
+and the control plane. Items 7–8 below exist because of this ruling.
+
 ## Inventory (verified 2026-07-19 — verify again, then work through)
 - `src/middleware.ts` — `DEV_BYPASS` const short-circuits all auth before
   Clerk loads; also note its admin check reads `sessionClaims.publicMetadata`
@@ -61,6 +67,20 @@ bypass (`43ea1fb`) — auth that exists but can be structurally skipped.
    slate-950.
 6. Verify gate green: `npm run test`, `npm run typecheck`; e2e must still pass
    locally under dev bypass (`npm run e2e` if runnable, else say NOT verified).
+7. **No self-registration (D2 consequence):** the `(auth)/sign-up` surface is
+   removed or permanently redirects to `/unauthorized` — admin accounts are
+   provisioned, never self-registered. Sign-in stays. (Customers signing up
+   happens in the main app; a signup created via the admin surface would be a
+   confusing half-account with no org.)
+8. **MFA enforced in code, production only (D2 consequence):** an
+   instance-wide Clerk MFA requirement would force it on every customer, so
+   the admin app must enforce it itself: in production, an authenticated
+   admin WITHOUT MFA enrolled (`twoFactorEnabled` false/absent) cannot reach
+   any admin page — show a clear "enroll MFA in your account, then return"
+   block instead. Server-side check (guard/layout via `currentUser()` or a
+   users.getUser fetch is fine); do NOT depend on custom session-token claims
+   (that's a dashboard config dependency this repo can't carry). Dev bypass
+   mode is exempt. Tests for enrolled/not-enrolled/dev paths.
 
 ## Branch workflow
 1. Create `kimi/staging-deploy-hardening` off latest main.
