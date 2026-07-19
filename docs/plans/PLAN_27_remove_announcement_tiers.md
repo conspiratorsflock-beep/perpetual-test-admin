@@ -1,6 +1,12 @@
 # Cleanup — Task: remove dead tier targeting from announcements (writer side)
 **Owner:** Kimi (execute on a branch → report) · **Reviewer:** Claude
-**Status:** Not started · **Sequence:** start AFTER PLAN_26 merges
+**Status:** Completed · **Sequence:** start AFTER PLAN_26 merges
+
+**Execution note (2026-07-19):**
+- Branch: `kimi/remove-announcement-tiers` (cut from `kimi/retire-phantom-pages` since PLAN_26 is not yet merged).
+- Commit: `c63c673` — combined source changes (actions, types, shared helpers, UI, debug page, tests, README/EXAMPLE) removing tier/target_tiers from all announcement code.
+- Verification: `npm run typecheck` clean; `npm run test` → 677 passed, 45 files.
+- Remaining reviewer step: drop `admin_announcements.tier` via lathe-studio migration and regenerate `src/types/database.generated.ts`.
 
 Lathe Studio has ONE plan — the tier concept (`all|basic|pro|enterprise`) is
 dead product model, and the reviewer confirmed the live
