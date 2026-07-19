@@ -1,3 +1,5 @@
+import { EnvironmentBanner } from "@/components/layout/EnvironmentBanner";
+
 export default function AuthLayout({
   children,
 }: {
@@ -5,7 +7,8 @@ export default function AuthLayout({
 }) {
   // Auth pages don't use AdminShell - they render without the sidebar
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950">
+    <div className="relative min-h-screen flex items-center justify-center bg-slate-950">
+      <EnvironmentBanner />
       {children}
     </div>
   );
