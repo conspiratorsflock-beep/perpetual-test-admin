@@ -193,10 +193,8 @@ export type AuditTargetType =
   | "support_ticket"
   | "api_key"
   | "integration"
-  | "build_queue"
   | "build"
   | "release"
-  | "lead"
   | "org_setting"
   | "custom_role"
   | "user_group"
@@ -621,19 +619,6 @@ export interface Release {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
-}
-
-// ─── Sandbox Leads ──────────────────────────────────────────────────────────
-
-export interface SandboxLead {
-  id: string;
-  email: string;
-  orgId: string | null;
-  orgName: string | null;
-  source: string;
-  notes: string | null;
-  convertedAt: string | null;
-  createdAt: string;
 }
 
 // ─── Test Cases ─────────────────────────────────────────────────────────────
