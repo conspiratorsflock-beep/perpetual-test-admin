@@ -7,6 +7,16 @@ import { z } from "zod";
 import { entityId } from "@/lib/validation/common";
 import type { ApiKey } from "@/types/admin";
 
+async function resolveOrgId(orgId: string): Promise<string> {
+  if (!orgId.startsWith("org_")) return orgId;
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("id")
+    .eq("clerk_org_id", orgId)
+    .single();
+  if (!data) throw new Error("Organization not found");
+  return data.id;
+}
 
 interface SearchApiKeysParams {
   orgId?: string;
@@ -34,7 +44,8 @@ export async function searchApiKeys({
     .range(offset, offset + limit - 1);
 
   if (orgId) {
-    query = query.eq("org_id", orgId);
+    const resolvedOrgId = await resolveOrgId(orgId);
+    query = query.eq("org_id", resolvedOrgId);
   }
 
   if (projectId) {

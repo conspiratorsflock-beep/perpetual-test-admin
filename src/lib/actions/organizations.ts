@@ -96,6 +96,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
     // Get members from Clerk
     const memberships = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
+      limit: 500,
     });
 
     const members = memberships.data.map((m) => ({
@@ -334,12 +335,19 @@ export async function updateOrgApiQuota(clerkOrgId: string, apiMonthlyQuota: num
 export async function getOrgApiUsage(orgId: string): Promise<OrgApiUsage[]> {
   await requireAdmin();
 
+  const resolvedOrgId = orgId.startsWith("org_")
+    ? await getOrgUuidFromClerkId(orgId)
+    : orgId;
+  if (!resolvedOrgId) {
+    throw new Error("Organization not found");
+  }
+
   const { data, error } = await supabaseAdmin
     .from("org_api_usage")
     // NOTE: org_api_usage stores a combined `year_month` ("YYYY-MM"); per-period token
     // counts are not tracked in this table (totalTokens reported as 0).
     .select("org_id, year_month, total_calls, updated_at")
-    .eq("org_id", orgId)
+    .eq("org_id", resolvedOrgId)
     .order("year_month", { ascending: false });
 
   if (error) {

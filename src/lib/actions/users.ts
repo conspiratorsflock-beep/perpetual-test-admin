@@ -47,6 +47,7 @@ export async function searchUsers({
   if (orgId) {
     const orgUsers = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
+      limit: 500,
     });
     const orgUserIds = new Set(orgUsers.data.map((m) => m.publicUserData?.userId));
     users = users.filter((u) => orgUserIds.has(u.id));
@@ -107,6 +108,7 @@ export async function getUserById(userId: string): Promise<UserWithDetails | nul
     // Get user's organizations from Clerk
     const orgMemberships = await client.users.getOrganizationMembershipList({
       userId: user.id,
+      limit: 500,
     });
 
     const organizations = orgMemberships.data.map((membership) => ({

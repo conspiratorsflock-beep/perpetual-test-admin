@@ -54,7 +54,43 @@ CLERK_SECRET_KEY=
 NEXT_PUBLIC_SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 STRIPE_SECRET_KEY=
+NEXT_PUBLIC_ENV_LABEL=          # "staging" | "production" — shown in the UI banner
+ALLOW_ADMIN_BOOTSTRAP=          # "true" to enable /api/make-admin in production
 ```
+
+## Deployment
+
+This app deploys to Vercel. `vercel.json` sets the framework preset to `nextjs` only; routing, regions, and cron jobs are left to Vercel defaults.
+
+### Staging vs Production
+
+| Concern | Staging | Production |
+|---|---|---|
+| `NEXT_PUBLIC_ENV_LABEL` | `staging` | `production` |
+| `ALLOW_ADMIN_BOOTSTRAP` | `true` recommended for onboarding | Keep unset/`false` unless emergency admin creation is required |
+| Vercel Deployment Protection | Disable or use Password Protection so CI/preview builds are reachable | Keep enabled |
+| Build-time Clerk keys | Dummy publishable key is sufficient for the build step (runtime keys are required for auth) | Real keys required at runtime |
+
+### Build verification with dummy keys
+
+The production build does not need live Clerk credentials to compile. Verify locally with placeholder keys:
+
+```bash
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_Y2xlcmsuZXhhbXBsZS5jb20k" \
+CLERK_SECRET_KEY="sk_test_placeholder" \
+npm run build
+```
+
+A validly-formatted dummy publishable key is enough; the build only validates key shape, not that the key is live.
+
+### Production checklist
+
+- [ ] Real Clerk keys configured in Vercel project settings
+- [ ] Supabase service-role key configured
+- [ ] Stripe key configured (if billing features are used)
+- [ ] `NEXT_PUBLIC_ENV_LABEL=production`
+- [ ] `ALLOW_ADMIN_BOOTSTRAP` left unset unless emergency bootstrap is required
+- [ ] Vercel Deployment Protection enabled
 
 ## Database Setup
 

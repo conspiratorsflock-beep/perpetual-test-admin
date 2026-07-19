@@ -154,7 +154,7 @@ describe("Projects Actions — reads", () => {
         return {};
       });
 
-      const result = await searchProjects({ query: "Alp", orgId: "org_1", includeDeleted: false, limit: 10, offset: 0 });
+      const result = await searchProjects({ query: "Alp", orgId: "db-org-uuid", includeDeleted: false, limit: 10, offset: 0 });
 
       expect(result.projects).toHaveLength(1);
       expect(result.projects[0]).toMatchObject({

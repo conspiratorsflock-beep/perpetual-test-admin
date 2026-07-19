@@ -105,7 +105,7 @@ describe("API Keys Actions — reads", () => {
         return {};
       });
 
-      const result = await searchApiKeys({ orgId: "org_1", projectId: "proj_1", limit: 10, offset: 0 });
+      const result = await searchApiKeys({ orgId: "db-org-uuid", projectId: "proj_1", limit: 10, offset: 0 });
 
       expect(result.keys).toHaveLength(1);
       expect(result.keys[0]).toMatchObject({
