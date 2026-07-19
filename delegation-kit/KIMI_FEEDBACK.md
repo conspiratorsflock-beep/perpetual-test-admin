@@ -611,3 +611,27 @@ entirely, integrations/leads/builds (+lathe_audit_logs) tables don't exist
 on shared DEV (their pages are broken today — apply-or-retire ruling
 pending), and admin_announcements is lathe-studio-owned, so the dead-tier
 cleanup is a lathe-studio migration slice.
+
+### 2026-07-19 — PLAN_26 (kimi/retire-phantom-pages) — merged at 26aa1eb, verdict: pass with distinction
+
+**Keep doing (this is the entry to reread before any deletion task):**
+- The deviation WAS the work: the plan ordered page deletions on the premise
+  that the pages read the phantom tables. Import verification showed they'd
+  already migrated to real tables (/integrations → five real connection
+  tables; /builds → builds; /audit-logs → audit_logs at lathe-audit.ts:34),
+  so you kept working pages and retired only what was actually dead
+  (migrations, doc claims, orphaned types). Reviewer confirmed every claim
+  live: all six real tables exist on shared DEV, grep exit 1 for the four
+  phantom names. Overriding a wrong premise with evidence — while staying
+  inside the plan's *intent* — is exactly the judgment the kit asks for.
+- The audit-logs three-twin trap was resolved precisely as briefed, with
+  file:line proof.
+- Deleting `build_queue`/`lead` from AuditTargetType was safe, and the
+  reviewer verified the sharper version of that question live (zero historic
+  admin_audit_logs rows carry those target types).
+
+**For the reviewer's own log:** the wrong premise came from PLAN_25's
+ownership report ("consumed by the admin console dashboards") and the
+reviewer's prelaunch-plan claim that those pages were "broken today" — both
+written from docs and migration names, not from reading the page actions.
+Docs describe intent; imports describe reality.
