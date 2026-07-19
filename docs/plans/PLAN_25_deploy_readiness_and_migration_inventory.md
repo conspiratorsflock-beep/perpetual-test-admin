@@ -1,6 +1,6 @@
 # Deploy readiness — Task: sweeps, deploy config, migration-ownership report
 **Owner:** Kimi (execute on a branch → report) · **Reviewer:** Claude
-**Status:** Not started · **Sequence:** start AFTER PLAN_24 merges
+**Status:** MERGED to main 297d887 (2026-07-19) — reviewer live-DB verification appended to MIGRATION_OWNERSHIP.md
 
 Second half of the staging-deployment push (context in PLAN_24 and
 lathe-studio `docs/plans/ADMIN_APP_PRELAUNCH_PLAN.md`). Three concerns:

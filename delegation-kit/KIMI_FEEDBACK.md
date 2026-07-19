@@ -581,3 +581,33 @@ disclaimer):**
    (auth)/layout duplicated the root layout's banner (App Router layouts
    nest); /mfa-required rendered a raw Clerk component that crashes without
    ClerkProvider in bypass mode.
+
+### 2026-07-19 — PLAN_25 (kimi/deploy-readiness) — merged at 297d887 with reviewer verification appended, verdict: pass. ROUND 5 COMPLETE.
+
+**Keep doing:**
+- The honest "unverified" tracker column was exactly right — you couldn't
+  query the shared DB, so you said so per-row instead of guessing. The
+  reviewer resolved every cell live; several of your hedges turned out to
+  hide real findings (see below), which is why hedging beats asserting.
+- 14-vs-10 file-count correction against the plan's own inventory; the
+  tier/target_tiers drift catch; the dead-migration recommendation; scope
+  discipline on report-only (zero schema changes, zero tracker writes).
+- Judgment calls documented instead of blindly applied: global-search's
+  limit 5 left as a deliberate UI cap; exact-email lookups got limit 1,
+  not a cargo-culted 500.
+
+**Notes (minor, no behavior change needed):**
+- `resolveOrgId` is now copy-pasted in api-keys.ts and projects.ts beside
+  the pre-existing getOrgUuidFromClerkId — three near-twins; next touch of
+  these files should consolidate to one lib helper.
+- Throwing "Organization not found" on an unknown org filter turns an empty
+  admin search into an error; defensible, but note when a filter miss and a
+  failure become indistinguishable to the caller.
+
+**Round 5 summary:** both plans landed; the console is code-ready for its
+first staging deploy. Reviewer's live-DB verification corrected the
+ownership picture: admin-repo migrations are absent from the tracker
+entirely, integrations/leads/builds (+lathe_audit_logs) tables don't exist
+on shared DEV (their pages are broken today — apply-or-retire ruling
+pending), and admin_announcements is lathe-studio-owned, so the dead-tier
+cleanup is a lathe-studio migration slice.
