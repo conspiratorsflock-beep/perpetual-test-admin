@@ -48,7 +48,6 @@ describe("Admin Banner", () => {
       id: "ann_1",
       message: "Test Announcement",
       style: "info",
-      tier: "all",
       orgId: null,
       linkUrl: null,
       linkText: null,
@@ -79,34 +78,12 @@ describe("Admin Banner", () => {
       expect(shouldShowAnnouncement(announcement)).toBe(false);
     });
 
-    it("should show announcement with matching tier", () => {
-      const announcement = {
-        ...baseAnnouncement,
-        tier: "pro",
-      };
-      expect(shouldShowAnnouncement(announcement, "pro")).toBe(true);
-    });
-
-    it("should not show announcement with non-matching tier", () => {
-      const announcement = {
-        ...baseAnnouncement,
-        tier: "pro",
-      };
-      expect(shouldShowAnnouncement(announcement, "free")).toBe(false);
-    });
-
-    it("should show announcement with 'all' tier targeting to all users", () => {
-      expect(shouldShowAnnouncement(baseAnnouncement, "free")).toBe(true);
-      expect(shouldShowAnnouncement(baseAnnouncement, "pro")).toBe(true);
-      expect(shouldShowAnnouncement(baseAnnouncement, undefined)).toBe(true);
-    });
-
     it("should show announcement with matching org", () => {
       const announcement = {
         ...baseAnnouncement,
         orgId: "org_1",
       };
-      expect(shouldShowAnnouncement(announcement, undefined, "org_1")).toBe(true);
+      expect(shouldShowAnnouncement(announcement, "org_1")).toBe(true);
     });
 
     it("should not show announcement with non-matching org", () => {
@@ -114,24 +91,12 @@ describe("Admin Banner", () => {
         ...baseAnnouncement,
         orgId: "org_1",
       };
-      expect(shouldShowAnnouncement(announcement, undefined, "org_3")).toBe(false);
+      expect(shouldShowAnnouncement(announcement, "org_3")).toBe(false);
     });
 
     it("should show announcement with null org targeting to all orgs", () => {
-      expect(shouldShowAnnouncement(baseAnnouncement, undefined, "org_1")).toBe(true);
-      expect(shouldShowAnnouncement(baseAnnouncement, undefined, undefined)).toBe(true);
-    });
-
-    it("should handle both tier and org targeting together", () => {
-      const announcement = {
-        ...baseAnnouncement,
-        tier: "pro",
-        orgId: "org_1",
-      };
-      // Must match both
-      expect(shouldShowAnnouncement(announcement, "pro", "org_1")).toBe(true);
-      expect(shouldShowAnnouncement(announcement, "free", "org_1")).toBe(false);
-      expect(shouldShowAnnouncement(announcement, "pro", "org_2")).toBe(false);
+      expect(shouldShowAnnouncement(baseAnnouncement, "org_1")).toBe(true);
+      expect(shouldShowAnnouncement(baseAnnouncement, undefined)).toBe(true);
     });
   });
 
@@ -236,7 +201,6 @@ describe("Admin Banner", () => {
       id: "ann_1",
       message: "Test",
       style: "info",
-      tier: "all",
       orgId: null,
       linkUrl: null,
       linkText: null,
@@ -274,18 +238,6 @@ describe("Admin Banner", () => {
       expect(filtered[0].style).toBe("critical");
     });
 
-    it("should filter by tier targeting", () => {
-      const announcements = [
-        createAnnouncement({ id: "ann_1", tier: "pro" }),
-        createAnnouncement({ id: "ann_2", tier: "free" }),
-        createAnnouncement({ id: "ann_3", tier: "all" }),
-      ];
-
-      const filtered = filterAnnouncements(announcements, [], "pro");
-      expect(filtered).toHaveLength(2);
-      expect(filtered.map((a) => a.id)).toEqual(["ann_1", "ann_3"]);
-    });
-
     it("should filter by org targeting", () => {
       const announcements = [
         createAnnouncement({ id: "ann_1", orgId: "org_1" }),
@@ -293,7 +245,7 @@ describe("Admin Banner", () => {
         createAnnouncement({ id: "ann_3", orgId: null }),
       ];
 
-      const filtered = filterAnnouncements(announcements, [], undefined, "org_1");
+      const filtered = filterAnnouncements(announcements, [], "org_1");
       expect(filtered).toHaveLength(2);
       expect(filtered.map((a) => a.id)).toEqual(["ann_1", "ann_3"]);
     });
@@ -328,17 +280,17 @@ describe("Admin Banner", () => {
 
     it("should handle combined filters", () => {
       const announcements = [
-        createAnnouncement({ id: "ann_1", style: "info", tier: "pro" }),
-        createAnnouncement({ id: "ann_2", style: "critical", tier: "pro" }),
-        createAnnouncement({ id: "ann_3", style: "warning", tier: "pro" }),
+        createAnnouncement({ id: "ann_1", style: "info" }),
+        createAnnouncement({ id: "ann_2", style: "critical" }),
+        createAnnouncement({ id: "ann_3", style: "warning" }),
       ];
-      
-      // User is "pro" and has dismissed ann_1 and ann_2
-      const filtered = filterAnnouncements(announcements, ["ann_1", "ann_2"], "pro");
-      
+
+      // User has dismissed ann_1 and ann_2
+      const filtered = filterAnnouncements(announcements, ["ann_1", "ann_2"]);
+
       // ann_1: dismissed (filtered out)
       // ann_2: dismissed but critical (shown)
-      // ann_3: not dismissed, matching tier (shown)
+      // ann_3: not dismissed (shown)
       expect(filtered).toHaveLength(2);
       expect(filtered.map((a) => a.id)).toEqual(["ann_2", "ann_3"]);
     });

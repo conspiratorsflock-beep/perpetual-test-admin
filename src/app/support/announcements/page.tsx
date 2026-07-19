@@ -66,7 +66,6 @@ export default function AnnouncementsPage() {
 
   const [formMessage, setFormMessage] = useState("");
   const [formStyle, setFormStyle] = useState<AnnouncementType>("info");
-  const [formTier, setFormTier] = useState("all");
   const [formOrgId, setFormOrgId] = useState("");
   const [formLinkUrl, setFormLinkUrl] = useState("");
   const [formLinkText, setFormLinkText] = useState("");
@@ -92,7 +91,6 @@ export default function AnnouncementsPage() {
   const resetForm = () => {
     setFormMessage("");
     setFormStyle("info");
-    setFormTier("all");
     setFormOrgId("");
     setFormLinkUrl("");
     setFormLinkText("");
@@ -110,7 +108,6 @@ export default function AnnouncementsPage() {
         {
           message: formMessage,
           style: formStyle,
-          tier: formTier,
           orgId: formOrgId || null,
           linkUrl: formLinkUrl || null,
           linkText: formLinkText || null,
@@ -134,7 +131,6 @@ export default function AnnouncementsPage() {
       await updateAnnouncement(editingAnnouncement.id, {
         message: formMessage,
         style: formStyle,
-        tier: formTier,
         orgId: formOrgId || null,
         linkUrl: formLinkUrl || null,
         linkText: formLinkText || null,
@@ -175,7 +171,6 @@ export default function AnnouncementsPage() {
     setEditingAnnouncement(announcement);
     setFormMessage(announcement.message);
     setFormStyle(announcement.style);
-    setFormTier(announcement.tier);
     setFormOrgId(announcement.orgId || "");
     setFormLinkUrl(announcement.linkUrl || "");
     setFormLinkText(announcement.linkText || "");
@@ -228,21 +223,6 @@ export default function AnnouncementsPage() {
               <SelectItem value="warning">Warning</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
               <SelectItem value="maintenance">Maintenance</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Tier</Label>
-          <Select value={formTier} onValueChange={setFormTier}>
-            <SelectTrigger className="bg-slate-950 border-slate-800">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-900 border-slate-800">
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="active">Trial Active</SelectItem>
-              <SelectItem value="soft_locked">Soft Locked</SelectItem>
-              <SelectItem value="hard_locked">Hard Locked</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -368,11 +348,6 @@ export default function AnnouncementsPage() {
                         <Badge variant="outline" className={statusColors[status]}>
                           {status === "active" ? "Active" : status === "scheduled" ? "Scheduled" : "Expired"}
                         </Badge>
-                        {announcement.tier !== "all" && (
-                          <Badge variant="outline" className="border-slate-700 text-slate-400">
-                            {announcement.tier}
-                          </Badge>
-                        )}
                       </div>
                       <p className="mt-2 text-sm text-slate-300 whitespace-pre-wrap">
                         {announcement.message}

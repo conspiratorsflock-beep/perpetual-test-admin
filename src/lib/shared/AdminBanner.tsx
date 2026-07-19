@@ -24,8 +24,6 @@ interface AdminBannerProps {
   announcement?: AdminAnnouncement;
   /** Multiple announcements - will show the most recent */
   announcements?: AdminAnnouncement[];
-  /** User's tier (e.g., "free", "pro", "enterprise") */
-  userTier?: string;
   /** Current organization ID */
   orgId?: string;
   /** Called when banner is dismissed */
@@ -44,10 +42,9 @@ interface AdminBannerProps {
  * // Single announcement
  * <AdminBanner announcement={announcement} />
  * 
- * // Multiple announcements with targeting
- * <AdminBanner 
+ * // Multiple announcements with org targeting
+ * <AdminBanner
  *   announcements={announcements}
- *   userTier="pro"
  *   orgId="org_123"
  * />
  * ```
@@ -55,7 +52,6 @@ interface AdminBannerProps {
 export function AdminBanner({
   announcement,
   announcements,
-  userTier,
   orgId,
   onDismiss,
   className = "",
@@ -83,7 +79,7 @@ export function AdminBanner({
   const displayAnnouncement = announcement
     ? announcement
     : announcements
-    ? filterAnnouncements(announcements, dismissedIds, userTier, orgId)[0]
+    ? filterAnnouncements(announcements, dismissedIds, orgId)[0]
     : null;
 
   // Don't render during SSR or if no announcement
@@ -161,7 +157,6 @@ export function AdminBanner({
  */
 interface AdminBannerStackProps {
   announcements: AdminAnnouncement[];
-  userTier?: string;
   orgId?: string;
   maxDisplay?: number;
   className?: string;
@@ -169,7 +164,6 @@ interface AdminBannerStackProps {
 
 export function AdminBannerStack({
   announcements,
-  userTier,
   orgId,
   maxDisplay = 3,
   className = "",
@@ -197,7 +191,6 @@ export function AdminBannerStack({
   const visibleAnnouncements = filterAnnouncements(
     announcements,
     dismissedIds,
-    userTier,
     orgId
   ).slice(0, maxDisplay);
 

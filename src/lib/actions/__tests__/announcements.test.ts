@@ -61,7 +61,6 @@ describe("Announcements Actions", () => {
           id: "ann_1",
           message: "Test Announcement",
           style: "info",
-          tier: "all",
           org_id: null,
           link_url: null,
           link_text: null,
@@ -83,7 +82,6 @@ describe("Announcements Actions", () => {
       expect(result).toHaveLength(1);
       expect(result[0].message).toBe("Test Announcement");
       expect(result[0].style).toBe("info");
-      expect(result[0].tier).toBe("all");
       expect(result[0].orgId).toBeNull();
     });
 
@@ -100,9 +98,8 @@ describe("Announcements Actions", () => {
       const mockData = [
         {
           id: "ann_1",
-          message: "Pro Only",
+          message: "Org Only",
           style: "info",
-          tier: "pro",
           org_id: "org_1",
           link_url: null,
           link_text: null,
@@ -121,7 +118,6 @@ describe("Announcements Actions", () => {
 
       const result = await getAnnouncements();
 
-      expect(result[0].tier).toBe("pro");
       expect(result[0].orgId).toBe("org_1");
     });
   });
@@ -142,7 +138,6 @@ describe("Announcements Actions", () => {
             id: "ann_1",
             message: "Active",
             style: "warning",
-            tier: "all",
             org_id: null,
             link_url: null,
             link_text: null,
@@ -177,7 +172,6 @@ describe("Announcements Actions", () => {
             id: "ann_1",
             message: "Ended",
             style: "info",
-            tier: "all",
             org_id: null,
             link_url: null,
             link_text: null,
@@ -204,7 +198,6 @@ describe("Announcements Actions", () => {
         id: "ann_new",
         message: "New Announcement",
         style: "info",
-        tier: "pro",
         org_id: "org_1",
         link_url: null,
         link_text: null,
@@ -225,7 +218,6 @@ describe("Announcements Actions", () => {
         {
           message: "New Announcement",
           style: "info",
-          tier: "pro",
           orgId: "org_1",
           startsAt: "2024-03-15T00:00:00Z",
           endsAt: "2024-03-20T00:00:00Z",
@@ -236,6 +228,10 @@ describe("Announcements Actions", () => {
       expect(result.id).toBe("ann_new");
       expect(result.message).toBe("New Announcement");
       expect(result.style).toBe("info");
+
+      const insertPayload = mockSupabaseInsert.mock.calls[0][0];
+      expect(insertPayload).not.toHaveProperty("tier");
+      expect(insertPayload).not.toHaveProperty("target_tiers");
     });
 
     it("should use current time as default start date", async () => {
@@ -269,7 +265,6 @@ describe("Announcements Actions", () => {
         id: "ann_critical",
         message: "Critical Alert",
         style: "critical",
-        tier: "all",
         org_id: null,
         link_url: null,
         link_text: null,
@@ -302,7 +297,6 @@ describe("Announcements Actions", () => {
         id: "ann_warning",
         message: "Warning",
         style: "warning",
-        tier: "all",
         org_id: null,
         link_url: null,
         link_text: null,
@@ -335,7 +329,6 @@ describe("Announcements Actions", () => {
         id: "ann_maintenance",
         message: "Maintenance",
         style: "maintenance",
-        tier: "all",
         org_id: null,
         link_url: null,
         link_text: null,
@@ -366,11 +359,32 @@ describe("Announcements Actions", () => {
     it("rejects invalid input before any Supabase call", async () => {
       await expect(createAnnouncement({ message: "", style: "info" }, "user_123")).rejects.toThrow("Invalid input");
       await expect(createAnnouncement({ message: "Test", style: "invalid" as "info" }, "user_123")).rejects.toThrow("Invalid input");
-      // tier is CHECK-constrained in the live DB to all|basic|pro|enterprise
-      // (reviewer catch, PLAN_20)
-      await expect(createAnnouncement({ message: "Test", style: "info", tier: "trial" }, "user_123")).rejects.toThrow("Invalid input");
       expect(mockSupabaseFrom).not.toHaveBeenCalled();
       expect(logAdminAction).not.toHaveBeenCalled();
+    });
+
+    it("ignores tier in input and does not send it to Supabase", async () => {
+      mockSupabaseInsert.mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: "ann_1", message: "Test" },
+            error: null,
+          }),
+        }),
+      });
+
+      await createAnnouncement(
+        {
+          message: "Test",
+          style: "info",
+          tier: "pro",
+        } as { message: string; style: "info"; tier?: string },
+        "user_123"
+      );
+
+      const insertPayload = mockSupabaseInsert.mock.calls[0][0];
+      expect(insertPayload).not.toHaveProperty("tier");
+      expect(insertPayload).not.toHaveProperty("target_tiers");
     });
   });
 
@@ -384,11 +398,14 @@ describe("Announcements Actions", () => {
         message: "Updated message",
       });
 
-      expect(mockSupabaseUpdate).toHaveBeenCalledWith(
+      const updatePayload = mockSupabaseUpdate.mock.calls[0][0];
+      expect(updatePayload).toEqual(
         expect.objectContaining({
           message: "Updated message",
         })
       );
+      expect(updatePayload).not.toHaveProperty("tier");
+      expect(updatePayload).not.toHaveProperty("target_tiers");
     });
 
     it("should throw error when update fails", async () => {

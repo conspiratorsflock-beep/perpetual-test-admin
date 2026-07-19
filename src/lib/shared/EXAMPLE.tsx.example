@@ -52,14 +52,11 @@ export function AnnouncementBar() {
     getActiveAnnouncements().then(setAnnouncements);
   }, []);
 
-  // Get user's tier from metadata or subscription
-  const userTier = user?.publicMetadata?.subscriptionTier as string | undefined;
   const orgId = organization?.id;
 
   return (
     <AdminBanner
       announcements={announcements}
-      userTier={userTier}
       orgId={orgId}
     />
   );
@@ -83,7 +80,6 @@ function MultipleAnnouncements() {
       <AdminBannerStack
         announcements={announcements}
         maxDisplay={3}
-        userTier="pro"
       />
     </div>
   );
@@ -175,7 +171,6 @@ export default async function DashboardLayout({
 
   // Get user's org from your database
   const userOrg = await getUserOrganization(user?.id);
-  const userTier = user?.publicMetadata?.subscriptionTier as string | undefined;
 
   return (
     <div className="min-h-screen">
@@ -183,7 +178,6 @@ export default async function DashboardLayout({
       <div className="container mx-auto px-4 pt-4">
         <AdminBannerStack
           announcements={announcements}
-          userTier={userTier}
           orgId={userOrg?.id}
           maxDisplay={2}
         />

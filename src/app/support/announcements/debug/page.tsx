@@ -30,15 +30,10 @@ export default function AnnouncementsDebugPage() {
   }
 
   // Get user info
-  const userTier = user?.publicMetadata?.subscriptionTier as string | undefined;
   const orgId = user?.publicMetadata?.orgId as string | undefined;
 
   // Filter announcements as the user would see them
   const visibleToUser = announcements.filter((a) => {
-    // Check tier
-    if (a.tier && a.tier !== "all" && userTier) {
-      if (a.tier !== userTier) return false;
-    }
     // Check org
     if (a.orgId && orgId) {
       if (a.orgId !== orgId) return false;
@@ -64,7 +59,6 @@ export default function AnnouncementsDebugPage() {
           <div className="space-y-1 text-sm">
             <p><span className="text-slate-500">User ID:</span> <span className="text-slate-300 font-mono">{user.id}</span></p>
             <p><span className="text-slate-500">Email:</span> <span className="text-slate-300">{user.primaryEmailAddress?.emailAddress}</span></p>
-            <p><span className="text-slate-500">Tier:</span> <span className="text-slate-300">{userTier || "(not set)"}</span></p>
             <p><span className="text-slate-500">Org ID:</span> <span className="text-slate-300 font-mono">{orgId || "(not set)"}</span></p>
           </div>
         ) : (
@@ -95,7 +89,6 @@ export default function AnnouncementsDebugPage() {
                   <p>ID: <span className="font-mono">{a.id}</span></p>
                   <p>Starts: <span className="font-mono">{a.startsAt}</span></p>
                   <p>Ends: <span className="font-mono">{a.endsAt || "never"}</span></p>
-                  <p>Tier: {a.tier || "all"}</p>
                   <p>Org: {a.orgId || "(all)"}</p>
 
                   {/* Check why it might not be showing */}
@@ -110,9 +103,6 @@ export default function AnnouncementsDebugPage() {
                           {new Date(a.endsAt) > new Date() ? "✓" : "✗"} Not ended yet
                         </li>
                       )}
-                      <li className={!a.tier || a.tier === "all" || (userTier && a.tier === userTier) ? "text-emerald-400" : "text-red-400"}>
-                        {!a.tier || a.tier === "all" || (userTier && a.tier === userTier) ? "✓" : "✗"} Tier match (user: {userTier || "none"}, target: {a.tier || "all"})
-                      </li>
                       <li className={!a.orgId || (orgId && a.orgId === orgId) ? "text-emerald-400" : "text-red-400"}>
                         {!a.orgId || (orgId && a.orgId === orgId) ? "✓" : "✗"} Org match (user: {orgId?.slice(0, 8) || "none"}..., target: {a.orgId?.slice(0, 8) || "all"}...)
                       </li>

@@ -244,7 +244,6 @@ export interface AdminAnnouncement {
   id: string;
   message: string;
   style: AnnouncementType;
-  tier: string;
   orgId: string | null;
   linkUrl: string | null;
   linkText: string | null;
