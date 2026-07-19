@@ -37,6 +37,7 @@ async function promoteUser(email: string): Promise<{
 
     const users = await client.users.getUserList({
       emailAddress: [email],
+      limit: 1,
     });
 
     if (users.data.length === 0) {

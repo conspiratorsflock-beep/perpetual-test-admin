@@ -96,6 +96,7 @@ export async function getOrganizationById(orgId: string): Promise<OrganizationWi
     // Get members from Clerk
     const memberships = await client.organizations.getOrganizationMembershipList({
       organizationId: orgId,
+      limit: 500,
     });
 
     const members = memberships.data.map((m) => ({

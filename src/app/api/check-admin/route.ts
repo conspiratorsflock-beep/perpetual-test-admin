@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const client = await clerkClient();
-    const users = await client.users.getUserList({ emailAddress: [email] });
+    const users = await client.users.getUserList({ emailAddress: [email], limit: 1 });
 
     if (users.data.length === 0) {
       return NextResponse.json({
