@@ -30,7 +30,6 @@ export type Database = {
           org_id: string | null
           starts_at: string
           style: string
-          tier: string
           updated_at: string
         }
         Insert: {
@@ -44,7 +43,6 @@ export type Database = {
           org_id?: string | null
           starts_at?: string
           style?: string
-          tier?: string
           updated_at?: string
         }
         Update: {
@@ -58,7 +56,6 @@ export type Database = {
           org_id?: string | null
           starts_at?: string
           style?: string
-          tier?: string
           updated_at?: string
         }
         Relationships: []
