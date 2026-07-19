@@ -107,3 +107,50 @@ This sequence assumes the admin console will share a Supabase project with lathe
 - **Tracker state is unverified:** because the live DB could not be queried in this session, the "Live tracker state" column must be confirmed during the actual cutover.
 - **Dead migration:** `20260312_api_calls_tracking.sql` should not be applied as-is to a clean prod chain because it creates an `api_usage_daily` shape that conflicts with `20260601_unify_shared_schemas.sql`.
 - **Product model mismatch:** `admin_announcements.tier` is the most significant piece of drift and should be addressed in a follow-up plan.
+
+---
+
+## Reviewer verification against the live shared DEV DB (Claude, 2026-07-19)
+
+Queried `zonsnvcwtfotqzrvozqs` directly (Supabase MCP), resolving every
+"unverified" tracker cell above:
+
+### Tracker state
+`supabase_migrations.schema_migrations` contains **only lathe-studio's
+migrations** (14-digit versions with lathe-studio names). **None of this
+repo's 14 migration versions appear in the tracker.** Everything from this
+repo that exists live was applied out-of-band (historic docker/psql) — there
+is no tracker record to replay on prod.
+
+### Live table census (public schema)
+- **EXIST:** `admin_audit_logs`, `admin_error_logs`, `feature_flags`,
+  `impersonation_tokens`, `system_health_checks`, `system_settings`,
+  `support_tickets` (+ `support_ticket_seeding_log`), `test_email_domains`,
+  `org_api_usage`, `audit_logs` (lathe-studio's).
+- **DO NOT EXIST:** `integration_connections`, `sandbox_leads`,
+  `build_queue_items` (#11), `lathe_audit_logs` (#12), `api_usage_daily`
+  (#3, expected — dead), `support_agent_schedules` (#6 partially?
+  unqueried beyond schedules).
+- Consequence: the admin console's **Integrations / Leads / Builds pages
+  (and possibly /audit-logs if it reads `lathe_audit_logs`) cannot work
+  against the shared DEV DB today** — their tables are absent. Either those
+  migrations were never applied to shared DEV (only to a long-gone local
+  stack), or a later schema reconciliation dropped them. Needs a product
+  decision: apply #11/#12 to DEV (and prod at cutover) or retire the pages.
+
+### `admin_announcements` true origin
+Live shape has `tier text` (no `target_tiers`), `org_id text`, `link_url`/
+`link_text` — and the tracker shows
+`20260307000000_create_admin_announcements` + `20260307000001_fix_admin_announcements`
+(**lathe-studio migrations**). The live table is lathe-studio-owned; this
+repo's #2/#7 never created it on shared DEV. The dead-tier cleanup slice is
+therefore a **lathe-studio migration** + code edits in both repos.
+
+### Cutover implication (supersedes "proposed sequence" caveats above)
+1. lathe-studio `db push` runs first and creates every shared table it owns
+   (announcements, support tickets, RBAC, org_api_usage, …).
+2. This repo contributes a **curated apply list, not all 14 files**: the
+   admin-only tables that exist live (#2-subset/#5/#6/#8/#9/#10) plus a
+   ruling on the never-applied #11/#12. Skip #1 (local baseline), #3 (dead),
+   and anything lathe-studio's history already owns. The curated script gets
+   written and dry-run against a fresh branch DB before cutover day.
