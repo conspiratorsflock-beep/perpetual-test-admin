@@ -7,6 +7,16 @@ import { z } from "zod";
 import { entityId } from "@/lib/validation/common";
 import type { AdminProject } from "@/types/admin";
 
+async function resolveOrgId(orgId: string): Promise<string> {
+  if (!orgId.startsWith("org_")) return orgId;
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("id")
+    .eq("clerk_org_id", orgId)
+    .single();
+  if (!data) throw new Error("Organization not found");
+  return data.id;
+}
 
 interface SearchProjectsParams {
   query?: string;
@@ -42,7 +52,8 @@ export async function searchProjects({
   }
 
   if (orgId) {
-    dbQuery = dbQuery.eq("org_id", orgId);
+    const resolvedOrgId = await resolveOrgId(orgId);
+    dbQuery = dbQuery.eq("org_id", resolvedOrgId);
   }
 
   if (query) {

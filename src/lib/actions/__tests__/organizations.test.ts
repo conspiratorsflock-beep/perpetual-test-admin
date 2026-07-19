@@ -797,7 +797,7 @@ describe("Organization Actions", () => {
               order: vi.fn(() =>
                 Promise.resolve({
                   data: [
-                    { org_id: "org_db_1", year_month: "2024-03", total_calls: 1500, updated_at: "2024-03-15T00:00:00Z" },
+                    { org_id: "db-org-uuid", year_month: "2024-03", total_calls: 1500, updated_at: "2024-03-15T00:00:00Z" },
                   ],
                   error: null,
                 })
@@ -807,10 +807,10 @@ describe("Organization Actions", () => {
         };
       });
 
-      const result = await getOrgApiUsage("org_db_1");
+      const result = await getOrgApiUsage("db-org-uuid");
 
       expect(result).toHaveLength(1);
-      expect(result[0].orgId).toBe("org_db_1");
+      expect(result[0].orgId).toBe("db-org-uuid");
       expect(result[0].year).toBe(2024);
       expect(result[0].month).toBe(3);
       expect(result[0].totalCalls).toBe(1500);
@@ -830,7 +830,7 @@ describe("Organization Actions", () => {
         };
       });
 
-      await expect(getOrgApiUsage("org_db_1")).rejects.toThrow("Failed to fetch org API usage");
+      await expect(getOrgApiUsage("db-org-uuid")).rejects.toThrow("Failed to fetch org API usage");
     });
   });
 
