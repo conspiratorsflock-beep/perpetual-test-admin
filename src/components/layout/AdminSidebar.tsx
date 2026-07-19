@@ -58,7 +58,7 @@ const navigation: NavItem[] = [
     icon: Plug,
   },
   {
-    label: "Build Queue",
+    label: "Builds",
     href: "/builds",
     icon: Container,
   },
