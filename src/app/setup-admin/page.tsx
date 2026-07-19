@@ -1,9 +1,19 @@
-"use client";
-
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { SetupAdminContent } from "./SetupAdminContent";
 
+function isAdminBootstrapAllowed(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_ADMIN_BOOTSTRAP === "true"
+  );
+}
+
 export default function SetupAdminPage() {
+  if (!isAdminBootstrapAllowed()) {
+    notFound();
+  }
+
   return (
     <Suspense
       fallback={
