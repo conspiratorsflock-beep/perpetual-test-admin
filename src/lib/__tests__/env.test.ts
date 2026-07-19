@@ -98,4 +98,28 @@ describe("env validation", () => {
     expect(env.NODE_ENV).toBe("production");
     expect(env.NEXT_PUBLIC_ENV_LABEL).toBe("STAGING");
   });
+
+  it("skips production requirements during the build phase", async () => {
+    // `next build` runs NODE_ENV=production without production env — the
+    // validation is a runtime startup gate, so the build phase is exempt.
+    setNodeEnv("production");
+    process.env.NEXT_PHASE = "phase-production-build";
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    delete process.env.CLERK_SECRET_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.NEXT_PUBLIC_ENV_LABEL;
+    process.env.DEV_AUTH_BYPASS = "true";
+
+    const env = await loadEnv();
+    expect(env.NODE_ENV).toBe("production");
+  });
+
+  it("still enforces production requirements at runtime (NEXT_PHASE unset)", async () => {
+    setNodeEnv("production");
+    delete process.env.NEXT_PHASE;
+    delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+    await expect(loadEnv()).rejects.toThrow();
+  });
 });

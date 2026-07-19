@@ -30,6 +30,12 @@ export function assertNoBypassInProduction(): void {
   if (process.env.NODE_ENV !== "production") {
     return;
   }
+  // Build phase is exempt (a developer's .env.local must not fail
+  // `next build`); every real production boot still hits this assert at
+  // middleware / root-layout module load, where NEXT_PHASE is unset.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return;
+  }
   if (
     process.env.DEV_AUTH_BYPASS === "true" ||
     process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true"

@@ -28,6 +28,14 @@ const envSchema = z
       return;
     }
 
+    // `next build` runs with NODE_ENV=production but no production env —
+    // local machines and CI must not need real secrets to build. This is a
+    // RUNTIME startup gate: every real production boot (middleware / root
+    // layout module load, where NEXT_PHASE is unset) still enforces it.
+    if (process.env.NEXT_PHASE === "phase-production-build") {
+      return;
+    }
+
     const required: { key: string; value: string | undefined }[] = [
       { key: "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", value: data.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY },
       { key: "CLERK_SECRET_KEY", value: data.CLERK_SECRET_KEY },

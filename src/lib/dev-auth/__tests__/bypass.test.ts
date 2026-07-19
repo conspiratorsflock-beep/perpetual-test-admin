@@ -93,5 +93,21 @@ describe("dev-auth bypass", () => {
       process.env.DEV_AUTH_BYPASS = "true";
       expect(() => assertNoBypassInProduction()).not.toThrow();
     });
+
+    it("does not throw during the production BUILD phase with bypass set", () => {
+      // `next build` runs NODE_ENV=production against a dev .env.local; the
+      // assert is a runtime startup gate, not a build gate.
+      setNodeEnv("production");
+      process.env.NEXT_PHASE = "phase-production-build";
+      process.env.DEV_AUTH_BYPASS = "true";
+      expect(() => assertNoBypassInProduction()).not.toThrow();
+    });
+
+    it("still throws at production RUNTIME (NEXT_PHASE unset) with bypass set", () => {
+      setNodeEnv("production");
+      delete process.env.NEXT_PHASE;
+      process.env.DEV_AUTH_BYPASS = "true";
+      expect(() => assertNoBypassInProduction()).toThrow();
+    });
   });
 });

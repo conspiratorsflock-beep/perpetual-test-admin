@@ -1,7 +1,14 @@
+import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
+import { isDevAuthBypassEnabled } from "@/lib/dev-auth/bypass";
 
 export default function MfaRequiredPage() {
+  // Bypass mode never enforces MFA and mounts no ClerkProvider — rendering
+  // SignOutButton there would crash. Mirror the sign-up page's dev behavior.
+  if (isDevAuthBypassEnabled()) {
+    redirect("/dashboard");
+  }
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4">
       <div className="flex max-w-md flex-col items-center text-center">

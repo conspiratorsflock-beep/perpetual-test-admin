@@ -36,28 +36,41 @@ async function initClerkMiddleware() {
       return redirectToSignIn({ returnBackUrl: req.url });
     }
 
-    const isAdmin =
+    // Clerk's default session token does NOT carry publicMetadata — the claim
+    // is only present if the instance customizes its session token, which this
+    // repo must not depend on (dashboard config dependency). Treat the claim
+    // as a fast-path only and resolve from the Backend API when it doesn't
+    // prove admin. In production the same fetch also supplies the MFA posture,
+    // so pages cost at most one users.getUser per request.
+    const claimsSayAdmin =
       (sessionClaims?.publicMetadata as { isAdmin?: boolean })?.isAdmin === true;
+    const isApiRoute = req.nextUrl.pathname.startsWith("/api");
+    const isProduction = process.env.NODE_ENV === "production";
+
+    let isAdmin = claimsSayAdmin;
+    let twoFactorEnabled: boolean | null = null; // null = not fetched
+
+    if (!claimsSayAdmin || (isProduction && !isApiRoute)) {
+      try {
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        isAdmin = (user.publicMetadata as { isAdmin?: boolean })?.isAdmin === true;
+        twoFactorEnabled = user.twoFactorEnabled === true;
+      } catch {
+        // Fail closed: if we cannot verify admin status, deny access.
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
+    }
 
     if (!isAdmin) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
     }
 
-    // In production, admin pages require MFA. API routes are exempt here
-    // because they return JSON and are gated separately by the admin checks
-    // in each route handler; the plan's wording targets admin pages.
-    const isApiRoute = req.nextUrl.pathname.startsWith("/api");
-    if (!isApiRoute && process.env.NODE_ENV === "production") {
-      try {
-        const client = await clerkClient();
-        const user = await client.users.getUser(userId);
-        if (!user.twoFactorEnabled) {
-          return NextResponse.redirect(new URL("/mfa-required", req.url));
-        }
-      } catch {
-        // Fail closed: if we cannot verify MFA enrollment, deny access.
-        return NextResponse.redirect(new URL("/mfa-required", req.url));
-      }
+    // In production, admin pages require MFA enrollment. API routes are
+    // exempt here because they return JSON and are gated separately by the
+    // admin checks in each route handler; the plan's wording targets pages.
+    if (isProduction && !isApiRoute && twoFactorEnabled !== true) {
+      return NextResponse.redirect(new URL("/mfa-required", req.url));
     }
   }) as unknown as (req: NextRequest) => Promise<Response>;
 }
