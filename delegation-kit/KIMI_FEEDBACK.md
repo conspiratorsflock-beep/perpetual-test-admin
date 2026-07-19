@@ -547,3 +547,37 @@ five plans landed; four reviewer catches (CSV '-' guard, recorder
 validate-and-drop + tier enum, dashboard per-source degradation,
 HelpDeskLoading deletion); sequencing stabilized after the early-branch
 restatement (PLAN_22/23 cut from the go-signal commit).
+
+### 2026-07-19 — PLAN_24 (kimi/staging-deploy-hardening) — merged at 7453136 with 4 review fixes, verdict: pass
+
+**Keep doing:**
+- Structure was exactly right: single bypass helper with every raw-flag read
+  routed through it, module-load asserts in both middleware and root layout,
+  per-concern commits, and the completion summary's verified/NOT-verified
+  split was honest and accurate.
+- Real finding correctly reported: /api/check-admin already admin-gated —
+  verified as found, no churn.
+- Test discipline: 45 new assertions, none vacuous; the env tests' reload-
+  per-test pattern (vi.resetModules + dynamic import) is the right way to
+  test module-load-time behavior — reuse it.
+
+**Miss patterns (both live in "NOT verified" — that list is a to-do, not a
+disclaimer):**
+1. **NODE_ENV=production ≠ deployed.** `next build` runs NODE_ENV=production
+   on machines with no production env, so the module-load env gate broke
+   EVERY local/CI build (proven by running one — the exact check you listed
+   as not verified). When a check keys on NODE_ENV at module load, always ask
+   "what does this do during `next build`?" and run one. Fix: NEXT_PHASE
+   build-phase exemption; gates are runtime-only.
+2. **Claims you've never seen in the wild aren't claims.** The MFA fetch was
+   added AFTER the existing `sessionClaims.publicMetadata` isAdmin check
+   without asking whether that claim exists on a default Clerk token — it
+   doesn't (needs dashboard session-token customization the plan forbade
+   depending on). First real staging login would have bounced every admin,
+   including the founder, to /unauthorized. The repo has never run against
+   real Clerk; treat every sessionClaims read as unverified input and resolve
+   from the Backend API when it doesn't prove the property.
+3. Two smalls, same lesson (new UI must be exercised in BOTH auth modes):
+   (auth)/layout duplicated the root layout's banner (App Router layouts
+   nest); /mfa-required rendered a raw Clerk component that crashes without
+   ClerkProvider in bypass mode.

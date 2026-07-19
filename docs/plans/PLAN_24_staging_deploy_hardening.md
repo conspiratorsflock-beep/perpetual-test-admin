@@ -1,6 +1,6 @@
 # Security hardening — Task: make the console safe to deploy off localhost
 **Owner:** Kimi (execute on a branch → report) · **Reviewer:** Claude
-**Status:** Executed on `kimi/staging-deploy-hardening` — pending review
+**Status:** MERGED to main 7453136 (2026-07-19) with 4 review fixes — see delegation-kit/KIMI_FEEDBACK.md
 
 This console is about to get its first hosted deployment (staging now, prod at
 cutover — see lathe-studio `docs/plans/ADMIN_APP_PRELAUNCH_PLAN.md`). Today it

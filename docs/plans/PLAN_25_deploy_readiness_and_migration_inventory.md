@@ -45,11 +45,19 @@ changes).
 4. **Deploy config exists and builds:** minimal `vercel.json` (framework
    preset only — no cron, no regions copied from lathe-studio without reason);
    `npm run build` completes clean locally and is asserted in the report.
+   *Known from the PLAN_24 review (verified by real builds):* a local build
+   needs a dummy-FORMAT Clerk publishable key or prerender fails — e.g.
+   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_Y2xlcmsuZXhhbXBsZS5jb20k"
+   CLERK_SECRET_KEY="sk_test_placeholder" npm run build`; the env/bypass
+   production gates are runtime-only (NEXT_PHASE build exemption), so
+   `.env.local` bypass flags do NOT fail builds.
    README gains a "Deployment" section: env matrix for staging (shared DEV
    Supabase `zonsnvcwtfotqzrvozqs`) vs prod (new project ref at cutover),
    `NEXT_PUBLIC_ENV_LABEL` values, `ALLOW_ADMIN_BOOTSTRAP` semantics from
-   PLAN_24, and a pointer to the deployment-protection expectation (Vercel
-   password/allowlist while staging).
+   PLAN_24, the local-build dummy-key note above, and a pointer to the
+   deployment-protection expectation (Vercel password/allowlist while
+   staging). Also update `.env.local.example` with `NEXT_PUBLIC_ENV_LABEL`
+   and `ALLOW_ADMIN_BOOTSTRAP` (Kimi's own PLAN_24 finding).
 5. **`docs/MIGRATION_OWNERSHIP.md` exists** and classifies every file in
    `supabase/migrations/`: (a) local-dev-only baseline (the `20260309`
    lathe-studio snapshot), (b) admin-console-owned tables
