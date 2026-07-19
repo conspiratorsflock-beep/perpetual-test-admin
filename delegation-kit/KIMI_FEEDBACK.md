@@ -635,3 +635,26 @@ ownership report ("consumed by the admin console dashboards") and the
 reviewer's prelaunch-plan claim that those pages were "broken today" — both
 written from docs and migration names, not from reading the page actions.
 Docs describe intent; imports describe reality.
+
+### 2026-07-19 — PLAN_27 (kimi/remove-announcement-tiers) — merged at 70458df, verdict: pass. ROUND 6 COMPLETE.
+
+**Keep doing:**
+- Every guardrail honored precisely: selects stayed explicit minus tier (no
+  `select *` shortcut that would silently re-include the column), the
+  generated DB type was left alone for the reviewer's post-drop sync, and
+  the debug page kept its org/scheduling diagnostics.
+- Cutting the branch from unmerged kimi/retire-phantom-pages (with the
+  reason stated) was the right sequencing call — it merged cleanly once
+  PLAN_26 landed first.
+- The grep-proof exceptions list was exact (generated types, 6 intentional
+  test negatives, the unrelated changeOrgTier doc line).
+
+**Post-merge (reviewer):** lathe-studio migration 20260719000001 dropped the
+column (143/143 verified), generated types surgically synced in both repos.
+Reviewer finding for a future slice: lathe-studio's database.types.ts has
+significant pre-existing drift vs a fresh `gen types --linked` (+484 lines,
+breaks tsc in flow-test-cases) — do NOT wholesale-regen it casually.
+
+**Round 6 summary:** phantom-table retirement (with the premise-correcting
+deviation) + tier removal; console fully aligned with the single-plan model;
+cutover apply-list shrunk by three files.
