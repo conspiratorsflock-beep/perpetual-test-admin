@@ -1,6 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
-
-const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true";
+import { isDevAuthBypassEnabled } from "@/lib/dev-auth/bypass";
 
 /**
  * Returns true if the currently signed-in user has isAdmin: true
@@ -9,7 +8,7 @@ const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true";
  * Use in Server Components or Route Handlers.
  */
 export async function isCurrentUserAdmin(): Promise<boolean> {
-  if (DEV_BYPASS) return true;
+  if (isDevAuthBypassEnabled()) return true;
 
   const { userId } = await auth();
   if (!userId) return false;
@@ -34,7 +33,7 @@ export async function requireAdmin(): Promise<void> {
  * Requires CLERK_SECRET_KEY with admin permissions.
  */
 export async function promoteUserToAdmin(userId: string): Promise<void> {
-  if (DEV_BYPASS) return;
+  if (isDevAuthBypassEnabled()) return;
 
   const client = await clerkClient();
   await client.users.updateUserMetadata(userId, {
@@ -46,7 +45,7 @@ export async function promoteUserToAdmin(userId: string): Promise<void> {
  * Revokes admin access for a user.
  */
 export async function revokeUserAdmin(userId: string): Promise<void> {
-  if (DEV_BYPASS) return;
+  if (isDevAuthBypassEnabled()) return;
 
   const client = await clerkClient();
   await client.users.updateUserMetadata(userId, {
