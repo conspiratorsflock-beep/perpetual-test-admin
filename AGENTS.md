@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is an internal admin console for the Lathe Studio platform. It provides comprehensive tools for managing users, organizations, projects, billing, feature flags, system health, help desk, integrations, build queue, sandbox leads, and audit logging.
+This is an internal admin console for the Lathe Studio platform. It provides comprehensive tools for managing users, organizations, projects, billing, feature flags, system health, help desk, integrations, builds, and audit logging.
 
 **Key Characteristics:**
 - Dark-mode only admin interface (slate + amber accent theme)
@@ -40,9 +40,9 @@ src/
 │   ├── api/               # API routes
 │   │   ├── impersonate/   # User impersonation tokens (POST)
 │   │   └── make-admin/    # Admin promotion utility
-│   ├── audit-logs/        # Lathe audit log viewer (app-level events)
+│   ├── audit-logs/        # App-level audit log viewer (reads lathe-studio audit_logs)
 │   ├── billing/           # Billing dashboard (MRR, trials, invoices, coupons)
-│   ├── builds/            # Build queue viewer (CI/CD events)
+│   ├── builds/            # Build viewer (reads lathe-studio builds table)
 │   ├── dashboard/         # Main dashboard
 │   ├── docs/[[...slug]]/  # Documentation pages
 │   ├── help-desk/         # Support ticket system
@@ -50,9 +50,8 @@ src/
 │   │   ├── my-tickets/    # Agent's assigned tickets
 │   │   ├── team/          # Support team management
 │   │   └── analytics/     # Help desk analytics
-│   ├── integrations/      # Integration health dashboard
-│   ├── leads/             # Sandbox leads (signups/demo requests)
-│   ├── organizations/     # Org management
+│   ├── integrations/      # Integration health dashboard (reads real per-provider connection tables)
+│ │   ├── organizations/     # Org management
 │   │   └── [id]/          # Org detail with Overview, Members, Projects, Billing, Settings, Activity tabs
 │   ├── projects/          # Project management
 │   │   └── [id]/          # Project detail with Overview, Members, Test Cases, Test Runs, Settings tabs
@@ -87,10 +86,9 @@ src/
 │   │   ├── projects.ts    # Project search, toggle requirements, soft delete/restore
 │   │   ├── api-keys.ts    # API key search, revoke
 │   │   ├── org-settings.ts # Org settings CRUD (resolves clerk_org_id internally)
-│   │   ├── integrations.ts # Integration search, disconnect, retry
-│   │   ├── sandbox-leads.ts # Lead search, convert, delete, metrics
-│   │   ├── build-queue.ts # Build search, assign, metrics
-│   │   ├── lathe-audit.ts # Lathe audit log search
+│   │   ├── integrations.ts # Integration search, disconnect, retry (real provider tables)
+│   │   ├── builds.ts      # Build search, status update, metrics
+│   │   ├── lathe-audit.ts # App-level audit log search (lathe-studio audit_logs)
 │   │   ├── test-cases.ts  # Project test case queries (read-only)
 │   │   ├── test-runs.ts   # Project test run queries (read-only)
 │   │   ├── billing.ts     # MRR, trial metrics, invoices, coupons
@@ -237,7 +235,6 @@ Run `supabase/migrations/20260310_admin_console.sql` to create:
 | `admin_announcements` | In-app announcements |
 | `system_health_checks` | Service health monitoring |
 | `admin_error_logs` | Aggregated error tracking |
-| `api_usage_daily` | Daily API metrics |
 | `system_settings` | Key-value config |
 
 ### Unified Schema Migration
@@ -248,24 +245,6 @@ Run `supabase/migrations/20260601_unify_shared_schemas.sql` to reconcile schema 
 - `support_ticket_comments`: adds `is_edited`, `edited_by`
 - `support_sla_config`: adds `first_response_time`, `name`, business hours
 - `support_team_members`: adds `skills`, notification preferences
-
-### Operational Tables (Phase 4)
-
-Run `supabase/migrations/20260615_phase4_operational_tables.sql`:
-
-| Table | Purpose |
-|-------|---------|
-| `integration_connections` | Org/project integration status |
-| `sandbox_leads` | Self-service signups and demo requests |
-| `build_queue_items` | CI/CD build events |
-
-### Lathe Audit Logs (Phase 5)
-
-Run `supabase/migrations/20260620_lathe_audit_logs.sql`:
-
-| Table | Purpose |
-|-------|---------|
-| `lathe_audit_logs` | App-level audit trail from lathe-studio |
 
 ### Shared Tables (from lathe-studio)
 
@@ -279,6 +258,13 @@ The admin console reads from these lathe-studio tables using service-role access
 | `project_members` | Project-level roles |
 | `org_settings` | Per-org feature configuration |
 | `api_keys` | Org/project-scoped API keys |
+| `cicd_connections` | CI/CD provider connections |
+| `slack_connections` | Slack workspace connections |
+| `teams_connections` | Microsoft Teams connections |
+| `jira_connections` | Jira site connections |
+| `azure_devops_connections` | Azure DevOps connections |
+| `builds` | CI/CD builds and manual test runs |
+| `audit_logs` | App-level audit trail |
 | `test_cases` | Test cases with steps, priority, status, version |
 | `test_runs` | Test runs with environment, configuration, inheritance policy |
 | `support_tickets` | Help desk tickets |
@@ -327,27 +313,26 @@ import { logAdminAction } from "@/lib/audit/logger";
 
 await logAdminAction({
   action: "user.update",           // dot notation: entity.action
-  targetType: "user",              // user | organization | project | feature_flag | system | billing | announcement | support_ticket | api_key | integration | build_queue | lead | org_setting
+  targetType: "user",              // user | organization | project | feature_flag | system | billing | announcement | support_ticket | api_key | integration | build | release | org_setting | custom_role | user_group | project_group_access | project_member
   targetId: userId,                // Optional: affected entity ID
   targetName: userEmail,           // Optional: human-readable name
   metadata: { changedFields },     // Optional: additional context
 });
 ```
 
-### 2. Lathe App Events (`lathe_audit_logs`)
-App-level events from lathe-studio itself:
+### 2. Lathe App Events (`audit_logs`)
+App-level events from lathe-studio itself are written to and read from lathe-studio's `audit_logs` table:
 
 ```typescript
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-await supabaseAdmin.from("lathe_audit_logs").insert({
-  entity_type: "test_case",
-  entity_id: testCaseId,
+await supabaseAdmin.from("audit_logs").insert({
+  resource_type: "test_case",
+  resource_id: testCaseId,
   action: "updated",
   old_value: { status: "draft" },
   new_value: { status: "active" },
-  performed_by: userId,
-  performed_by_email: userEmail,
+  user_id: userId,
 });
 ```
 

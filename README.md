@@ -8,9 +8,8 @@ A comprehensive admin console for managing the Lathe Studio platform.
 - **Organization Management**: View orgs, manage trial states (active/soft-locked/hard-locked/paid), view members, override org settings
 - **Project Management**: Cross-org project search, detail pages with members, test cases, test runs, and settings
 - **API Key Management**: View and revoke org/project-scoped API keys
-- **Integration Health**: Monitor org and project integration status across all providers
-- **Build Queue**: Track CI/CD build events flowing into Lathe Studio
-- **Sandbox Leads**: Track self-service signups, demo requests, and conversion funnel
+- **Integration Health**: Monitor org and project integration status across all providers (reads real per-provider connection tables)
+- **Builds**: Track CI/CD builds and manual test runs across projects (reads lathe-studio `builds` table)
 - **Help Desk**: Full ticket queue, assignment, SLA tracking, team management, analytics
 - **Audit Logs**: Two audit trails — admin actions (`/support/activity`) and app-level events (`/audit-logs`)
 - **Feature Flags**: Org/user-targeted feature flags
@@ -98,8 +97,8 @@ Run migrations in order:
 
 1. `supabase/migrations/20260310_admin_console.sql` — Core admin tables
 2. `supabase/migrations/20260601_unify_shared_schemas.sql` — Unify shared schemas with lathe-studio
-3. `supabase/migrations/20260615_phase4_operational_tables.sql` — Integration connections, sandbox leads, build queue
-4. `supabase/migrations/20260620_lathe_audit_logs.sql` — App-level audit trail
+
+> **Note:** `20260312_api_calls_tracking.sql`, `20260615_phase4_operational_tables.sql`, and `20260620_lathe_audit_logs.sql` were retired and deleted. The admin console reads lathe-studio's real integration, build, and audit tables instead.
 
 ### Admin Tables
 
@@ -111,17 +110,7 @@ Run migrations in order:
 | `admin_announcements` | In-app announcements |
 | `system_health_checks` | Service health monitoring |
 | `admin_error_logs` | Aggregated error tracking |
-| `api_usage_daily` | Daily API metrics |
 | `system_settings` | Key-value config |
-
-### Operational Tables (shared with lathe-studio)
-
-| Table | Purpose |
-|-------|---------|
-| `integration_connections` | Org/project integration status |
-| `sandbox_leads` | Self-service signups and demo requests |
-| `build_queue_items` | CI/CD build events |
-| `lathe_audit_logs` | App-level audit trail |
 
 ### Shared Tables (from lathe-studio)
 
@@ -133,6 +122,13 @@ Run migrations in order:
 | `project_members` | Project-level roles |
 | `org_settings` | Per-org feature configuration |
 | `api_keys` | Org/project-scoped API keys |
+| `cicd_connections` | CI/CD provider connections |
+| `slack_connections` | Slack workspace connections |
+| `teams_connections` | Microsoft Teams connections |
+| `jira_connections` | Jira site connections |
+| `azure_devops_connections` | Azure DevOps connections |
+| `builds` | CI/CD builds and manual test runs |
+| `audit_logs` | App-level audit trail |
 | `test_cases` | Test cases with steps, priority, status |
 | `test_runs` | Test runs with environment, configuration |
 | `support_tickets` | Help desk tickets |
@@ -160,14 +156,13 @@ src/
   app/                 # Next.js app router pages
     (auth)/            # Sign-in, sign-up, unauthorized
     api/               # API routes (impersonate, make-admin)
-    audit-logs/        # Lathe audit log viewer
+    audit-logs/        # App-level audit log viewer (lathe-studio audit_logs)
     billing/           # Billing dashboard
-    builds/            # Build queue viewer
+    builds/            # Build viewer (lathe-studio builds table)
     dashboard/         # Main dashboard
     docs/              # Documentation pages
     help-desk/         # Ticket queue, my tickets, team, analytics
-    integrations/      # Integration health dashboard
-    leads/             # Sandbox leads
+    integrations/      # Integration health dashboard (real provider tables)
     organizations/     # Org list + detail (with Settings tab)
     projects/          # Project list + detail (with Test Cases + Test Runs tabs)
     api-keys/          # API key management
@@ -197,7 +192,7 @@ All data mutations use Server Actions in `src/lib/actions/`:
 ### Audit Logging
 Two audit trails:
 - **Admin actions** → `admin_audit_logs` via `logAdminAction()`
-- **App events** → `lathe_audit_logs` via lathe-studio app code
+- **App events** → `audit_logs` (lathe-studio table) via lathe-studio app code; viewed in `/audit-logs`
 
 ### Database Access
 Uses service-role Supabase client (`supabaseAdmin`) to bypass RLS. Never expose to client.

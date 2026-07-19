@@ -1,7 +1,7 @@
 # Admin Console — Implementation Tracker
 
 Tracks incomplete features, orphaned code, and pending integrations across the codebase.
-Last updated: 2026-06-05.
+Last updated: 2026-07-19.
 
 ---
 
@@ -26,8 +26,10 @@ Last updated: 2026-06-05.
 - [x] Added org settings tab on organization detail
 
 ### Phase 4 — Operations
-- [x] Created `integration_connections`, `sandbox_leads`, `build_queue_items` tables
-- [x] Created `/integrations`, `/leads`, `/builds` pages with filtering and actions
+- [x] ~~Created `integration_connections`, `sandbox_leads`, `build_queue_items` tables~~ → **RETIRED** (2026-07-19): migrations deleted; these tables were never applied to the shared DEV DB.
+- [x] Created `/integrations` page (reads real per-provider connection tables: `cicd_connections`, `slack_connections`, `teams_connections`, `jira_connections`, `azure_devops_connections`)
+- [x] Created `/builds` page (reads lathe-studio's real `builds` table)
+- [ ] ~~`/leads` page~~ → **REMOVED/NEVER EXISTED**: no `src/app/leads/` directory and no `sandbox-leads.ts` action; sandbox-leads feature is retired
 
 ### Phase 5 — Audit + Test Views
 - [x] ~~Created `lathe_audit_logs` table~~ → stale: the code reads lathe-studio's real `audit_logs` table (verified live 2026-06-10); `20260620_lathe_audit_logs.sql` was never applied and defines an unused table
@@ -49,26 +51,19 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 
 ---
 
-## Phase 6 — Schema Alignment: Builds & Releases
-**Priority: CRITICAL** — The `/builds` page queries `build_queue_items` (admin-only table) but the real lathe-studio database has a `builds` table with a different schema. The `releases` table is completely missing from the admin console.
+## Phase 6 — Schema Alignment: Builds & Releases ✅ DONE
+**Priority: CRITICAL** — The `/builds` page previously queried the phantom `build_queue_items` table. It now reads lathe-studio's real `builds` table. `releases` action exists for project detail read-only use.
 
-**Schema you provided:**
-- `builds`: id, project_id, release_id, name, description, status, start_date, end_date, created_at, updated_at, source, source_metadata, api_key_id, cicd_provider, cicd_external_id, cicd_run_url, cicd_artifacts, created_by, updated_by, deleted_at, jira_version_id
-- `releases`: id, project_id, name, description, status, target_date, created_at, updated_by, created_by, updated_by, deleted_at
+**Completed:**
+- [x] Added `Build` and `Release` types to `src/types/admin.ts` with the real schema
+- [x] Rewrote `src/lib/actions/build-queue.ts` → `src/lib/actions/builds.ts` to query the real `builds` table
+- [x] Created `src/lib/actions/releases.ts` for release read queries
+- [x] Rewrote `/builds` page: shows real columns (name, status, source, cicd_provider, start/end dates, linked release)
+- [x] Dropped `build_queue_items` migration (file deleted 2026-07-19)
 
-**Tasks:**
-- [ ] Add `Build` and `Release` types to `src/types/admin.ts` with the real schema
-- [ ] Rewrite `src/lib/actions/build-queue.ts` → `src/lib/actions/builds.ts` to query the real `builds` table
-- [ ] Create `src/lib/actions/releases.ts` for release CRUD
-- [ ] Rewrite `/builds` page: show real columns (name, status, source, cicd_provider, start/end dates, linked release)
-- [ ] Add `/releases` page or integrate releases into project detail
-- [ ] Add build → release linking in the UI
-- [ ] Drop or deprecate the `build_queue_items` migration (or keep for backward compat if needed)
-
-**What I need from you:**
-- Enum values for `builds.status`, `builds.source`, `builds.cicd_provider`
-- Enum values for `releases.status`
-- Any other tables the admin console should know about (e.g., `test_executions`, `test_results`, `milestones`)
+**Remaining (optional):**
+- [ ] Add a top-level `/releases` page or integrate releases more deeply into project detail
+- [ ] Add build → release linking UI mutations (currently read-only)
 
 ---
 
@@ -93,7 +88,7 @@ Each phase is intentionally small (1–2 days) for focused, high-quality executi
 - [ ] Add `⌘K` global search (`CommandDialog`) to the header
 - [ ] Search across: users (email, name), orgs (name, slug), projects (name), tickets (reference code)
 - [ ] Route directly to detail page on selection
-- [x] Add 30-second polling to `/users`, `/organizations`, `/projects`, `/leads`, `/help-desk/queue`, `/help-desk/my-tickets`
+- [x] Add 30-second polling to `/users`, `/organizations`, `/projects`, `/help-desk/queue`, `/help-desk/my-tickets`
 - [x] Add subtle "refreshing..." indicator (`useVisiblePolling` hook)
 - [ ] Add polling to remaining pages (`/builds`, `/integrations`, `/api-keys`, `/audit-logs`)
 
@@ -254,6 +249,12 @@ rewritten. Two reviewer-held runtime gates passed.
   local stacks — the chain now applies from zero.
 - Stale-doc corrections: `lathe_audit_logs` claim (code correctly reads
   lathe-studio's `audit_logs`).
+- **Phantom-table retirement (2026-07-19, PLAN_26):** deleted never-applied
+  migrations `20260312_api_calls_tracking.sql`,
+  `20260615_phase4_operational_tables.sql`, and `20260620_lathe_audit_logs.sql`;
+  AGENTS.md / README.md / TODO.md updated to reflect that `/integrations`,
+  `/builds`, and `/audit-logs` read the real lathe-studio tables and that no
+  `/leads` page exists.
 
 ---
 
