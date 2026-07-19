@@ -13,7 +13,6 @@ function mapRow(row: Record<string, unknown>): AdminAnnouncement {
     id: row.id as string,
     message: row.message as string,
     style: row.style as AnnouncementType,
-    tier: (row.tier as string) || "all",
     orgId: (row.org_id as string) || null,
     linkUrl: (row.link_url as string) || null,
     linkText: (row.link_text as string) || null,
@@ -32,7 +31,7 @@ export async function getAnnouncements(): Promise<AdminAnnouncement[]> {
   await requireAdmin();
   const { data, error } = await supabaseAdmin
     .from("admin_announcements")
-    .select("id, message, style, tier, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
+    .select("id, message, style, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -51,7 +50,7 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
 
   const { data, error } = await supabaseAdmin
     .from("admin_announcements")
-    .select("id, message, style, tier, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
+    .select("id, message, style, org_id, link_url, link_text, starts_at, ends_at, created_by, created_at, updated_at")
     .lte("starts_at", now)
     .or(`ends_at.is.null,ends_at.gt.${now}`)
     .order("created_at", { ascending: false });
@@ -66,14 +65,10 @@ export async function getActiveAnnouncements(): Promise<AdminAnnouncement[]> {
   return active.map(mapRow);
 }
 
-// Live DB CHECK constrains tier to these four values
-const announcementTier = z.enum(["all", "basic", "pro", "enterprise"]);
-
 const createAnnouncementSchema = z.object({
   data: z.object({
     message: z.string().trim().min(1).max(500),
     style: announcementType,
-    tier: announcementTier.optional(),
     orgId: entityId.nullable().optional(),
     linkUrl: urlString.nullable().optional(),
     linkText: boundedString(500).nullable().optional(),
@@ -90,7 +85,6 @@ export async function createAnnouncement(
   data: {
     message: string;
     style: AnnouncementType;
-    tier?: string;
     orgId?: string | null;
     linkUrl?: string | null;
     linkText?: string | null;
@@ -109,7 +103,6 @@ export async function createAnnouncement(
     .insert({
       message: data.message,
       style: data.style,
-      tier: data.tier || "all",
       org_id: data.orgId || null,
       link_url: data.linkUrl ?? null,
       link_text: data.linkText ?? null,
@@ -129,7 +122,7 @@ export async function createAnnouncement(
     targetType: "announcement",
     targetId: row.id,
     targetName: data.message.slice(0, 100),
-    metadata: { style: data.style, tier: data.tier },
+    metadata: { style: data.style },
   });
 
   return mapRow(row);
@@ -140,7 +133,6 @@ const updateAnnouncementSchema = z.object({
   data: z.object({
     message: z.string().trim().min(1).max(500).optional(),
     style: announcementType.optional(),
-    tier: announcementTier.optional(),
     orgId: entityId.nullable().optional(),
     linkUrl: urlString.nullable().optional(),
     linkText: boundedString(500).nullable().optional(),
@@ -157,7 +149,6 @@ export async function updateAnnouncement(
   data: {
     message?: string;
     style?: AnnouncementType;
-    tier?: string;
     orgId?: string | null;
     linkUrl?: string | null;
     linkText?: string | null;
@@ -175,7 +166,6 @@ export async function updateAnnouncement(
     .update({
       message: data.message,
       style: data.style,
-      tier: data.tier,
       org_id: data.orgId,
       link_url: data.linkUrl,
       link_text: data.linkText,

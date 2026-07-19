@@ -42,7 +42,6 @@ export default async function Layout({ children }) {
       {/* Show the most recent relevant announcement */}
       <AdminBanner
         announcements={announcements}
-        userTier="pro"        // Optional: user's subscription tier
         orgId="org_xxx"       // Optional: current organization ID
       />
       {children}
@@ -96,7 +95,6 @@ Displays a single announcement banner.
 **Props:**
 - `announcement?: AdminAnnouncement` - Single announcement to display
 - `announcements?: AdminAnnouncement[]` - Multiple announcements (shows most recent)
-- `userTier?: string` - User's subscription tier for targeting
 - `orgId?: string` - Organization ID for targeting
 - `onDismiss?: (id: string) => void` - Called when user dismisses
 - `className?: string` - Additional CSS classes
@@ -107,7 +105,6 @@ Displays multiple announcements stacked vertically.
 
 **Props:**
 - `announcements: AdminAnnouncement[]` - All announcements
-- `userTier?: string` - User's subscription tier
 - `orgId?: string` - Organization ID
 - `maxDisplay?: number` - Maximum to show (default: 3)
 - `className?: string` - Additional CSS classes
@@ -116,14 +113,13 @@ Displays multiple announcements stacked vertically.
 
 Announcements can be targeted by:
 
-1. **Tier**: Show only to users on specific plans (free, pro, enterprise)
-2. **Organization**: Show only to specific orgs
-3. **Schedule**: Start and end dates
+1. **Organization**: Show only to specific orgs
+2. **Schedule**: Start and end dates
 
 ### Server-Side Filtering
 
 ```tsx
-const announcements = await getAnnouncementsForUser("pro", "org_123");
+const announcements = await getAnnouncementsForUser("org_123");
 ```
 
 ### Client-Side Filtering
@@ -131,7 +127,6 @@ const announcements = await getAnnouncementsForUser("pro", "org_123");
 ```tsx
 <AdminBanner
   announcements={allAnnouncements}
-  userTier={user.subscriptionTier}
   orgId={currentOrg?.id}
 />
 ```
@@ -164,7 +159,6 @@ interface AdminAnnouncement {
   title: string;
   content: string;
   type: "info" | "warning" | "critical" | "maintenance";
-  targetTiers: string[];
   targetOrgs: string[];
   startsAt: string;
   endsAt: string | null;
@@ -177,14 +171,14 @@ interface AdminAnnouncement {
 
 - The `get-announcements.ts` uses the **service role key** - keep it server-side only
 - Announcement content is rendered as HTML - sanitize if allowing rich text
-- Tier/org targeting is for UX only, not security (enforce in API)
+- Org targeting is for UX only, not security (enforce in API)
 
 ## Troubleshooting
 
 ### Banners not showing
 1. Check admin console for active announcements
 2. Verify `starts_at` and `ends_at` dates
-3. Check tier/org targeting filters
+3. Check org targeting filters
 4. Check if user dismissed the banner (clear localStorage)
 
 ### Styling issues

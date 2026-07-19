@@ -13,7 +13,6 @@ export interface AdminAnnouncement {
   id: string;
   message: string;
   style: AnnouncementType;
-  tier: string;
   orgId: string | null;
   linkUrl: string | null;
   linkText: string | null;
@@ -87,7 +86,6 @@ export const bannerIcons: Record<AnnouncementType, string> = {
  */
 export function shouldShowAnnouncement(
   announcement: AdminAnnouncement,
-  userTier?: string,
   orgId?: string
 ): boolean {
   // Check date range
@@ -98,11 +96,6 @@ export function shouldShowAnnouncement(
   if (announcement.endsAt) {
     const endsAt = new Date(announcement.endsAt);
     if (endsAt < now) return false;
-  }
-
-  // Check tier targeting ("all" or empty = all tiers)
-  if (announcement.tier && announcement.tier !== "all" && userTier) {
-    if (announcement.tier !== userTier) return false;
   }
 
   // Check org targeting (null = all orgs)
@@ -167,11 +160,10 @@ export function clearDismissedAnnouncements(): void {
 export function filterAnnouncements(
   announcements: AdminAnnouncement[],
   dismissedIds: string[],
-  userTier?: string,
   orgId?: string
 ): AdminAnnouncement[] {
   return announcements
-    .filter((a) => shouldShowAnnouncement(a, userTier, orgId))
+    .filter((a) => shouldShowAnnouncement(a, orgId))
     .filter((a) => a.style === "critical" || !dismissedIds.includes(a.id));
 }
 
