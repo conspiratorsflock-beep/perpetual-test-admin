@@ -1,6 +1,6 @@
 # Cleanup — Task: retire the pages built on never-applied tables
 **Owner:** Kimi (execute on a branch → report) · **Reviewer:** Claude
-**Status:** Not started
+**Status:** Completed on branch `kimi/retire-phantom-pages` (reported, not merged)
 
 Bryan's ruling (2026-07-19): **retire** the console surfaces that read the
 four tables the reviewer proved absent from the live shared DEV DB
@@ -12,6 +12,14 @@ the REAL per-provider connection tables (`jira_connections`,
 `slack_connections`, `azure_devops_connections`, …) — do NOT build it here;
 this plan only removes the dead surface. This is a **change** (deletion)
 task.
+
+> **Execution note (2026-07-19):** Import verification showed the admin
+> console code had already migrated away from the phantom tables.
+> `/integrations` reads the real per-provider connection tables;
+> `/builds` reads the real `builds` table; `/audit-logs` reads the real
+> `audit_logs` table; no `/leads` page exists. The working pages were
+> therefore kept, and the retirement was applied to the never-applied
+> migration files and stale documentation/type references instead.
 
 ## Inventory (starting points — verify by reading imports, PLAN_23-style)
 - `src/app/integrations/` — page(s) reading `integration_connections`
