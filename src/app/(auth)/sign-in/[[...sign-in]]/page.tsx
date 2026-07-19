@@ -1,10 +1,9 @@
 import { SignIn } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
-
-const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true";
+import { isDevAuthBypassEnabled } from "@/lib/dev-auth/bypass";
 
 export default function SignInPage() {
-  if (DEV_BYPASS) {
+  if (isDevAuthBypassEnabled()) {
     redirect("/dashboard");
   }
 

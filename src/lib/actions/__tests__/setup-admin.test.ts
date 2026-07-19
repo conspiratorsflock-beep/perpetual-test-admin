@@ -1,6 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
 import { clerkClient } from "@clerk/nextjs/server";
+import { logAdminAction } from "@/lib/audit/logger";
+
+function setNodeEnv(value: string): void {
+  (process.env as Record<string, string | undefined>).NODE_ENV = value;
+}
 
 vi.mock("@/lib/clerk/admin-check", () => ({
   isCurrentUserAdmin: vi.fn(() => Promise.resolve(false)),
@@ -11,8 +16,13 @@ vi.mock("@clerk/nextjs/server", () => ({
   clerkClient: vi.fn(),
 }));
 
+vi.mock("@/lib/audit/logger", () => ({
+  logAdminAction: vi.fn(() => Promise.resolve()),
+}));
+
 const mockIsCurrentUserAdmin = vi.mocked(isCurrentUserAdmin);
 const mockClerkClient = vi.mocked(clerkClient);
+const mockLogAdminAction = vi.mocked(logAdminAction);
 
 function makeClerkUser(id: string, email: string, isAdmin = false) {
   return {
@@ -43,9 +53,40 @@ async function loadSetupAdmin() {
 }
 
 describe("setup-admin — promoteUserToAdminByEmail", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.SETUP_ADMIN_SECRET;
+    delete process.env.ALLOW_ADMIN_BOOTSTRAP;
+    setNodeEnv("test");
+  });
+
+  afterEach(() => {
+    setNodeEnv(originalNodeEnv ?? "test");
+  });
+
+  it("returns bootstrap-disabled in production without ALLOW_ADMIN_BOOTSTRAP", async () => {
+    setNodeEnv("production");
+    const { promoteUserToAdminByEmail } = await loadSetupAdmin();
+
+    const result = await promoteUserToAdminByEmail("a@example.com");
+    expect(result).toEqual({ success: false, message: "Admin bootstrap is disabled in production" });
+    expect(mockClerkClient).not.toHaveBeenCalled();
+    expect(mockIsCurrentUserAdmin).not.toHaveBeenCalled();
+  });
+
+  it("allows promotion in production when ALLOW_ADMIN_BOOTSTRAP is true", async () => {
+    setNodeEnv("production");
+    process.env.ALLOW_ADMIN_BOOTSTRAP = "true";
+    mockIsCurrentUserAdmin.mockResolvedValue(true);
+    const client = makeClient([makeClerkUser("u1", "user@example.com", false)]);
+    mockClerkClient.mockResolvedValue(client);
+    const { promoteUserToAdminByEmail } = await loadSetupAdmin();
+
+    const result = await promoteUserToAdminByEmail("user@example.com");
+    expect(result.success).toBe(true);
+    expect(client.users.updateUserMetadata).toHaveBeenCalledWith("u1", { publicMetadata: { isAdmin: true } });
   });
 
   it("returns Unauthorized when caller is not admin", async () => {
@@ -74,9 +115,10 @@ describe("setup-admin — promoteUserToAdminByEmail", () => {
     expect(result).toEqual({ success: true, message: "User admin@example.com is already an admin" });
     const client = await mockClerkClient.mock.results[0].value;
     expect(client.users.updateUserMetadata).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
   });
 
-  it("promotes user and updates metadata when not admin", async () => {
+  it("promotes user, updates metadata, and logs the action", async () => {
     mockIsCurrentUserAdmin.mockResolvedValue(true);
     const client = makeClient([makeClerkUser("u1", "user@example.com", false)]);
     mockClerkClient.mockResolvedValue(client);
@@ -85,6 +127,13 @@ describe("setup-admin — promoteUserToAdminByEmail", () => {
     const result = await promoteUserToAdminByEmail("user@example.com");
     expect(result).toEqual({ success: true, message: "Successfully promoted user@example.com to admin" });
     expect(client.users.updateUserMetadata).toHaveBeenCalledWith("u1", { publicMetadata: { isAdmin: true } });
+    expect(mockLogAdminAction).toHaveBeenCalledWith({
+      action: "user.promote_admin",
+      targetType: "user",
+      targetId: "u1",
+      targetName: "user@example.com",
+      metadata: { source: "setup-admin" },
+    });
   });
 
   it("returns failure message on Clerk exception", async () => {
@@ -107,10 +156,27 @@ describe("setup-admin — promoteUserToAdminByEmail", () => {
 });
 
 describe("setup-admin — setupEmergencyAdmin", () => {
+  const originalNodeEnv = process.env.NODE_ENV;
+
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.SETUP_ADMIN_SECRET;
     delete process.env.SETUP_ADMIN_EMAIL;
+    delete process.env.ALLOW_ADMIN_BOOTSTRAP;
+    setNodeEnv("test");
+  });
+
+  afterEach(() => {
+    setNodeEnv(originalNodeEnv ?? "test");
+  });
+
+  it("returns bootstrap-disabled in production without ALLOW_ADMIN_BOOTSTRAP", async () => {
+    setNodeEnv("production");
+    const { setupEmergencyAdmin } = await loadSetupAdmin();
+
+    const result = await setupEmergencyAdmin("any");
+    expect(result).toEqual({ success: false, message: "Admin bootstrap is disabled in production" });
+    expect(mockClerkClient).not.toHaveBeenCalled();
   });
 
   it("returns not configured when SETUP_ADMIN_SECRET is unset", async () => {
@@ -139,7 +205,7 @@ describe("setup-admin — setupEmergencyAdmin", () => {
     expect(mockClerkClient).not.toHaveBeenCalled();
   });
 
-  it("promotes the configured emergency email when secret matches", async () => {
+  it("promotes the configured emergency email when secret matches and logs the action", async () => {
     process.env.SETUP_ADMIN_SECRET = "secret-a";
     process.env.SETUP_ADMIN_EMAIL = "admin@example.com";
     const client = makeClient([makeClerkUser("u99", "admin@example.com", false)]);
@@ -149,6 +215,13 @@ describe("setup-admin — setupEmergencyAdmin", () => {
     const result = await setupEmergencyAdmin("secret-a");
     expect(result).toEqual({ success: true, message: "Successfully promoted admin@example.com to admin" });
     expect(client.users.updateUserMetadata).toHaveBeenCalledWith("u99", { publicMetadata: { isAdmin: true } });
+    expect(mockLogAdminAction).toHaveBeenCalledWith({
+      action: "user.promote_admin",
+      targetType: "user",
+      targetId: "u99",
+      targetName: "admin@example.com",
+      metadata: { source: "setup-admin" },
+    });
   });
 
   it("rejects invalid secret before any Clerk call", async () => {

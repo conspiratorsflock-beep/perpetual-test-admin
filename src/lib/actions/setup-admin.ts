@@ -2,6 +2,7 @@
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { isCurrentUserAdmin } from "@/lib/clerk/admin-check";
+import { logAdminAction } from "@/lib/audit/logger";
 import { createHash, timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { emailString, secretString } from "@/lib/validation/common";
@@ -15,6 +16,13 @@ const promoteUserToAdminByEmailSchema = z.object({
 const setupEmergencyAdminSchema = z.object({
   secret: secretString.min(1),
 });
+
+function isAdminBootstrapAllowed(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_ADMIN_BOOTSTRAP === "true"
+  );
+}
 
 function hashSecret(s: string): Buffer {
   return createHash("sha256").update(s).digest();
@@ -54,6 +62,14 @@ async function promoteUser(email: string): Promise<{
       publicMetadata: { isAdmin: true },
     });
 
+    await logAdminAction({
+      action: "user.promote_admin",
+      targetType: "user",
+      targetId: user.id,
+      targetName: email,
+      metadata: { source: "setup-admin" },
+    });
+
     return {
       success: true,
       message: `Successfully promoted ${email} to admin`,
@@ -75,6 +91,13 @@ export async function promoteUserToAdminByEmail(email: string): Promise<{
   success: boolean;
   message: string;
 }> {
+  if (!isAdminBootstrapAllowed()) {
+    return {
+      success: false,
+      message: "Admin bootstrap is disabled in production",
+    };
+  }
+
   if (!(await isCurrentUserAdmin())) {
     return { success: false, message: "Unauthorized" };
   }
@@ -93,6 +116,13 @@ export async function setupEmergencyAdmin(secret: string): Promise<{
   success: boolean;
   message: string;
 }> {
+  if (!isAdminBootstrapAllowed()) {
+    return {
+      success: false,
+      message: "Admin bootstrap is disabled in production",
+    };
+  }
+
   if (!SETUP_SECRET) {
     return {
       success: false,

@@ -1,11 +1,10 @@
 import { auth as authReal, currentUser as currentUserReal } from "@clerk/nextjs/server";
 import type { auth as RealAuth, currentUser as RealCurrentUser } from "@clerk/nextjs/server";
+import { isDevAuthBypassEnabled } from "./bypass";
 
 type AuthReturn = Awaited<ReturnType<typeof RealAuth>>;
 type UserReturn = Awaited<ReturnType<typeof RealCurrentUser>>;
 type UserObj = NonNullable<UserReturn>;
-
-const DEV_BYPASS = process.env.DEV_AUTH_BYPASS === "true" || process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
 
 const mockAuth = {
   userId: "dev_admin",
@@ -34,14 +33,14 @@ const mockUser: UserObj = {
 } as unknown as UserObj;
 
 export async function auth(): Promise<AuthReturn> {
-  if (!DEV_BYPASS) {
+  if (!isDevAuthBypassEnabled()) {
     return authReal();
   }
   return mockAuth;
 }
 
 export async function currentUser(): Promise<UserReturn> {
-  if (!DEV_BYPASS) {
+  if (!isDevAuthBypassEnabled()) {
     return currentUserReal();
   }
   return mockUser;

@@ -2,15 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/dev-auth/server";
 import { clerkClient } from "@clerk/nextjs/server";
 
+function isAdminBootstrapAllowed(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.ALLOW_ADMIN_BOOTSTRAP === "true"
+  );
+}
+
 /**
  * API route to promote a user to admin.
  * This requires the requesting user to already be an admin.
+ *
+ * Disabled in production unless ALLOW_ADMIN_BOOTSTRAP is explicitly set,
+ * because admin accounts must be provisioned rather than self-promoted.
  */
 export async function POST(request: NextRequest) {
+  if (!isAdminBootstrapAllowed()) {
+    return NextResponse.json(
+      { error: "Admin bootstrap is disabled in production" },
+      { status: 403 }
+    );
+  }
+
   try {
     // Check if the requesting user is authenticated and is an admin
     const { userId, sessionClaims } = await auth();
-    
+
     if (!userId) {
       return NextResponse.json(
         { error: "Not authenticated" },

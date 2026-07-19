@@ -1,6 +1,6 @@
 # Security hardening — Task: make the console safe to deploy off localhost
 **Owner:** Kimi (execute on a branch → report) · **Reviewer:** Claude
-**Status:** Not started
+**Status:** Executed on `kimi/staging-deploy-hardening` — pending review
 
 This console is about to get its first hosted deployment (staging now, prod at
 cutover — see lathe-studio `docs/plans/ADMIN_APP_PRELAUNCH_PLAN.md`). Today it
@@ -113,3 +113,48 @@ and the control plane. Items 7–8 below exist because of this ruling.
   verified** — explicitly: production-build throw behavior can only be
   asserted via unit test here, name it if you couldn't exercise a real
   `next build && next start`.
+
+---
+
+## Completion Summary
+
+**Branch:** `kimi/staging-deploy-hardening`
+
+**Commits:**
+1. `7f7af25` — dev-auth: centralize bypass in helper and route all reads through it
+2. `03d7a62` — env: add zod fail-fast validation and load at startup
+3. `78e417c` — bootstrap: gate admin setup surfaces in production
+4. `4ab0421` — auth surface: close sign-up, enforce MFA, add environment chrome
+5. `5604b99` — tests: bypass, env fail-fast, and bootstrap gating coverage
+
+**What was done:**
+| Concern | Files | Notes |
+|---------|-------|-------|
+| Dev-auth bypass containment | `src/lib/dev-auth/bypass.ts`, `server.ts`, `client.tsx`, `src/lib/clerk/admin-check.ts`, auth pages | Single helper returns true only in `development` + flag; production startup throws if any bypass flag is `"true"`. |
+| Env fail-fast | `src/lib/env.ts`, `src/middleware.ts`, `src/app/layout.tsx` | Zod schema requires Clerk, Supabase, env label in production and rejects bypass flags. Loaded at middleware + root layout. |
+| Admin bootstrap gating | `src/lib/actions/setup-admin.ts`, `src/app/setup-admin/page.tsx`, `src/app/api/make-admin/route.ts` | Production requires `ALLOW_ADMIN_BOOTSTRAP=true`; otherwise 404/403 + no-op. Promotion paths now log `user.promote_admin`. |
+| Sign-up closure | `src/app/(auth)/sign-up/[[...sign-up]]/page.tsx` | Permanently redirects to `/unauthorized`; dev bypass still goes to `/dashboard`. |
+| MFA enforcement | `src/middleware.ts`, `src/app/mfa-required/page.tsx` | Production admin pages fetch `user.twoFactorEnabled` and redirect to `/mfa-required` when missing/false; API routes exempted. |
+| Environment chrome | `src/components/layout/EnvironmentBanner.tsx`, `src/app/layout.tsx`, `src/app/(auth)/layout.tsx` | Non-dismissable banner; amber for `STAGING`, red for `PRODUCTION`, slate otherwise; hidden when label unset. |
+| Tests | `src/lib/dev-auth/__tests__/bypass.test.ts`, `src/lib/__tests__/env.test.ts`, `src/lib/actions/__tests__/setup-admin.test.ts` | 31 new tests covering bypass, env, and bootstrap behavior. |
+
+**Real findings beyond the spec:**
+- `/api/check-admin` (`src/app/api/check-admin/route.ts:6`) already requires an authenticated admin session before accepting an email parameter — posture matched the plan, no change needed.
+- `/api/impersonate` (`src/app/api/impersonate/route.ts:13`) remains admin-gated and was left byte-identical as instructed.
+- `src/lib/clerk/admin-check.ts` `sessionClaims.publicMetadata` vs dev-auth mock's `metadata` mismatch noted in plan; not touched.
+
+**Quality gates:**
+- `npm run typecheck`: clean
+- `npm run test`: 677 passed / 0 failed / 45 files
+
+**Verified:**
+- Unit tests for bypass helper, env validation, and bootstrap gating.
+- Type check passes.
+- Existing suite still passes; no regressions in unrelated tests.
+
+**NOT verified:**
+- Real production-build throw behavior (`next build && next start` with bypass flags set) — asserted only via unit test, not exercised against a built artifact.
+- E2E suite (`npm run e2e`) — not run; relies on dev bypass and local server.
+- Runtime middleware MFA redirect against a real Clerk user without MFA enrolled.
+
+**Deferred / none:** none.

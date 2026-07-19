@@ -9,8 +9,9 @@ import {
   useUser as useUserReal,
   useAuth as useAuthReal,
 } from "@clerk/nextjs";
+import { isDevAuthBypassEnabled } from "./bypass";
 
-const DEV_BYPASS = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "true";
+const bypassEnabled = isDevAuthBypassEnabled();
 
 const mockUser = {
   id: "dev_admin",
@@ -27,7 +28,7 @@ const mockUser = {
 // ClerkProvider
 // ============================================
 export function ClerkProvider({ children }: { children: React.ReactNode }) {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return <ClerkProviderReal>{children}</ClerkProviderReal>;
   }
   return <>{children}</>;
@@ -37,7 +38,7 @@ export function ClerkProvider({ children }: { children: React.ReactNode }) {
 // UserButton
 // ============================================
 export function UserButton(props: Record<string, unknown>) {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return <UserButtonReal {...props} />;
   }
   return (
@@ -54,14 +55,14 @@ export function UserButton(props: Record<string, unknown>) {
 // SignedIn / SignedOut
 // ============================================
 export function SignedIn({ children }: { children: React.ReactNode }) {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return <SignedInReal>{children}</SignedInReal>;
   }
   return <>{children}</>;
 }
 
 export function SignedOut({ children }: { children: React.ReactNode }) {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return <SignedOutReal>{children}</SignedOutReal>;
   }
   return null;
@@ -70,9 +71,9 @@ export function SignedOut({ children }: { children: React.ReactNode }) {
 // ============================================
 // useUser
 // ============================================
-// DEV_BYPASS is a build-time constant, so the hook-call branch is render-stable.
+// bypassEnabled is a build-time constant, so the hook-call branch is render-stable.
 export function useUser() {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return useUserReal();
   }
   return {
@@ -85,9 +86,9 @@ export function useUser() {
 // ============================================
 // useAuth
 // ============================================
-// DEV_BYPASS is a build-time constant, so the hook-call branch is render-stable.
+// bypassEnabled is a build-time constant, so the hook-call branch is render-stable.
 export function useAuth() {
-  if (!DEV_BYPASS) {
+  if (!bypassEnabled) {
     return useAuthReal();
   }
   return {
